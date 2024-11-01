@@ -1,0 +1,32 @@
+;; Advanced Optimizations:
+
+- Function param optimization : [ ]
+  > Perform operations on ABI parameters directly instead of using the stack
+- Function locals optimization: [x]
+  > Check if a local variable is used, and if not, remove it
+- Stack memory management: [ ]
+  > Reuse stack memory slots for variables that aren't being used
+- Function optimization level : [x]
+  > Optimize the function using the given level
+  > This should be declared in the function signature
+  > Example: `@pure[stack] add(int x, int y)` to disable stack optimizations
+- \*2 == <<1 optimization: [ ]
+  > Replace \*2 with <<1
+- lea (inline expr) optimization: [ ]
+  > Replace `mov eax, rdi; add rdi, rsi` with `lea eax, [rdi+rsi]`
+
+;; FnFlags:
+
+- Pure: [ ]
+  > Disable optimizations that require the function to be pure
+  - Stack: [x]
+    > The function does not optimize stack usage
+  - ABI: [ ]
+    > The function does not optimize ABI parameters
+  - noABI: [ ]
+    > The function does not use ABI but stack parameters
+    > Useful for extern assembly functions
+  - Expr: [x]
+    > The function does not optimize expressions
+  - Logue: [x]
+    > The backend emits prologue and epilogue, no matter what

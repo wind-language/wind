@@ -1,0 +1,80 @@
+#include <wind/bridge/ast.h>
+#include <wind/bridge/ast_printer.h>
+#include <wind/generation/compiler.h>
+#include <wind/generation/optimizer.h>
+#include <wind/generation/ir_printer.h>
+#include <wind/generation/backend.h>
+#include <wind/bridge/opt_flags.h>
+#include <iostream>
+
+int main() {
+  auto body = std::make_unique<Body>(std::vector<std::unique_ptr<ASTNode>>{});
+  *body += std::make_unique<LocalDecl>(
+    "x", "int",
+    std::make_unique<Literal>(1)
+  );
+  *body += std::make_unique<LocalDecl>(
+    "y", "int",
+    std::make_unique<Literal>(3)
+  );
+
+  /* std::vector<std::unique_ptr<ASTNode>> args;
+  args.push_back(std::make_unique<VariableRef>("x"));
+  args.push_back(std::make_unique<VariableRef>("y"));
+  std::unique_ptr<FnCall> fn_call = std::make_unique<FnCall>("add", std::move(args));
+
+  *body += std::move(fn_call);
+  *body += std::make_unique<Return>(
+    std::make_unique<BinaryExpr>(
+      std::make_unique<BinaryExpr>(
+        std::make_unique<VariableRef>("x"),
+        std::make_unique<VariableRef>("y"),
+        '+'
+      ),
+      std::make_unique<BinaryExpr>(
+        std::make_unique<Literal>(1),
+        std::make_unique<Literal>(2),
+        '+'
+      ),
+      '-'
+    )
+  ); */
+  /* *body += std::make_unique<Return>(
+    std::make_unique<VariableRef>("x")
+  ); */
+  *body += std::make_unique<Return>(
+    std::make_unique<BinaryExpr>(
+      std::make_unique<BinaryExpr>(
+        std::make_unique<VariableRef>("x"),
+        std::make_unique<VariableRef>("y"),
+        "+"
+      ),
+      std::make_unique<Literal>(4),
+      "/"
+    )
+  );
+
+  auto fn = std::make_unique<Function>("main", std::unique_ptr<Body>(body.release()));
+  //fn.get()->flags |= PURE_LOGUE | PURE_STACK | PURE_EXPR;
+  auto prog = std::make_unique<Body>(std::vector<std::unique_ptr<ASTNode>>{});
+  *prog += std::unique_ptr<ASTNode>(fn.release());
+
+  std::cout << "AST:" << std::endl;
+  ASTPrinter *printer = new ASTPrinter();
+  prog->accept(*printer);
+  std::cout << "\n\n";
+
+  std::cout << "IR:" << std::endl;
+  WindCompiler *ir = new WindCompiler(prog.get());
+  WindOptimizer *opt = new WindOptimizer(ir->get());
+  IRBody *optimized = opt->get();
+  IRPrinter *ir_printer = new IRPrinter(optimized);
+  ir_printer->print();
+  WindEmitter *backend = new WindEmitter(optimized);
+  backend->emit();
+
+  delete ir;
+  delete opt;
+  delete backend;
+  return 0;
+}
