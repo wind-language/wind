@@ -36,7 +36,7 @@ const std::string& VariableRef::getName() const {
 
 // Literal
 
-Literal::Literal(int v) : value(v) {}
+Literal::Literal(long long v) : value(v) {}
 
 void *Literal::accept(ASTVisitor &visitor) const {
   return visitor.visit(*this);

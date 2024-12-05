@@ -20,6 +20,15 @@ private:
   std::string typeSignature(Token::Type until, Token::Type oruntil);
   std::string typeSignature(Token::Type while_);
   Function *parseFn();
+  Return *parseRet();
+  LocalDecl *parseVarDecl();
+
+  ASTNode *parseExprBinOp(ASTNode *left, int precedence);
+  ASTNode *parseExprFnCall();
+  ASTNode *parseExprLiteral();
+  ASTNode *parseExprPrimary();
+  ASTNode *parseExpr(int precedence);
+  ASTNode *parseExprSemi();
 
 private:
   TokenStream *stream;

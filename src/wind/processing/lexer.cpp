@@ -144,6 +144,7 @@ Token *WindLexer::LexHexadecimal() {
     this->stream.advance();
   }
   TokenPos end = this->stream.position();
+  end.second--;
   return new Token(value, Token::Type::INTEGER, "Integer", std::make_pair(start, end));
 }
 
@@ -156,14 +157,17 @@ Token *WindLexer::LexIdentifier() {
     this->stream.advance();
   }
   TokenPos end = this->stream.position();
+  end.second--;
   return new Token(value, Token::Type::IDENTIFIER, "Identifier", std::make_pair(start, end));
 }
 
 Token *WindLexer::LexSymbol(const SymbolMatch& symbol) {
-  std::string value;
+  std::string value = symbol->first;
   TokenPos start = this->stream.position();
+  start.second--;
   this->stream.advance(symbol->first.size());
   TokenPos end = this->stream.position();
+  end.second--;
   return new Token(value, symbol->second, symbol->first, std::make_pair(start, end));
 }
 

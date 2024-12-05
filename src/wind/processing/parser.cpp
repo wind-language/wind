@@ -1,3 +1,4 @@
+#include <memory>
 #include <wind/processing/lexer.h>
 #include <wind/processing/parser.h>
 #include <wind/bridge/ast.h>
@@ -37,11 +38,13 @@ std::string WindParser::typeSignature(Token::Type while_) {
 Function *WindParser::parseFn() {
   this->expect(Token::Type::IDENTIFIER, "func");
   std::string name = this->expect(Token::Type::IDENTIFIER, "function name")->value;
+  Body *fn_body = new Body({});
   this->expect(Token::Type::LPAREN, "(");
   while (!this->until(Token::Type::RPAREN)) {
-    Token *arg = this->expect(Token::Type::IDENTIFIER, "argument name");
+    std::string arg_name = this->expect(Token::Type::IDENTIFIER, "argument name")->value;
     this->expect(Token::Type::COLON, ":");
-    std::string type = this->typeSignature(Token::Type::COMMA, Token::Type::RPAREN);
+    std::string arg_type = this->typeSignature(Token::Type::COMMA, Token::Type::RPAREN);
+    *fn_body += std::unique_ptr<ASTNode>(new LocalDecl(arg_name, arg_type, nullptr));
     if (this->until(Token::Type::COMMA)) {
       this->expect(Token::Type::COMMA, ",");
     }
@@ -49,7 +52,6 @@ Function *WindParser::parseFn() {
   this->expect(Token::Type::RPAREN, ")");
   this->expect(Token::Type::COLON, ":");
   std::string ret_type = this->typeSignature(Token::Type::IDENTIFIER);
-  Body *fn_body = new Body({});
   if (this->stream->current()->type == Token::Type::LBRACE) {
     this->expect(Token::Type::LBRACE, "{");
     while (!this->until(Token::Type::RBRACE)) {
@@ -63,12 +65,174 @@ Function *WindParser::parseFn() {
     this->expect(Token::Type::SEMICOLON, ";");
   }
   Function *fn = new Function(name, ret_type, std::unique_ptr<Body>(fn_body));
-  return nullptr;
+  return fn;
+}
+
+static Token::Type TOK_OP_LIST[]={
+    Token::Type::PLUS
+};
+
+bool tokIsOperator(Token *tok) {
+    for (unsigned i=0;i<sizeof(TOK_OP_LIST)/sizeof(Token::Type);i++) {
+        if (tok->type==TOK_OP_LIST[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+long long fmtinttostr(std::string &str) {
+  if (str.size()>2 && str[0]=='0' && str[1]=='x') {
+    return std::stoll(str.substr(2), nullptr, 16);
+  }
+  return std::stoll(str);
+}
+
+ASTNode *WindParser::parseExprLiteral() {
+  switch (this->stream->current()->type) {
+    case Token::INTEGER:
+      return new Literal(
+        fmtinttostr(this->stream->pop()->value)
+      );
+    default:
+      return nullptr;
+  }
+}
+
+ASTNode *WindParser::parseExprFnCall() {
+  std::string name = this->expect(Token::Type::IDENTIFIER, "function name")->value;
+  this->expect(Token::Type::LPAREN, "(");
+  std::vector<std::unique_ptr<ASTNode>> args;
+  while (!this->until(Token::Type::RPAREN)) {
+    ASTNode *arg = this->parseExpr(0);
+    args.push_back(std::unique_ptr<ASTNode>(arg));
+    if (this->until(Token::Type::COMMA)) {
+      this->expect(Token::Type::COMMA, ",");
+    }
+  }
+  this->expect(Token::Type::RPAREN, ")");
+  return new FnCall(
+    name, std::move(args)
+  );
+}
+
+ASTNode *WindParser::parseExprPrimary() {
+  switch (this->stream->current()->type) {
+    // case Token::STRING
+    case Token::INTEGER:
+      return this->parseExprLiteral();
+
+    case Token::IDENTIFIER: {
+      if (this->stream->peek()->type == Token::LPAREN) {
+        return this->parseExprFnCall();
+      } else {
+        return new VariableRef(
+          this->stream->pop()->value
+        );
+      }
+    }
+
+    default:
+      Token *token = this->stream->pop();
+      this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
+      token->value, token->type, "Nothing (Unexpected token in expression)", token->range
+    ), token);
+      return nullptr;
+  }
+}
+
+ASTNode *WindParser::parseExpr(int precedence) {
+  ASTNode *left = this->parseExprPrimary();
+  if (!left) {
+    return nullptr;
+  }
+  return this->parseExprBinOp(left, precedence);
+}
+
+ASTNode *WindParser::parseExprSemi() {
+  ASTNode *root = this->parseExpr(0);
+  if (!root) {
+    return nullptr;
+  }
+  this->expect(Token::Type::SEMICOLON, ";");
+  return root;
+}
+
+int getOpPrecedence(Token *tok) {
+  switch (tok->type) {
+    case Token::Type::PLUS:
+    case Token::Type::MINUS:
+      return 1;
+    case Token::Type::MULTIPLY:
+    case Token::Type::DIVIDE:
+      return 2;
+    // TODO: More
+    default:
+      return 0;
+  }
+}
+
+ASTNode *WindParser::parseExprBinOp(ASTNode *left, int precedence) {
+  while (this->stream->current() && tokIsOperator(this->stream->current())) {
+    Token *op = this->stream->pop();
+    int new_precedence = getOpPrecedence(op);
+
+    if (new_precedence < precedence) {
+      break;
+    }
+
+    ASTNode *right = this->parseExprPrimary();
+
+    if (this->stream->current() && tokIsOperator(this->stream->current())) {
+      int next_precedence = getOpPrecedence(this->stream->current());
+      if (new_precedence < next_precedence) {
+        right = this->parseExprBinOp(right, new_precedence+1);
+      }
+    }
+
+    left = new BinaryExpr(
+      std::unique_ptr<ASTNode>(left),
+      std::unique_ptr<ASTNode>(right),
+      op->value
+    );
+  }
+  return left;
+}
+
+Return *WindParser::parseRet() {
+  this->expect(Token::Type::IDENTIFIER, "return");
+  ASTNode *ret_expr=nullptr;
+  if (stream->current()->type != Token::Type::SEMICOLON) {
+    ret_expr = this->parseExprSemi();
+  }
+  return new Return(std::unique_ptr<ASTNode>(ret_expr));
+}
+
+LocalDecl *WindParser::parseVarDecl() {
+  this->expect(Token::Type::IDENTIFIER, "var");
+  std::string name = this->expect(Token::Type::IDENTIFIER, "variable name")->value;
+  this->expect(Token::Type::COLON, ":");
+  std::string type = this->typeSignature(Token::Type::IDENTIFIER);
+  if (this->stream->current()->type == Token::Type::ASSIGN) {
+    this->expect(Token::Type::ASSIGN, "=");
+    ASTNode *expr = this->parseExprSemi();
+    return new LocalDecl(name, type, std::unique_ptr<ASTNode>(expr));
+  }
+  else {
+    this->expect(Token::Type::SEMICOLON, ";");
+    return new LocalDecl(name, type, nullptr);
+  }
 }
 
 ASTNode *WindParser::Discriminate() {
   if (this->isKeyword(stream->current(), "func")) {
     return this->parseFn();
+  }
+  else if (this->isKeyword(stream->current(), "return")) {
+    return this->parseRet();
+  }
+  else if (this->isKeyword(stream->current(), "var")) {
+    return this->parseVarDecl();
   }
   else {
     Token *token = stream->current();

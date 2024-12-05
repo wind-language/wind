@@ -43,10 +43,10 @@ public:
 };
 
 class Literal : public ASTNode {
-  int value;
+  long long value;
 
 public:
-  explicit Literal(int v);
+  explicit Literal(long long v);
 
   void *accept(ASTVisitor &visitor) const override;
 
@@ -121,9 +121,9 @@ public:
 
 class FnCall : public ASTNode {
   std::string name;
-  std::vector<std::unique_ptr<ASTNode>> args;
 
 public:
+  std::vector<std::unique_ptr<ASTNode>> args;
   FnCall(std::string n, std::vector<std::unique_ptr<ASTNode>> a);
 
   void *accept(ASTVisitor &visitor) const override;

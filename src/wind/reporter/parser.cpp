@@ -12,7 +12,7 @@ std::string ParserReport::line(uint16_t t_line) {
         i++;
         if (i == t_line) {
             ssize_t pos = 0;
-            while ((pos = line.find('\t', pos)) != std::string::npos) {
+            while ((pos = line.find('\t', pos)) != (ssize_t)std::string::npos) {
                 line.replace(pos, 1, " ");
                 pos += 2;
             }
