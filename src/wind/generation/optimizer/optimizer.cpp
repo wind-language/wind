@@ -1,10 +1,10 @@
 #include <wind/generation/IR.h>
 #include <wind/generation/optimizer.h>
 #include <wind/bridge/opt_flags.h>
-#include <iostream>
 #include <unordered_set>
 #include <cstring>
 #include <cassert>
+#include <iostream>
 
 const std::unordered_set<IRBinOp::Operation> UselessZeroTable = {
   IRBinOp::Operation::ADD,
@@ -85,7 +85,7 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
   }
   IRNode *opt_left = this->OptimizeExpr(left);
   IRNode *opt_right = this->OptimizeExpr(right);
-
+  
   if (opt_left->is<IRLiteral>() && opt_right->is<IRLiteral>()) {
     return this->OptimizeConstFold(node);
   }

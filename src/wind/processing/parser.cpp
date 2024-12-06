@@ -1,8 +1,10 @@
+#include <map>
 #include <memory>
 #include <wind/processing/lexer.h>
 #include <wind/processing/parser.h>
 #include <wind/bridge/ast.h>
 #include <wind/reporter/parser.h>
+#include <wind/bridge/opt_flags.h>
 #include <iostream>
 
 WindParser::WindParser(TokenStream *stream, std::string src) : stream(stream), ast(new Body({})), reporter(new ParserReport(src)) {}
@@ -65,11 +67,16 @@ Function *WindParser::parseFn() {
     this->expect(Token::Type::SEMICOLON, ";");
   }
   Function *fn = new Function(name, ret_type, std::unique_ptr<Body>(fn_body));
+  fn->flags = this->flag_holder;
+  this->flag_holder = 0;
   return fn;
 }
 
 static Token::Type TOK_OP_LIST[]={
-    Token::Type::PLUS
+    Token::Type::PLUS,
+    Token::Type::MINUS,
+    Token::Type::MULTIPLY,
+    Token::Type::COLON
 };
 
 bool tokIsOperator(Token *tok) {
@@ -224,6 +231,48 @@ LocalDecl *WindParser::parseVarDecl() {
   }
 }
 
+static std::map<std::string, FnFlags> FLAGS_MAP = {
+  {"stack", PURE_STACK},
+  {"abi", PURE_ABI},
+  {"noabi", PURE_NOABI},
+  {"expr", PURE_EXPR},
+  {"logue", PURE_LOGUE}
+};
+
+FnFlags macroIntoFlag(std::string name) {
+  if (FLAGS_MAP.find(name) != FLAGS_MAP.end()) {
+    return FLAGS_MAP[name];
+  }
+  return 0;
+}
+
+void WindParser::parseMacro() {
+  this->expect(Token::Type::AT, "@");
+  std::string name = this->expect(Token::Type::IDENTIFIER, "macro name")->value;
+
+  if (name == "pure") {
+    this->expect(Token::Type::LBRACKET, "[");
+    while (!this->until(Token::Type::RBRACKET)) {
+      Token *flag = this->expect(Token::Type::IDENTIFIER, "flag");
+      FnFlags flagged= macroIntoFlag(flag->value);
+      if (flagged) {
+        this->flag_holder |= flagged;
+      } else {
+        this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
+          flag->value, flag->type, "Nothing (Unexpected flag)", flag->range
+        ), flag);
+      }
+    }
+    this->expect(Token::Type::RBRACKET, "]");
+  }
+  else {
+    Token *token = stream->pop();
+    this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
+      token->value, token->type, "Nothing (Unexpected macro)", token->range
+    ), token);
+  }
+}
+
 ASTNode *WindParser::Discriminate() {
   if (this->isKeyword(stream->current(), "func")) {
     return this->parseFn();
@@ -234,13 +283,16 @@ ASTNode *WindParser::Discriminate() {
   else if (this->isKeyword(stream->current(), "var")) {
     return this->parseVarDecl();
   }
+  else if (this->stream->current()->type == Token::Type::AT) {
+    this->parseMacro();
+  }
   else {
     Token *token = stream->current();
     this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
       token->value, token->type, "Nothing (Unexpected combination)", token->range
     ), token);
-    return nullptr;
   }
+  return nullptr;
 }
 
 Body *WindParser::parse() {

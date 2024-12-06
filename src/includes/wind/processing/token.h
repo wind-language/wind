@@ -24,7 +24,10 @@ public:
     LBRACE,
     RBRACE,
     COMMA,
-    SEMICOLON
+    SEMICOLON,
+    LBRACKET,
+    RBRACKET,
+    AT
   };
   
   std::string value;
@@ -53,7 +56,10 @@ std::unordered_map<std::string, Token::Type> const SymbolTable = {
   {"{", Token::Type::LBRACE},
   {"}", Token::Type::RBRACE},
   {",", Token::Type::COMMA},
-  {";", Token::Type::SEMICOLON}
+  {";", Token::Type::SEMICOLON},
+  {"[", Token::Type::LBRACKET},
+  {"]", Token::Type::RBRACKET},
+  {"@", Token::Type::AT}
 };
 
 #endif
