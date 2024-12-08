@@ -25,6 +25,7 @@ private:
   void *visit(const Return &node) override;
   void *visit(const Body &node) override;
   void *visit(const Function &node) override;
+  void *visit(const ArgDecl &node) override;
   void *visit(const LocalDecl &node) override;
   void *visit(const FnCall &node) override;
 };

@@ -5,9 +5,9 @@
 #include <wind/bridge/ast.h>
 #include <wind/reporter/parser.h>
 #include <wind/bridge/opt_flags.h>
-#include <iostream>
+#include <wind/common/debug.h>
 
-WindParser::WindParser(TokenStream *stream, std::string src) : stream(stream), ast(new Body({})), reporter(new ParserReport(src)) {}
+WindParser::WindParser(TokenStream *stream, std::string src) : stream(stream), ast(new Body({})), reporter(new ParserReport(src)), flag_holder(0) {}
 
 bool WindParser::isKeyword(Token *src, std::string value) {
   if (src->type == Token::Type::IDENTIFIER && src->value == value) return true;
@@ -41,12 +41,14 @@ Function *WindParser::parseFn() {
   this->expect(Token::Type::IDENTIFIER, "func");
   std::string name = this->expect(Token::Type::IDENTIFIER, "function name")->value;
   Body *fn_body = new Body({});
+  std::vector<std::string> arg_types;
   this->expect(Token::Type::LPAREN, "(");
   while (!this->until(Token::Type::RPAREN)) {
     std::string arg_name = this->expect(Token::Type::IDENTIFIER, "argument name")->value;
     this->expect(Token::Type::COLON, ":");
     std::string arg_type = this->typeSignature(Token::Type::COMMA, Token::Type::RPAREN);
-    *fn_body += std::unique_ptr<ASTNode>(new LocalDecl(arg_name, arg_type, nullptr));
+    arg_types.push_back(arg_type);
+    *fn_body += std::unique_ptr<ASTNode>(new ArgDecl(arg_name, arg_type));
     if (this->until(Token::Type::COMMA)) {
       this->expect(Token::Type::COMMA, ",");
     }
@@ -67,6 +69,7 @@ Function *WindParser::parseFn() {
     this->expect(Token::Type::SEMICOLON, ";");
   }
   Function *fn = new Function(name, ret_type, std::unique_ptr<Body>(fn_body));
+  fn->copyArgTypes(arg_types);
   fn->flags = this->flag_holder;
   this->flag_holder = 0;
   return fn;

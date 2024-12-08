@@ -89,6 +89,7 @@ class Function : public ASTNode {
   std::string fn_name;
   std::string return_type;
   std::unique_ptr<Body> body;
+  std::vector<std::string> arg_types;
 
 public:
   Function(std::string name, std::string type, std::unique_ptr<Body> b);
@@ -99,6 +100,8 @@ public:
   const std::string& getName() const;
   const Body* getBody() const;
   const std::string& getType() const;
+  void copyArgTypes(std::vector<std::string> &types);
+  std::vector<std::string> getArgTypes() const;
 
   FnFlags flags;
 };
@@ -117,6 +120,20 @@ public:
   const std::string& getName() const;
   const std::string& getType() const;
   ASTNode *getValue() const;
+};
+
+class ArgDecl : public ASTNode {
+  std::string name;
+  std::string type; // Will resolve on IR generation
+
+public:
+  ArgDecl(std::string n, std::string t);
+
+  void *accept(ASTVisitor &visitor) const override;
+
+  // Getters
+  const std::string& getName() const;
+  const std::string& getType() const;
 };
 
 class FnCall : public ASTNode {
@@ -142,6 +159,7 @@ public:
   virtual void *visit(const Return &node) = 0;
   virtual void *visit(const Body &node) = 0;
   virtual void *visit(const Function &node) = 0;
+  virtual void *visit(const ArgDecl &node) = 0;
   virtual void *visit(const LocalDecl &node) = 0;
   virtual void *visit(const FnCall &node) = 0;
 };

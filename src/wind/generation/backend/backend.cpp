@@ -4,6 +4,16 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <math.h>
+
+const asmjit::x86::Gp SystemVABI[] = {
+  asmjit::x86::rdi,
+  asmjit::x86::rsi,
+  asmjit::x86::rdx,
+  asmjit::x86::rcx,
+  asmjit::x86::r8,
+  asmjit::x86::r9
+};
 
 void WindEmitter::InitializeSections() {
   this->text = this->code_holder.textSection();
@@ -37,7 +47,10 @@ WindEmitter::WindEmitter(IRBody *program) : program(program) {
   this->assembler->section(this->text);
 }
 
-WindEmitter::~WindEmitter() {
+WindEmitter::~WindEmitter() {}
+
+int nextpow2(int n) {
+  return pow(2, ceil(log2(n)));
 }
 
 void WindEmitter::emitPrologue() {
@@ -47,6 +60,10 @@ void WindEmitter::emitPrologue() {
   ) {
     this->assembler->push(asmjit::x86::rbp);
     this->assembler->mov(asmjit::x86::rbp, asmjit::x86::rsp);
+    if (current_function->isStack()) {
+      int stack_size = nextpow2(current_function->stack_size);
+      this->assembler->sub(asmjit::x86::rsp, stack_size);
+    }
   }
 }
 
@@ -55,14 +72,14 @@ void WindEmitter::emitEpilogue() {
     (current_function->isStack() && current_function->used_offsets.size() > 0) 
     || current_function->flags & PURE_LOGUE
   ) {
-    this->assembler->pop(asmjit::x86::rbp);
+    this->assembler->leave();
   }
   this->assembler->ret();
 }
 
 void WindEmitter::emitFunction(IRFunction *fn) {
   current_function = fn;
-  //this->assembler->section(this->text);
+  this->cconv_index = 0;
   this->assembler->bind(this->assembler->newNamedLabel(fn->name().c_str()));
   this->emitPrologue();
   for (auto &statement : fn->body()->get()) {
@@ -268,23 +285,42 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
 
 asmjit::x86::Gp WindEmitter::emitLiteral(IRLiteral *lit, asmjit::x86::Gp dest) {
   long long value = lit->get();
-  if (value <= INT8_MAX) {
-    this->assembler->mov(dest.r8(), value);
-    return dest.r8();
-  }
-  else if (value <= INT16_MAX) {
-    this->assembler->mov(dest.r16(), value);
-    return dest.r16();
-  }
-  else if (value <= INT32_MAX) {
-    this->assembler->mov(dest.r32(), value);
-    return dest.r32();
-  }
-  else if (value <= INT64_MAX) {
-    this->assembler->mov(dest.r64(), value);
-    return dest.r64();
-  }
+  this->assembler->mov(dest, value);
   return dest;
+}
+
+IRFunction *WindEmitter::FindFunction(std::string name) {
+  for (auto &statement : this->program->get()) {
+    if (statement->type() == IRNode::NodeType::FUNCTION) {
+      IRFunction *fn = statement->as<IRFunction>();
+      if (fn->name() == name) {
+        return fn;
+      }
+    }
+  }
+  return nullptr;
+}
+
+void WindEmitter::SolveCArg(IRNode *arg, int type) {
+  if (this->cconv_index < 6) {
+    this->emitExpr(arg, this->adaptReg(SystemVABI[this->cconv_index], type));
+  } else {
+    asmjit::x86::Gp reg = this->emitExpr(arg, this->adaptReg(asmjit::x86::rax, type));
+    this->assembler->push(reg);
+  }
+  this->cconv_index++;
+}
+
+void WindEmitter::emitFunctionCall(IRFnCall *fn_call) {
+  this->cconv_index = 0;
+  IRFunction *fn = this->FindFunction(fn_call->name());
+  if (!fn) {
+    throw std::runtime_error("Function not found");
+  }
+  for (size_t i = 0; i < fn_call->args().size(); i++) {
+    this->SolveCArg(fn_call->args()[i].get(), fn->GetArgSize(i));
+  }
+  this->assembler->call(this->assembler->labelByName(fn->name().c_str()));
 }
 
 asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
@@ -301,10 +337,8 @@ asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
     }
 
     case IRNode::NodeType::FUNCTION_CALL : {
-      //IRFnCall *fn_call = node->as<IRFnCall>();
-      // TODO: Implement function calls
-      //       I will need to resolve the function size and the arguments
-      //       and then call the function
+      IRFnCall *fn_call = node->as<IRFnCall>();
+      this->emitFunctionCall(fn_call);
       break;
     }
 
@@ -320,6 +354,25 @@ asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
 
   }
   return dest;
+}
+
+void WindEmitter::SolveArg(IRArgDecl *decl) {
+  IRLocalRef *local = decl->local();
+  if (this->cconv_index < 6) {
+    this->assembler->mov(
+      asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()),
+      this->adaptReg(SystemVABI[this->cconv_index], local->size())
+    );
+  } else {
+    asmjit::x86::Gp rax = this->adaptReg(asmjit::x86::rax, local->size());
+    this->assembler->mov(
+      rax, asmjit::x86::ptr(asmjit::x86::rbp, (this->cconv_index-6)*8, local->size())
+    );
+    this->assembler->mov(
+      asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()), rax
+    );
+  }
+  this->cconv_index++;
 }
 
 void WindEmitter::emitNode(IRNode *node) {
@@ -338,6 +391,11 @@ void WindEmitter::emitNode(IRNode *node) {
       if (local_decl->value()) {
         this->moveIntoVar(local_decl->local(), local_decl->value());
       }
+      break;
+    }
+    case IRNode::NodeType::ARG_DECL : {
+      IRArgDecl *arg_decl = node->as<IRArgDecl>();
+      this->SolveArg(arg_decl);
       break;
     }
     default: {

@@ -19,6 +19,7 @@ public:
     BIN_OP,
     LITERAL,
     LOCAL_DECL,
+    ARG_DECL,
     FUNCTION_CALL,
     REGISTER
   };
@@ -81,9 +82,10 @@ public:
   std::vector<std::unique_ptr<IRLocalRef>> fn_locals;
   std::unique_ptr<IRBody> fn_body;
   std::unordered_map<std::string, IRLocalRef*> local_table;
-  uint16_t stack_size = 0;
+  uint16_t stack_size = 4;
   std::vector<uint16_t> used_offsets;
   FnFlags flags = 0;
+  std::vector<int> arg_sizes;
 
 public:
   explicit IRFunction(std::string name, std::vector<std::unique_ptr<IRLocalRef>> locals, std::unique_ptr<IRBody> body);
@@ -95,6 +97,8 @@ public:
   bool isUsed(IRLocalRef *local);
   void occupyOffset(uint16_t offset);
   IRFunction *clone();
+  void copyArgSizes(std::vector<int> &types);
+  int GetArgSize(int index);
 
   IRLocalRef *NewLocal(std::string name, uint16_t size);
   IRLocalRef* GetLocal(std::string name);
@@ -147,6 +151,15 @@ public:
   IRLocalRef *local() const;
   IRNode *value() const;
   NodeType type() const override { return NodeType::LOCAL_DECL; }
+};
+
+class IRArgDecl : public IRNode {
+  IRLocalRef *local_ref;
+
+public:
+  IRArgDecl(IRLocalRef* local_ref);
+  IRLocalRef *local() const;
+  NodeType type() const override { return NodeType::ARG_DECL; }
 };
 
 class IRFnCall : public IRNode {

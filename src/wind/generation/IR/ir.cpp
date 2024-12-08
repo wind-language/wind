@@ -50,7 +50,7 @@ void IRFunction::SetBody(std::unique_ptr<IRBody> body) {
 }
 
 bool IRFunction::isStack() {
-  return stack_size > 0;
+  return stack_size-4 > 0;
 }
 
 void IRFunction::occupyOffset(uint16_t offset) {
@@ -61,6 +61,14 @@ bool IRFunction::isUsed(IRLocalRef *local) {
   return std::find(used_offsets.begin(), used_offsets.end(), local->offset()) != used_offsets.end();
 }
 
+void IRFunction::copyArgSizes(std::vector<int> &types) {
+  arg_sizes = types;
+}
+
+int IRFunction::GetArgSize(int index) {
+  return arg_sizes[index];
+}
+
 IRFunction *IRFunction::clone() {
   IRFunction *new_fn = new IRFunction(fn_name, {}, std::unique_ptr<IRBody>(new IRBody({})));
   new_fn->stack_size = stack_size;
@@ -68,6 +76,7 @@ IRFunction *IRFunction::clone() {
   new_fn->local_table = std::move(local_table);
   new_fn->used_offsets = std::move(used_offsets);
   new_fn->flags = flags;
+  new_fn->arg_sizes = arg_sizes;
   return new_fn;
 }
 
@@ -126,6 +135,11 @@ IRLocalRef* IRLocalDecl::local() const {
 }
 IRNode* IRLocalDecl::value() const {
   return this->v_value;
+}
+
+IRArgDecl::IRArgDecl(IRLocalRef* local_ref) : local_ref(local_ref) {}
+IRLocalRef* IRArgDecl::local() const {
+  return local_ref;
 }
 
 IRFnCall::IRFnCall(std::string name, std::vector<std::unique_ptr<IRNode>> args) : fn_name(name), fn_args(std::move(args)) {}

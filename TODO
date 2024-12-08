@@ -1,5 +1,6 @@
 ;; Advanced Optimizations:
 
+- Reserve stack in pow2 sizes: [ ]
 - Function param optimization : [ ]
   > Perform operations on ABI parameters directly instead of using the stack
 - Function locals optimization: [x]

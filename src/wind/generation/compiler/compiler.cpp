@@ -1,7 +1,8 @@
 #include <wind/generation/IR.h>
 #include <wind/bridge/ast.h>
 #include <wind/generation/compiler.h>
-#include <iostream>
+#include <wind/common/debug.h>
+
 #include <assert.h>
 
 WindCompiler::WindCompiler(Body *program) : program(program), emission(new IRBody({})) {
@@ -54,6 +55,11 @@ void* WindCompiler::visit(const Body &node) {
 
 void* WindCompiler::visit(const Function &node) {
   IRFunction *fn = new IRFunction(node.getName(), {}, std::unique_ptr<IRBody>(new IRBody({})));
+  std::vector<int> arg_types;
+  for (std::string type : node.getArgTypes()) {
+    arg_types.push_back(this->ResolveType(type));
+  }
+  fn->copyArgSizes(arg_types);
   this->current_fn = fn;
   fn->flags = node.flags;
   IRBody *body = (IRBody*)node.getBody()->accept(*this);
@@ -85,6 +91,12 @@ void *WindCompiler::visit(const LocalDecl &node) {
     this->current_fn->NewLocal(node.getName(), this->ResolveType(node.getType())),
     nullptr
   );
+}
+
+void *WindCompiler::visit(const ArgDecl &node) {
+  assert(this->current_fn != nullptr);
+  IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveType(node.getType()));
+  return new IRArgDecl(local);
 }
 
 void* WindCompiler::visit(const FnCall &node) {

@@ -9,7 +9,6 @@ public:
   WindParser(TokenStream *stream, std::string src);
   ASTNode *Discriminate();
   Body *parse();
-  int flag_holder=0;
 
 private:
   Token *expect(Token::Type type, std::string str_repr);
@@ -37,6 +36,7 @@ private:
   TokenStream *stream;
   Body *ast;
   ParserReport *reporter;
+  int flag_holder=0;
 };
 
 #endif

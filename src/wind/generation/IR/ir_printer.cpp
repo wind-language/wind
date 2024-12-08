@@ -67,6 +67,12 @@ void IRPrinter::print_node(const IRNode *node) {
       );
       break;
     }
+    case IRNode::NodeType::ARG_DECL : {
+      this->print_argdecl(
+        node->as<IRArgDecl>()
+      );
+      break;
+    }
     case IRNode::NodeType::FUNCTION_CALL : {
       this->print_fncall(
         node->as<IRFnCall>()
@@ -145,6 +151,10 @@ void IRPrinter::print_ldecl(const IRLocalDecl *node) {
     this->print_node(node->value());
     std::cout << " -> loc" << node->local()->offset() << std::endl;
   }
+}
+
+void IRPrinter::print_argdecl(const IRArgDecl *node) {
+  std::cout << "alloc [" << node->local()->size() << "] loc" << node->local()->offset() << std::endl;
 }
 
 void IRPrinter::print_fncall(const IRFnCall *node) {

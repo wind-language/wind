@@ -100,6 +100,14 @@ const std::string& Function::getType() const {
   return return_type;
 }
 
+void Function::copyArgTypes(std::vector<std::string>& types) {
+  arg_types = types;
+}
+
+std::vector<std::string> Function::getArgTypes() const {
+  return arg_types;
+}
+
 LocalDecl::LocalDecl(std::string name, std::string type, std::unique_ptr<ASTNode> value) : name(name), type(type), value(std::move(value)) {}
 
 void *LocalDecl::accept(ASTVisitor &visitor) const {
@@ -116,6 +124,20 @@ const std::string& LocalDecl::getType() const {
 
 ASTNode *LocalDecl::getValue() const {
   return value.get();
+}
+
+ArgDecl::ArgDecl(std::string name, std::string type) : name(name), type(type) {}
+
+void *ArgDecl::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+
+const std::string& ArgDecl::getName() const {
+  return name;
+}
+
+const std::string& ArgDecl::getType() const {
+  return type;
 }
 
 FnCall::FnCall(std::string n, std::vector<std::unique_ptr<ASTNode>> a) : name(n), args(std::move(a)) {}

@@ -1,6 +1,8 @@
 #include <wind/generation/IR.h>
 #include <wind/generation/optimizer.h>
 #include <wind/bridge/opt_flags.h>
+#include <wind/common/debug.h>
+
 #include <unordered_set>
 #include <cstring>
 #include <cassert>
@@ -173,6 +175,7 @@ IRNode *WindOptimizer::OptimizeLDecl(IRLocalDecl *local_decl) {
   }
   assert (this->current_fn != nullptr);
   if (!this->current_fn->isUsed(local_decl->local())) {
+    this->current_fn->stack_size -= local_decl->local()->size();
     return nullptr;
   }
   IRNode *opt_value = nullptr;

@@ -62,6 +62,12 @@ void *ASTPrinter::visit(const LocalDecl &node) {
   return nullptr;
 }
 
+void *ASTPrinter::visit(const ArgDecl &node) {
+  this->print_tabs();
+  std::cout << "arg [" << node.getType() << "] " << node.getName();
+  return nullptr;
+}
+
 void *ASTPrinter::visit(const FnCall &node) {
   if (!this->in_expr) {
     this->print_tabs();
