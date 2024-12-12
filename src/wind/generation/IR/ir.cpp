@@ -50,7 +50,7 @@ void IRFunction::SetBody(std::unique_ptr<IRBody> body) {
 }
 
 bool IRFunction::isStack() {
-  return stack_size-4 > 0;
+  return stack_size > 0;
 }
 
 void IRFunction::occupyOffset(uint16_t offset) {
@@ -77,11 +77,12 @@ IRFunction *IRFunction::clone() {
   new_fn->used_offsets = std::move(used_offsets);
   new_fn->flags = flags;
   new_fn->arg_sizes = arg_sizes;
+  new_fn->call_sub = call_sub;
   return new_fn;
 }
 
 IRLocalRef *IRFunction::NewLocal(std::string name, uint16_t size) {
-  uint16_t offset = stack_size;
+  uint16_t offset = stack_size+0x10; // left for canary
   stack_size += size;
   local_table.insert({name, new IRLocalRef(offset, size)});
   this->fn_locals.push_back(std::make_unique<IRLocalRef>(offset, size));

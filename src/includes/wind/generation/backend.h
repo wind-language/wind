@@ -1,29 +1,44 @@
 #include <wind/generation/IR.h>
 #include <asmjit/asmjit.h>
+#include <map>
 
 #ifndef BACKEND_H
 #define BACKEND_H
+
+struct StringTable {
+  std::map<std::string, std::string> *table;
+};
 
 class WindEmitter {
 public:
   WindEmitter(IRBody *program);
   virtual ~WindEmitter();
-  void emit();
+  std::string emit();
 
 private:
   IRBody *program;
   IRFunction *current_function;
   int cconv_index = 0; // reset on each function call/decl
+  int rostring_i=0;
 
   // Asmjit
   asmjit::x86::Assembler *assembler;
   asmjit::CodeHolder code_holder;
-  asmjit::FileLogger *logger;
+  asmjit::StringLogger *logger;
   asmjit::Section *text;
   asmjit::Section *data;
   asmjit::Section *bss;
   asmjit::Section *rodata;
 
+  // Security
+  void secHeader();
+  void canaryPrologue();
+  void canaryEpilogue();
+
+  // Strings
+  StringTable string_table;
+
+  std::string newRoString(std::string str);
   void InitializeSections();
   void emitNode(IRNode *node);
   IRFunction *FindFunction(std::string name);

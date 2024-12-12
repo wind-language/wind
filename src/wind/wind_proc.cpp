@@ -26,12 +26,14 @@ int main() {
   IRPrinter *ir_printer = new IRPrinter(optimized);
   ir_printer->print();
   WindEmitter *backend = new WindEmitter(optimized);
-  backend->emit();
+  std::string file_path = backend->emit();
 
   delete ir;
   delete opt;
   delete backend;
 
+
+  std::cerr << file_path << std::endl;
   
   return 0;
 }

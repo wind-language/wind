@@ -82,10 +82,11 @@ public:
   std::vector<std::unique_ptr<IRLocalRef>> fn_locals;
   std::unique_ptr<IRBody> fn_body;
   std::unordered_map<std::string, IRLocalRef*> local_table;
-  uint16_t stack_size = 4;
+  uint16_t stack_size = 0;
   std::vector<uint16_t> used_offsets;
   FnFlags flags = 0;
   std::vector<int> arg_sizes;
+  bool call_sub = false;
 
 public:
   explicit IRFunction(std::string name, std::vector<std::unique_ptr<IRLocalRef>> locals, std::unique_ptr<IRBody> body);
@@ -99,6 +100,7 @@ public:
   IRFunction *clone();
   void copyArgSizes(std::vector<int> &types);
   int GetArgSize(int index);
+  bool isCallSub() const { return call_sub; }
 
   IRLocalRef *NewLocal(std::string name, uint16_t size);
   IRLocalRef* GetLocal(std::string name);

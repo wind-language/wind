@@ -100,6 +100,7 @@ void *WindCompiler::visit(const ArgDecl &node) {
 }
 
 void* WindCompiler::visit(const FnCall &node) {
+  this->current_fn->call_sub = true;
   IRFnCall *call = new IRFnCall(node.getName(), {});
   for (const auto &arg : node.getArgs()) {
     call->push_arg(std::unique_ptr<IRNode>((IRNode*)arg->accept(*this)));

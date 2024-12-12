@@ -4,4 +4,5 @@ lib/
 .vscode/
 benchmarks/
 output.*
+raw_std/*.o
 windte

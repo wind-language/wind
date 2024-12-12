@@ -1,10 +1,16 @@
 #include <wind/generation/IR.h>
 #include <wind/generation/backend.h>
+#include <wind/common/debug.h>
+#include <wind/generation/gas.h>
 #include <asmjit/asmjit.h>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <math.h>
+#include <filesystem>
+#include <random>
+#include <map>
+#include <regex>
 
 const asmjit::x86::Gp SystemVABI[] = {
   asmjit::x86::rdi,
@@ -41,10 +47,13 @@ WindEmitter::WindEmitter(IRBody *program) : program(program) {
   this->code_holder.init(asmjit::Environment::host());
   this->InitializeSections();
   this->assembler = new asmjit::x86::Assembler(&this->code_holder);
-  FILE *logFile = fopen("output.asm", "w");
-  this->logger = new asmjit::FileLogger(logFile);
+  this->logger = new asmjit::StringLogger();
+  this->logger->content().appendFormat(".intel_syntax noprefix\n");
+  this->logger->setFlags(asmjit::FormatFlags::kHexOffsets);
   this->assembler->setLogger(this->logger);
   this->assembler->section(this->text);
+  this->string_table.table = new std::map<std::string, std::string>();
+  this->secHeader();
 }
 
 WindEmitter::~WindEmitter() {}
@@ -60,14 +69,15 @@ void WindEmitter::emitPrologue() {
   ) {
     this->assembler->push(asmjit::x86::rbp);
     this->assembler->mov(asmjit::x86::rbp, asmjit::x86::rsp);
-    if (current_function->isStack()) {
-      int stack_size = nextpow2(current_function->stack_size);
-      this->assembler->sub(asmjit::x86::rsp, stack_size);
+    if (current_function->isCallSub()) {
+      this->assembler->sub(asmjit::x86::rsp, 16);
     }
   }
+  this->canaryPrologue();
 }
 
 void WindEmitter::emitEpilogue() {
+  this->canaryEpilogue();
   if (
     (current_function->isStack() && current_function->used_offsets.size() > 0) 
     || current_function->flags & PURE_LOGUE
@@ -78,6 +88,9 @@ void WindEmitter::emitEpilogue() {
 }
 
 void WindEmitter::emitFunction(IRFunction *fn) {
+  if (fn->name() == "main") {
+    this->logger->content().appendFormat(".global main\n");
+  }
   current_function = fn;
   this->cconv_index = 0;
   this->assembler->bind(this->assembler->newNamedLabel(fn->name().c_str()));
@@ -405,17 +418,51 @@ void WindEmitter::emitNode(IRNode *node) {
   }
 }
 
-void WindEmitter::emit() {
+void cleanLoggerContent(std::string& outemit) {
+  std::regex ptrPattern(R"(\b\w+word\s+ptr\b\s)");
+  outemit = std::regex_replace(outemit, ptrPattern, "");
+  std::regex sectionPattern(R"(\.section\s+([^\s]+)\s+\{\#[0-9]+\})");
+  outemit = std::regex_replace(outemit, sectionPattern, ".section $1");
+}
+
+std::string generateRandomFilePath(const std::string& directory, const std::string& extension) {
+    std::string tempDir = directory.empty() ? std::filesystem::temp_directory_path().string() : directory;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dist(100000, 999999);
+    std::string randomFileName = "tmp" + std::to_string(dist(gen)) + extension;
+    return tempDir + "/" + randomFileName;
+}
+
+std::string WindEmitter::newRoString(std::string str) {
+  std::string label = ".RLC" + std::to_string(this->rostring_i);
+  this->string_table.table->insert(std::pair<std::string, std::string>(label, str));
+  this->rostring_i++;
+  return label;
+}
+
+std::string WindEmitter::emit() {
   for (auto &statement : this->program->get()) {
     this->emitNode(statement.get());
   }
 
   this->code_holder.flatten();
   this->code_holder.resolveUnresolvedLinks();
-  const uint8_t* data = this->text->data();
-  uint size = this->text->bufferSize();
 
-  std::ofstream output("output.bin", std::ios::binary);
-  output.write(reinterpret_cast<const char*>(data), size);
-  output.close();
+  this->assembler->section(this->rodata);
+  for (auto &entry : *this->string_table.table) {
+    this->assembler->bind(this->assembler->newNamedLabel(entry.first.c_str()));
+    this->logger->content().appendFormat(".string \"%s\"\n", entry.second.c_str());
+  }
+
+  std::string outemit = this->logger->content().data();\
+  cleanLoggerContent(outemit);
+  std::string path = generateRandomFilePath("", ".S");
+  std::ofstream file(path);
+  if (file.is_open()) {
+    file << outemit;
+    file.close();
+  }
+  WindGasInterface *gas = new WindGasInterface(path);
+  return gas->assemble();
 }
