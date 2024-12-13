@@ -23,6 +23,7 @@ private:
   void print_ldecl(const IRLocalDecl *node);
   void print_argdecl(const IRArgDecl *node);
   void print_fncall(const IRFnCall *node);
+  void print_asm(const IRInlineAsm *node);
 
   void print_tabs();
 };

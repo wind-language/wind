@@ -21,7 +21,8 @@ public:
     LOCAL_DECL,
     ARG_DECL,
     FUNCTION_CALL,
-    REGISTER
+    REGISTER,
+    IN_ASM
   };
 
   virtual ~IRNode() = default;
@@ -87,6 +88,7 @@ public:
   FnFlags flags = 0;
   std::vector<int> arg_sizes;
   bool call_sub = false;
+  int ret_size=0;
 
 public:
   explicit IRFunction(std::string name, std::vector<std::unique_ptr<IRLocalRef>> locals, std::unique_ptr<IRBody> body);
@@ -183,6 +185,15 @@ public:
   explicit IRRegister(asmjit::x86::Gp r);
   asmjit::x86::Gp reg() const;
   NodeType type() const override { return NodeType::REGISTER; }
+};
+
+class IRInlineAsm : public IRNode {
+  std::string asm_code;
+
+public:
+  explicit IRInlineAsm(std::string code);
+  const std::string& code() const;
+  NodeType type() const override { return NodeType::IN_ASM; }
 };
 
 #endif // IR_H

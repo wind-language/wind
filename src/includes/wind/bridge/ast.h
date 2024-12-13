@@ -150,6 +150,15 @@ public:
   const std::vector<std::unique_ptr<ASTNode>>& getArgs() const;
 };
 
+class InlineAsm : public ASTNode {
+  std::string code;
+
+public:
+  InlineAsm(std::string c);
+  void *accept(ASTVisitor &visitor) const override;
+  const std::string& getCode() const;
+};
+
 
 class ASTVisitor {
 public:
@@ -162,6 +171,7 @@ public:
   virtual void *visit(const ArgDecl &node) = 0;
   virtual void *visit(const LocalDecl &node) = 0;
   virtual void *visit(const FnCall &node) = 0;
+  virtual void *visit(const InlineAsm &node) = 0;
 };
 
 #endif // AST_H

@@ -276,6 +276,26 @@ void WindParser::parseMacro() {
   }
 }
 
+InlineAsm *WindParser::parseInlAsm() {
+  this->expect(Token::Type::IDENTIFIER, "asm");
+  this->expect (Token::Type::LBRACE, "{");
+  std::string code="";
+  while (!this->until(Token::Type::RBRACE)) {
+    Token *token = stream->pop();
+    if (token->type == Token::Type::SEMICOLON) {
+      code += "\n";
+    }
+    else {
+      code += token->value;
+      if (this->stream->current()->type != Token::Type::COMMA && token->type != Token::Type::QMARK) {
+        code += " ";
+      }
+    }
+  }
+  this->expect(Token::Type::RBRACE, "}");
+  return new InlineAsm(code);
+}
+
 ASTNode *WindParser::Discriminate() {
   if (this->isKeyword(stream->current(), "func")) {
     return this->parseFn();
@@ -285,6 +305,9 @@ ASTNode *WindParser::Discriminate() {
   }
   else if (this->isKeyword(stream->current(), "var")) {
     return this->parseVarDecl();
+  }
+  else if (this->isKeyword(stream->current(), "asm")) {
+    return this->parseInlAsm();
   }
   else if (this->stream->current()->type == Token::Type::AT) {
     this->parseMacro();

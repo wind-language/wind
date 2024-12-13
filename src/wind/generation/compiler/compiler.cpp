@@ -55,6 +55,7 @@ void* WindCompiler::visit(const Body &node) {
 
 void* WindCompiler::visit(const Function &node) {
   IRFunction *fn = new IRFunction(node.getName(), {}, std::unique_ptr<IRBody>(new IRBody({})));
+  fn->ret_size = this->ResolveType(node.getType());
   std::vector<int> arg_types;
   for (std::string type : node.getArgTypes()) {
     arg_types.push_back(this->ResolveType(type));
@@ -72,8 +73,14 @@ uint16_t WindCompiler::ResolveType(const std::string &type) {
     return 4;
   } else if (type == "char") {
     return 1;
+  } else if (type == "short") {
+    return 2;
+  } else if (type == "long") {
+    return 8;
+  } else if (type=="void") {
+    return 0;
   } else {
-    assert(false);
+    assert(false); // TODO: Implement typedef resolution
   }
 }
 
@@ -106,4 +113,9 @@ void* WindCompiler::visit(const FnCall &node) {
     call->push_arg(std::unique_ptr<IRNode>((IRNode*)arg->accept(*this)));
   }
   return call;
+}
+
+void *WindCompiler::visit(const InlineAsm &node) {
+  IRInlineAsm *asm_node = new IRInlineAsm(node.getCode());
+  return asm_node;
 }

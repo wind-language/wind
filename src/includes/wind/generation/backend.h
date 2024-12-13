@@ -30,6 +30,12 @@ private:
   asmjit::Section *bss;
   asmjit::Section *rodata;
 
+  // Assembly optimization
+  // Tracking local vars in registers
+  std::map<int, asmjit::x86::Gp> *reg_vars;
+  void OptVarMoved(int offset, asmjit::x86::Gp reg);
+  asmjit::x86::Gp OptVarGet(int offset);
+
   // Security
   void secHeader();
   void canaryPrologue();
@@ -41,12 +47,14 @@ private:
   std::string newRoString(std::string str);
   void InitializeSections();
   void emitNode(IRNode *node);
+  void emitReturn(IRRet *ret);
   IRFunction *FindFunction(std::string name);
-  void emitFunctionCall(IRFnCall *fn_call);
+  asmjit::x86::Gp emitFunctionCall(IRFnCall *fn_call);
   void SolveCArg(IRNode *arg, int name);
   void emitFunction(IRFunction *fn);
   void emitPrologue();
   void emitEpilogue();
+  void emitAsm(IRInlineAsm *asm_node);
   asmjit::x86::Gp emitExpr(IRNode *node, asmjit::x86::Gp dest);
   asmjit::x86::Gp moveVar(IRLocalRef *local, asmjit::x86::Gp dest);
   asmjit::x86::Gp adaptReg(asmjit::x86::Gp reg, int size);

@@ -79,6 +79,12 @@ void IRPrinter::print_node(const IRNode *node) {
       );
       break;
     }
+    case IRNode::NodeType::IN_ASM : {
+      this->print_asm(
+        node->as<IRInlineAsm>()
+      );
+      break;
+    }
     default : {
       std::cout << "Unknown node type" << std::endl;
       break;
@@ -155,6 +161,11 @@ void IRPrinter::print_ldecl(const IRLocalDecl *node) {
 
 void IRPrinter::print_argdecl(const IRArgDecl *node) {
   std::cout << "alloc [" << node->local()->size() << "] loc" << node->local()->offset() << std::endl;
+}
+
+void IRPrinter::print_asm(const IRInlineAsm *node) {
+  this->print_tabs();
+  std::cout << "asm {\n" << node->code() << "}" << std::endl;
 }
 
 void IRPrinter::print_fncall(const IRFnCall *node) {

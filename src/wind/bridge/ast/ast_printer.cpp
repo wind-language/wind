@@ -68,6 +68,12 @@ void *ASTPrinter::visit(const ArgDecl &node) {
   return nullptr;
 }
 
+void *ASTPrinter::visit(const InlineAsm &node) {
+  this->print_tabs();
+  std::cout << "asm {\n" << node.getCode() << "}";
+  return nullptr;
+}
+
 void *ASTPrinter::visit(const FnCall &node) {
   if (!this->in_expr) {
     this->print_tabs();

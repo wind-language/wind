@@ -22,6 +22,7 @@ private:
   Function *parseFn();
   Return *parseRet();
   LocalDecl *parseVarDecl();
+  InlineAsm *parseInlAsm();
 
   void parseMacro();
 

@@ -153,3 +153,11 @@ const std::string& FnCall::getName() const {
 const std::vector<std::unique_ptr<ASTNode>>& FnCall::getArgs() const {
   return args;
 }
+
+InlineAsm::InlineAsm(std::string c) : code(c) {}
+void *InlineAsm::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const std::string& InlineAsm::getCode() const {
+  return code;
+}

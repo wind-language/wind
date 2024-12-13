@@ -78,6 +78,7 @@ IRFunction *IRFunction::clone() {
   new_fn->flags = flags;
   new_fn->arg_sizes = arg_sizes;
   new_fn->call_sub = call_sub;
+  new_fn->ret_size = ret_size;
   return new_fn;
 }
 
@@ -157,4 +158,9 @@ void IRFnCall::push_arg(std::unique_ptr<IRNode> arg) {
 IRRegister::IRRegister(asmjit::x86::Gp reg) : v_reg(reg) {}
 asmjit::x86::Gp IRRegister::reg() const {
   return v_reg;
+}
+
+IRInlineAsm::IRInlineAsm(std::string code) : asm_code(code) {}
+const std::string &IRInlineAsm::code() const {
+  return asm_code;
 }
