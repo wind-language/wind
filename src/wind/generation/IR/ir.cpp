@@ -131,6 +131,11 @@ long long IRLiteral::get() const {
   return value;
 }
 
+IRStringLiteral::IRStringLiteral(std::string v) : value(v) {}
+const std::string& IRStringLiteral::get() const {
+  return value;
+}
+
 IRLocalDecl::IRLocalDecl(IRLocalRef* local_ref, IRNode* value) : local_ref(local_ref), v_value(value) {}
 IRLocalRef* IRLocalDecl::local() const {
   return local_ref;

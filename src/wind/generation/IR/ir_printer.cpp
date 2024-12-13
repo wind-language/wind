@@ -48,6 +48,10 @@ void IRPrinter::print_node(const IRNode *node) {
       );
       break;
     }
+    case IRNode::NodeType::STRING : {
+      std::cout << "\"" << node->as<IRStringLiteral>()->get() << "\"";
+      break;
+    }
     case IRNode::NodeType::RET : {
       this->print_ret(node->as<IRRet>());
       break;

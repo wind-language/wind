@@ -18,6 +18,7 @@ public:
     FUNCTION,
     BIN_OP,
     LITERAL,
+    STRING,
     LOCAL_DECL,
     ARG_DECL,
     FUNCTION_CALL,
@@ -102,6 +103,8 @@ public:
   IRFunction *clone();
   void copyArgSizes(std::vector<int> &types);
   int GetArgSize(int index);
+  int ArgNum() const { return arg_sizes.size(); }
+  bool isVariadic() const { return flags & FN_VARIADIC; }
   bool isCallSub() const { return call_sub; }
 
   IRLocalRef *NewLocal(std::string name, uint16_t size);
@@ -144,6 +147,15 @@ public:
   explicit IRLiteral(long long v);
   long long get() const;
   NodeType type() const override { return NodeType::LITERAL; }
+};
+
+class IRStringLiteral : public IRNode {
+  std::string value;
+
+public:
+  explicit IRStringLiteral(std::string v);
+  const std::string& get() const;
+  NodeType type() const override { return NodeType::STRING; }
 };
 
 class IRLocalDecl : public IRNode {

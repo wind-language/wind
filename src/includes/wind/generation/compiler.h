@@ -29,6 +29,7 @@ private:
   void *visit(const LocalDecl &node) override;
   void *visit(const FnCall &node) override;
   void *visit(const InlineAsm &node) override;
+  void *visit(const StringLiteral &node) override;
 };
 
 #endif // COMPILER_H

@@ -44,6 +44,11 @@ Function *WindParser::parseFn() {
   std::vector<std::string> arg_types;
   this->expect(Token::Type::LPAREN, "(");
   while (!this->until(Token::Type::RPAREN)) {
+    if (this->stream->current()->type == Token::Type::VARDC) {
+      this->expect(Token::Type::VARDC, "...");
+      this->flag_holder |= FN_VARIADIC;
+      break;
+    }
     std::string arg_name = this->expect(Token::Type::IDENTIFIER, "argument name")->value;
     this->expect(Token::Type::COLON, ":");
     std::string arg_type = this->typeSignature(Token::Type::COMMA, Token::Type::RPAREN);
@@ -132,7 +137,7 @@ ASTNode *WindParser::parseExprFnCall() {
 
 ASTNode *WindParser::parseExprPrimary() {
   switch (this->stream->current()->type) {
-    case Token::STRING
+    case Token::STRING:
     case Token::INTEGER:
       return this->parseExprLiteral();
 

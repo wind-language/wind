@@ -63,6 +63,7 @@ private:
   void moveIntoVar(IRLocalRef *local, IRNode *value);
   asmjit::x86::Gp emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest);
   asmjit::x86::Gp emitLiteral(IRLiteral *lit, asmjit::x86::Gp dest);
+  asmjit::x86::Gp emitString(IRStringLiteral *str, asmjit::x86::Gp dest);
 };
 
 #endif

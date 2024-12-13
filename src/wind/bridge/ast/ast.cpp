@@ -161,3 +161,11 @@ void *InlineAsm::accept(ASTVisitor &visitor) const {
 const std::string& InlineAsm::getCode() const {
   return code;
 }
+
+StringLiteral::StringLiteral(std::string s) : str(s) {}
+void *StringLiteral::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const std::string& StringLiteral::getValue() const {
+  return str;
+}

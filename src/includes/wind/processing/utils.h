@@ -1,3 +1,4 @@
+#include <string>
 #ifndef UTILS_H
 #define UTILS_H
 
@@ -7,5 +8,8 @@ namespace LexUtils {
   bool digit(char c);
   bool alphanum(char c);
 }
+
+std::string generateRandomFilePath(const std::string& directory, const std::string& extension);
+
 
 #endif

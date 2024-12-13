@@ -39,6 +39,11 @@ void* WindCompiler::visit(const Literal &node) {
   return lit;
 }
 
+void* WindCompiler::visit(const StringLiteral &node) {
+  IRStringLiteral *str = new IRStringLiteral(node.getValue());
+  return str;
+}
+
 void* WindCompiler::visit(const Return &node) {
   IRNode *val = (IRNode*)node.get()->accept(*this);
   IRRet *ret = new IRRet(std::unique_ptr<IRNode>(val));

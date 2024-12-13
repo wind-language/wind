@@ -167,7 +167,7 @@ Token *WindLexer::LexSymbol(const SymbolMatch& symbol) {
   start.second--;
   this->stream.advance(symbol->first.size());
   TokenPos end = this->stream.position();
-  end.second--;
+  end.second += symbol->first.size()-2;
   return new Token(value, symbol->second, symbol->first, std::make_pair(start, end));
 }
 

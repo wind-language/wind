@@ -91,3 +91,8 @@ void *ASTPrinter::visit(const FnCall &node) {
   std::cout << ")";
   return nullptr;
 }
+
+void *ASTPrinter::visit(const StringLiteral &node) {
+  std::cout << "\"" << node.getValue() << "\"";
+  return nullptr;
+}

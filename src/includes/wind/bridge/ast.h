@@ -159,6 +159,16 @@ public:
   const std::string& getCode() const;
 };
 
+class StringLiteral : public ASTNode {
+public:
+  StringLiteral(std::string c);
+  void *accept(ASTVisitor &visitor) const;
+  const std::string& getValue() const;
+
+private:
+  std::string str;
+};
+
 
 class ASTVisitor {
 public:
@@ -172,6 +182,7 @@ public:
   virtual void *visit(const LocalDecl &node) = 0;
   virtual void *visit(const FnCall &node) = 0;
   virtual void *visit(const InlineAsm &node) = 0;
+  virtual void *visit(const StringLiteral &node) = 0;
 };
 
 #endif // AST_H

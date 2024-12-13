@@ -1,12 +1,12 @@
 #include <wind/generation/IR.h>
 #include <wind/generation/backend.h>
 #include <wind/common/debug.h>
+#include <wind/processing/utils.h>
 #include <wind/generation/gas.h>
+#include <wind/generation/ld.h>
 #include <asmjit/asmjit.h>
 #include <fstream>
 #include <math.h>
-#include <filesystem>
-#include <random>
 #include <map>
 #include <regex>
 
@@ -62,15 +62,13 @@ int nextpow2(int n) {
 }
 
 void WindEmitter::emitPrologue() {
-  if (
-    (current_function->isStack() && current_function->used_offsets.size() > 0)
-    || current_function->flags & PURE_LOGUE
-  ) {
-    this->assembler->push(asmjit::x86::rbp);
-    this->assembler->mov(asmjit::x86::rbp, asmjit::x86::rsp);
-    if (current_function->isCallSub()) {
-      this->assembler->sub(asmjit::x86::rsp, 16);
-    }
+  if (current_function->flags & PURE_LOGUE) {
+    return;
+  }
+  this->assembler->push(asmjit::x86::rbp);
+  this->assembler->mov(asmjit::x86::rbp, asmjit::x86::rsp);
+  if (current_function->isCallSub()) {
+    this->assembler->sub(asmjit::x86::rsp, 16);
   }
   if ((current_function->flags & PURE_STCHK)==0) {
     this->canaryPrologue();
@@ -78,15 +76,13 @@ void WindEmitter::emitPrologue() {
 }
 
 void WindEmitter::emitEpilogue() {
+  if (current_function->flags & PURE_LOGUE) {
+    return;
+  }
   if ((current_function->flags & PURE_STCHK)==0) {
     this->canaryEpilogue();
   }
-  if (
-    (current_function->isStack() && current_function->used_offsets.size() > 0) 
-    || current_function->flags & PURE_LOGUE
-  ) {
-    this->assembler->leave();
-  }
+  this->assembler->leave();
   this->assembler->ret();
 }
 
@@ -154,10 +150,28 @@ asmjit::x86::Gp WindEmitter::emitFunctionCall(IRFnCall *fn_call) {
     throw std::runtime_error("Function not found");
   }
   for (size_t i = 0; i < fn_call->args().size(); i++) {
+    if ((int)i >= fn->ArgNum()) {
+      if (fn->flags & FN_VARIADIC) {
+        this->SolveCArg(fn_call->args()[i].get(), 8);
+        continue;
+      }
+      else { throw std::runtime_error("Too many arguments"); }
+    }
     this->SolveCArg(fn_call->args()[i].get(), fn->GetArgSize(i));
   }
   this->assembler->call(this->assembler->labelByName(fn->name().c_str()));
   return this->adaptReg(asmjit::x86::rax, fn->ret_size);
+}
+
+asmjit::x86::Gp WindEmitter::emitString(IRStringLiteral *str, asmjit::x86::Gp dest) {
+  std::string name = this->newRoString(str->get());
+  this->assembler->lea(
+    dest,
+    asmjit::x86::ptr(
+      this->assembler->labelByName(name.c_str())
+    )
+  );
+  return dest;
 }
 
 asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
@@ -166,6 +180,11 @@ asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
     case IRNode::NodeType::LITERAL : {
       IRLiteral *lit = node->as<IRLiteral>();
       return this->emitLiteral(lit, dest);
+    }
+
+    case IRNode::NodeType::STRING : {
+      IRStringLiteral *str = node->as<IRStringLiteral>();
+      return this->emitString(str, dest);
     }
 
     case IRNode::NodeType::LOCAL_REF : {
@@ -184,7 +203,7 @@ asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
     }
 
     default: {
-      std::cout << "Unknown node type" << std::endl;
+      std::cout << "H1, Unknown node type" << std::endl;
       break;
     }
   }
@@ -274,7 +293,7 @@ void WindEmitter::emitNode(IRNode *node) {
       break;
     }
     default: {
-      std::cout << "Unknown node type" << std::endl;
+      this->emitExpr(node, asmjit::x86::rax);
       break;
     }
   }
@@ -285,19 +304,11 @@ void cleanLoggerContent(std::string& outemit) {
   outemit = std::regex_replace(outemit, sectionPattern, ".section $1");
 }
 
-std::string generateRandomFilePath(const std::string& directory, const std::string& extension) {
-    std::string tempDir = directory.empty() ? std::filesystem::temp_directory_path().string() : directory;
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dist(100000, 999999);
-    std::string randomFileName = "tmp" + std::to_string(dist(gen)) + extension;
-    return tempDir + "/" + randomFileName;
-}
-
 std::string WindEmitter::newRoString(std::string str) {
   std::string label = ".RLC" + std::to_string(this->rostring_i);
   this->string_table.table->insert(std::pair<std::string, std::string>(label, str));
   this->rostring_i++;
+  this->assembler->newNamedLabel(label.c_str());
   return label;
 }
 
@@ -311,7 +322,7 @@ std::string WindEmitter::emit() {
 
   this->assembler->section(this->rodata);
   for (auto &entry : *this->string_table.table) {
-    this->assembler->bind(this->assembler->newNamedLabel(entry.first.c_str()));
+    this->assembler->bind(this->assembler->labelByName(entry.first.c_str()));
     this->logger->content().appendFormat(".string \"%s\"\n", entry.second.c_str());
   }
 
@@ -325,5 +336,9 @@ std::string WindEmitter::emit() {
   }
   WindGasInterface *gas = new WindGasInterface(path);
   gas->addFlag("-O3");
-  return gas->assemble();
+  WindLdInterface *ld = new WindLdInterface();
+  std::string filep = gas->assemble();
+  LOG(filep);
+  ld->addFile(filep);
+  return ld->link();
 }

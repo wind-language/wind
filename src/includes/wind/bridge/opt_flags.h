@@ -10,6 +10,7 @@
 #define PURE_LOGUE (1 << 4)
 #define PURE_STCHK (1 << 5)
 #define FN_EXTERN  (1 << 6)
+#define FN_VARIADIC (1 << 7)
 
 typedef uint16_t FnFlags;
 
