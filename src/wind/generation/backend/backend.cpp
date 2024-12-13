@@ -77,10 +77,11 @@ void WindEmitter::emitPrologue() {
 
 void WindEmitter::emitEpilogue() {
   if (current_function->flags & PURE_LOGUE) {
+    this->assembler->ret();
     return;
   }
   if ((current_function->flags & PURE_STCHK)==0) {
-    this->canaryEpilogue();
+    this->canaryEpilogue(); 
   }
   this->assembler->leave();
   this->assembler->ret();
@@ -94,6 +95,9 @@ void WindEmitter::emitFunction(IRFunction *fn) {
   if (fn->flags & FN_EXTERN) {
     this->assembler->newExternalLabel(fn->name().c_str());
     return;
+  }
+  if (fn->flags & FN_PUBLIC) {
+    this->logger->content().appendFormat(".global %s\n", fn->name().c_str());
   }
   current_function = fn;
   this->cconv_index = 0;
@@ -134,22 +138,23 @@ IRFunction *WindEmitter::FindFunction(std::string name) {
 }
 
 void WindEmitter::SolveCArg(IRNode *arg, int type) {
-  if (this->cconv_index < 6) {
+  if (this->cconv_index >= 0) {
     this->emitExpr(arg, this->adaptReg(SystemVABI[this->cconv_index], type));
   } else {
     asmjit::x86::Gp reg = this->emitExpr(arg, this->adaptReg(asmjit::x86::rax, type));
     this->assembler->push(reg);
   }
-  this->cconv_index++;
+  this->cconv_index--;
 }
 
-asmjit::x86::Gp WindEmitter::emitFunctionCall(IRFnCall *fn_call) {
-  this->cconv_index = 0;
+asmjit::x86::Gp WindEmitter::emitFunctionCall(IRFnCall *fn_call, asmjit::x86::Gp dest) {
   IRFunction *fn = this->FindFunction(fn_call->name());
   if (!fn) {
-    throw std::runtime_error("Function not found");
+    throw std::runtime_error("Function not found "+fn_call->name());
   }
-  for (size_t i = 0; i < fn_call->args().size(); i++) {
+  int saved_index = this->cconv_index;
+  this->cconv_index = fn_call->args().size()-1;
+  for (int i = fn_call->args().size()-1; i >= 0; i--) {
     if ((int)i >= fn->ArgNum()) {
       if (fn->flags & FN_VARIADIC) {
         this->SolveCArg(fn_call->args()[i].get(), 8);
@@ -159,8 +164,16 @@ asmjit::x86::Gp WindEmitter::emitFunctionCall(IRFnCall *fn_call) {
     }
     this->SolveCArg(fn_call->args()[i].get(), fn->GetArgSize(i));
   }
+  // TODO: Implement parameter scheduling, for calls with more than 2 args where args are overwriting each other
   this->assembler->call(this->assembler->labelByName(fn->name().c_str()));
-  return this->adaptReg(asmjit::x86::rax, fn->ret_size);
+  this->cconv_index = saved_index;
+  if (fn->ret_size != 0) {
+    asmjit::x86::Gp raxreg = this->adaptReg(asmjit::x86::rax, dest.size());
+    if (!dest.equals(raxreg)) {
+      this->assembler->mov(dest, raxreg);
+    }
+  }
+  return asmjit::x86::rax;
 }
 
 asmjit::x86::Gp WindEmitter::emitString(IRStringLiteral *str, asmjit::x86::Gp dest) {
@@ -194,7 +207,7 @@ asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
 
     case IRNode::NodeType::FUNCTION_CALL : {
       IRFnCall *fn_call = node->as<IRFnCall>();
-      return this->emitFunctionCall(fn_call);
+      return this->emitFunctionCall(fn_call, dest);
     }
 
     case IRNode::NodeType::BIN_OP : {

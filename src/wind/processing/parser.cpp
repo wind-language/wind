@@ -281,6 +281,9 @@ void WindParser::parseMacro() {
   else if (name == "extern") {
     this->flag_holder |= FN_EXTERN;
   }
+  else if (name == "pub") {
+    this->flag_holder |= FN_PUBLIC;
+  }
   else {
     Token *token = stream->pop();
     this->reporter->Report(ParserReport::PARSER_ERROR, new Token(

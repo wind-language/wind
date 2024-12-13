@@ -50,7 +50,7 @@ private:
   void emitReturn(IRRet *ret);
   void LitIntoVar(IRLocalRef *local, IRLiteral *lit);
   IRFunction *FindFunction(std::string name);
-  asmjit::x86::Gp emitFunctionCall(IRFnCall *fn_call);
+  asmjit::x86::Gp emitFunctionCall(IRFnCall *fn_call, asmjit::x86::Gp dest);
   void SolveCArg(IRNode *arg, int name);
   void emitFunction(IRFunction *fn);
   void emitPrologue();

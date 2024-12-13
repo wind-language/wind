@@ -7,7 +7,12 @@ func add(a: int, b: int) : short {
 }
 
 func main() : int {
-	var somma: int = add(1,2);
-	printf("Somma: %d\n", somma);
+	var m: long = malloc(64);
+	asm {
+		mov rax, ?m;
+		mov byte ptr [rax], 0x48;
+		mov byte ptr [rax+1], 0x65;
+	}
+	printf("Sum: %s\n" m);
 	return 0;
 }

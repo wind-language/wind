@@ -6,7 +6,7 @@ WindLdInterface::WindLdInterface() {
     this->addFlag("-m elf_x86_64");
     this->addFlag("-dynamic-linker /lib64/ld-linux-x86-64.so.2");
     this->addFlag("-lc");
-    this->addFile("raw_std/_start.o");
+    this->addFile("raw_std/start.o");
     this->addFile("raw_std/stack.o");
 }
 
