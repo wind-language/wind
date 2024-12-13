@@ -1,5 +1,6 @@
 #include <wind/generation/IR.h>
 #include <wind/generation/ir_printer.h>
+#include <regex>
 #include <iostream>
 
 IRPrinter::IRPrinter(IRBody *program) : program(program) {}
@@ -160,12 +161,16 @@ void IRPrinter::print_ldecl(const IRLocalDecl *node) {
 }
 
 void IRPrinter::print_argdecl(const IRArgDecl *node) {
-  std::cout << "alloc [" << node->local()->size() << "] loc" << node->local()->offset() << std::endl;
+  std::cout << "  alloc [" << node->local()->size() << "] loc" << node->local()->offset() << std::endl;
 }
 
 void IRPrinter::print_asm(const IRInlineAsm *node) {
   this->print_tabs();
-  std::cout << "asm {\n" << node->code() << "}" << std::endl;
+  // replace every \n with \n\t
+  std::string code = node->code();
+  std::regex newline("\n");
+  code = std::regex_replace(code, newline, "\n    ");
+  std::cout << "asm {\n    " << code << "\n  }" << std::endl;
 }
 
 void IRPrinter::print_fncall(const IRFnCall *node) {

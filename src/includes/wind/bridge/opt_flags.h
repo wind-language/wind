@@ -8,6 +8,8 @@
 #define PURE_NOABI (1 << 2)
 #define PURE_EXPR  (1 << 3)
 #define PURE_LOGUE (1 << 4)
+#define PURE_STCHK (1 << 5)
+#define FN_EXTERN  (1 << 6)
 
 typedef uint16_t FnFlags;
 

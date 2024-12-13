@@ -11,13 +11,17 @@ asmjit::x86::Gp WindEmitter::moveVar(IRLocalRef *local, asmjit::x86::Gp dest) {
   return reg;
 }
 
+void WindEmitter::LitIntoVar(IRLocalRef *local, IRLiteral *lit) {
+  this->assembler->mov(
+  asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()),
+  lit->get()
+);
+}
+
 void WindEmitter::moveIntoVar(IRLocalRef *local, IRNode *value) {
   if (value->is<IRLiteral>()) {
     IRLiteral *lit = value->as<IRLiteral>();
-    this->assembler->mov(
-      asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()),
-      lit->get()
-    );
+    this->LitIntoVar(local, lit);
   } else {
     asmjit::x86::Gp reg = this->adaptReg(asmjit::x86::rax, local->size());
     asmjit::x86::Gp src = this->adaptReg(this->emitExpr(value, reg), local->size());
@@ -109,6 +113,7 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
 
     case IRNode::NodeType::LOCAL_REF : {
       IRLocalRef *local = right_node->as<IRLocalRef>();
+      left = this->adaptReg(left, local->size());
       switch (bin_op->operation()) {
         case IRBinOp::Operation::ADD : {
           this->assembler->add(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()));

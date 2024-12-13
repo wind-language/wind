@@ -9,9 +9,15 @@
 #include <wind/bridge/opt_flags.h>
 
 #include <iostream>
+#include <assert.h>
 
-int main() {
-  WindLexer *lexer = TokenizeFile("grammar/wind.0.w");
+int main(int argc, char **argv) {
+  assert(argc == 2);
+  const char* input_file = argv[1]; 
+  WindLexer *lexer = TokenizeFile(input_file);
+  if (lexer == nullptr) {
+    return 1;
+  }
   WindParser *parser = new WindParser(lexer->get(), lexer->source());
   Body *ast = parser->parse();
   std::cout << "AST:" << std::endl;

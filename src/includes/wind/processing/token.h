@@ -28,7 +28,8 @@ public:
     LBRACKET,
     RBRACKET,
     AT,
-    QMARK
+    QMARK,
+    STRING
   };
   
   std::string value;

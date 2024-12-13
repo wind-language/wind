@@ -35,7 +35,7 @@ build/%.o: %.cpp
 	$(CXX) $(CFLAGS) -c $< -o $@
 
 test: $(EXEC_TEST)
-	LD_LIBRARY_PATH=$(LIB_DIR) ./$(EXEC_TEST)
+	LD_LIBRARY_PATH=$(LIB_DIR) ./$(EXEC_TEST) grammar/wind.0.w
 
 clean:
 	rm -rf build/ $(EXEC_TEST)
@@ -43,3 +43,5 @@ clean:
 dump_bin:
 	objdump -D -b binary -m i386:x86-64 output.bin -M intel
 	bat output.asm
+
+.PHONY: test dump_bin

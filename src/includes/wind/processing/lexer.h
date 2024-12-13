@@ -59,6 +59,7 @@ private:
   Token *LexHexadecimal();
   Token *LexIdentifier();
   Token *LexSymbol(const SymbolMatch& type);
+  Token *LexString();
   SymbolMatch MatchSymbol();
 };
 

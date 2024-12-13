@@ -1,5 +1,6 @@
 #include <wind/bridge/ast_printer.h>
 #include <iostream>
+#include <regex>
 
 void ASTPrinter::print_tabs() {
   std::cout << std::string(this->tabs, ' ');
@@ -70,7 +71,10 @@ void *ASTPrinter::visit(const ArgDecl &node) {
 
 void *ASTPrinter::visit(const InlineAsm &node) {
   this->print_tabs();
-  std::cout << "asm {\n" << node.getCode() << "}";
+  std::string code = node.getCode();
+  std::regex newline("\n");
+  code = std::regex_replace(code, newline, "\n    ");
+  std::cout << "asm {\n    " << code << "\n  }";
   return nullptr;
 }
 

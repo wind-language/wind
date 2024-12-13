@@ -104,6 +104,10 @@ ASTNode *WindParser::parseExprLiteral() {
       return new Literal(
         fmtinttostr(this->stream->pop()->value)
       );
+    case Token::STRING:
+      return new StringLiteral(
+        this->stream->pop()->value
+      );
     default:
       return nullptr;
   }
@@ -128,7 +132,7 @@ ASTNode *WindParser::parseExprFnCall() {
 
 ASTNode *WindParser::parseExprPrimary() {
   switch (this->stream->current()->type) {
-    // case Token::STRING
+    case Token::STRING
     case Token::INTEGER:
       return this->parseExprLiteral();
 
@@ -239,7 +243,8 @@ static std::map<std::string, FnFlags> FLAGS_MAP = {
   {"abi", PURE_ABI},
   {"noabi", PURE_NOABI},
   {"expr", PURE_EXPR},
-  {"logue", PURE_LOGUE}
+  {"logue", PURE_LOGUE},
+  {"stchk", PURE_STCHK}
 };
 
 FnFlags macroIntoFlag(std::string name) {
@@ -268,6 +273,9 @@ void WindParser::parseMacro() {
     }
     this->expect(Token::Type::RBRACKET, "]");
   }
+  else if (name == "extern") {
+    this->flag_holder |= FN_EXTERN;
+  }
   else {
     Token *token = stream->pop();
     this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
@@ -293,6 +301,7 @@ InlineAsm *WindParser::parseInlAsm() {
     }
   }
   this->expect(Token::Type::RBRACE, "}");
+  code.pop_back();
   return new InlineAsm(code);
 }
 
@@ -313,10 +322,11 @@ ASTNode *WindParser::Discriminate() {
     this->parseMacro();
   }
   else {
-    Token *token = stream->current();
+    /* Token *token = stream->current();
     this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
       token->value, token->type, "Nothing (Unexpected combination)", token->range
-    ), token);
+    ), token); */
+    return this->parseExprSemi();
   }
   return nullptr;
 }

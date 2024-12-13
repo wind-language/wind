@@ -72,11 +72,15 @@ void WindEmitter::emitPrologue() {
       this->assembler->sub(asmjit::x86::rsp, 16);
     }
   }
-  this->canaryPrologue();
+  if ((current_function->flags & PURE_STCHK)==0) {
+    this->canaryPrologue();
+  }
 }
 
 void WindEmitter::emitEpilogue() {
-  this->canaryEpilogue();
+  if ((current_function->flags & PURE_STCHK)==0) {
+    this->canaryEpilogue();
+  }
   if (
     (current_function->isStack() && current_function->used_offsets.size() > 0) 
     || current_function->flags & PURE_LOGUE
@@ -90,6 +94,10 @@ void WindEmitter::emitFunction(IRFunction *fn) {
   this->reg_vars->clear();
   if (fn->name() == "main") {
     this->logger->content().appendFormat(".global main\n");
+  }
+  if (fn->flags & FN_EXTERN) {
+    this->assembler->newExternalLabel(fn->name().c_str());
+    return;
   }
   current_function = fn;
   this->cconv_index = 0;
@@ -207,15 +215,31 @@ void WindEmitter::emitReturn(IRRet *ret) {
   //asmjit::x86::Gp target_reg = this->adaptReg(asmjit::x86::rax, this->current_function->ret_size);
 }
 
+std::string wordstr(int size) {
+  switch (size) {
+    case 1:
+      return "byte";
+    case 2:
+      return "word";
+    case 4:
+      return "dword";
+    case 8:
+      return "qword";
+    default:
+      return "qword";
+  }
+}
+
 void WindEmitter::emitAsm(IRInlineAsm *asm_node) {
   std::string code = asm_node->code();
-  code.pop_back();
   std::regex localRefPattern(R"(\?\w+)");
   std::smatch match;
   while (std::regex_search(code, match, localRefPattern)) {
     std::string localRef = match.str().substr(1);
     IRLocalRef *local = this->current_function->GetLocal(localRef);
-    std::string ref = "[rbp-" + std::to_string(local->offset()) + "]";
+    char off_hex[16];
+    sprintf(off_hex, "%#x", local->offset());
+    std::string ref = wordstr(local->size()) + " ptr [rbp-" + std::string(off_hex) + "]";
     code = std::regex_replace(code, localRefPattern, ref);
   }
   this->logger->content().appendFormat("%s\n", code.c_str());
@@ -257,8 +281,6 @@ void WindEmitter::emitNode(IRNode *node) {
 }
 
 void cleanLoggerContent(std::string& outemit) {
-  std::regex ptrPattern(R"(\b\w+word\s+ptr\b\s)");
-  outemit = std::regex_replace(outemit, ptrPattern, "");
   std::regex sectionPattern(R"(\.section\s+([^\s]+)\s+\{\#[0-9]+\})");
   outemit = std::regex_replace(outemit, sectionPattern, ".section $1");
 }
@@ -293,7 +315,7 @@ std::string WindEmitter::emit() {
     this->logger->content().appendFormat(".string \"%s\"\n", entry.second.c_str());
   }
 
-  std::string outemit = this->logger->content().data();\
+  std::string outemit = this->logger->content().data();
   cleanLoggerContent(outemit);
   std::string path = generateRandomFilePath("", ".S");
   std::ofstream file(path);
@@ -302,5 +324,6 @@ std::string WindEmitter::emit() {
     file.close();
   }
   WindGasInterface *gas = new WindGasInterface(path);
+  gas->addFlag("-O3");
   return gas->assemble();
 }
