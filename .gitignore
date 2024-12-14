@@ -1,8 +1,7 @@
 asmjit/
 build/
-lib/
 .vscode/
 benchmarks/
-output.*
+test
 raw_std/*.o
-windte
+wind
