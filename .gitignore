@@ -3,5 +3,6 @@ build/
 .vscode/
 benchmarks/
 test
+*.o
 raw_std/*.o
 wind
