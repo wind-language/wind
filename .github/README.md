@@ -4,8 +4,7 @@
 </h1>
 <h2 align="center">
 
-![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/utcq/wind?style=for-the-badge)
-
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/utcq/wind?style=for-the-badge) <span>&nbsp;</span>
 ![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/utcq/wind?style=for-the-badge&color=blue)
 
 </h2>
@@ -14,7 +13,7 @@
 <tr>
 <td>
   
-The programming language that you (don't actually) need.
+_The programming language that you (don't actually) need._ &nbsp; <sub>(WIP)</sub> &nbsp;
 Modernized C with a touch of Rust and a sprinkle of Go.
 
 ```rs

@@ -6,3 +6,5 @@ test
 *.o
 raw_std/*.o
 wind
+.clangd
+TODO
