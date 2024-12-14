@@ -2,6 +2,13 @@
   <br>
   Wind
 </h1>
+<h2 align="center">
+
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/utcq/wind?style=for-the-badge)
+
+![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/utcq/wind?style=for-the-badge&color=blue)
+
+</h2>
 
 <table>
 <tr>
