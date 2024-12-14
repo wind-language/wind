@@ -4,7 +4,7 @@
 
 class WindLdInterface {
 public:
-  WindLdInterface();
+  WindLdInterface(std::string output="");
   void addFlag(std::string flag);
   void addFile(std::string input);
   std::string link();
@@ -12,6 +12,7 @@ public:
 private:
   std::string files;
   std::string flags;
+  std::string output;
   int retcode;
 };
 

@@ -325,7 +325,7 @@ std::string WindEmitter::newRoString(std::string str) {
   return label;
 }
 
-std::string WindEmitter::emit() {
+void WindEmitter::process() {
   for (auto &statement : this->program->get()) {
     this->emitNode(statement.get());
   }
@@ -338,7 +338,9 @@ std::string WindEmitter::emit() {
     this->assembler->bind(this->assembler->labelByName(entry.first.c_str()));
     this->logger->content().appendFormat(".string \"%s\"\n", entry.second.c_str());
   }
+}
 
+std::string WindEmitter::emitObj(std::string outpath) {
   std::string outemit = this->logger->content().data();
   cleanLoggerContent(outemit);
   std::string path = generateRandomFilePath("", ".S");
@@ -347,11 +349,7 @@ std::string WindEmitter::emit() {
     file << outemit;
     file.close();
   }
-  WindGasInterface *gas = new WindGasInterface(path);
+  WindGasInterface *gas = new WindGasInterface(path, outpath);
   gas->addFlag("-O3");
-  WindLdInterface *ld = new WindLdInterface();
-  std::string filep = gas->assemble();
-  LOG(filep);
-  ld->addFile(filep);
-  return ld->link();
+  return gas->assemble();
 }

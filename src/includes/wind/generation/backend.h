@@ -13,6 +13,8 @@ class WindEmitter {
 public:
   WindEmitter(IRBody *program);
   virtual ~WindEmitter();
+  void process();
+  std::string emitObj(std::string outpath="");
   std::string emit();
 
 private:
