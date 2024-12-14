@@ -53,9 +53,7 @@ func main() : int {
 Example
 </h3>
 
-<subtext>
-Run std compilation first [here](#troubleshooting) before running the following command.
-</subtext>
+Run [std compilation](#troubleshooting) before running the following commands.
 
 ```sh
 wind <file> -o <output>
@@ -79,9 +77,7 @@ wind main.w -o main.o --ej
 <details>
 <summary> Why is this happening? </summary>
 
-```
 [❗] The link command when compiling into executable is linking emitted object with the standard library object file. If the standard library object file is not found, the error will be thrown.
-```
 
 </details>
 
@@ -90,5 +86,5 @@ wind main.w -o main.o --ej
 ### Solution
 
 ```sh
-./wind raw_std/stack.w raw_std/start.w -ej -o raw_std/wind_lib.o
+wind raw_std/stack.w raw_std/start.w -ej -o raw_std/wind_lib.o
 ```
