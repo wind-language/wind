@@ -15,6 +15,7 @@ include_directories("src/includes/")
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_executable(wind ${SOURCES})
+target_compile_options(wind PRIVATE -O3)
 
 if(NOT EXISTS "${ASMJIT_LIB_DIR}/build/libasmjit.a")
   execute_process(

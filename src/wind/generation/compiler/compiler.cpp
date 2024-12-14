@@ -76,7 +76,7 @@ void* WindCompiler::visit(const Function &node) {
 uint16_t WindCompiler::ResolveType(const std::string &type) {
   if (type == "int") {
     return 4;
-  } else if (type == "char") {
+  } else if (type == "byte") {
     return 1;
   } else if (type == "short") {
     return 2;

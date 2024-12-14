@@ -2,7 +2,7 @@ asmjit/
 build/
 .vscode/
 benchmarks/
-test
+test*
 *.o
 raw_std/*.o
 wind
