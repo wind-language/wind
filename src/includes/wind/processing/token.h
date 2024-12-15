@@ -31,7 +31,7 @@ public:
     QMARK,
     STRING,
     VARDC,
-    AND
+    AND,
   };
   
   std::string value;

@@ -153,7 +153,16 @@ ASTNode *WindParser::parseExprPrimary() {
     case Token::IDENTIFIER: {
       if (this->stream->peek()->type == Token::LPAREN) {
         return this->parseExprFnCall();
-      } else {
+      } else if (this->stream->peek()->type == Token::LBRACKET) {
+        std::string name = this->stream->pop()->value;
+        this->expect(Token::Type::LBRACKET, "[");
+        int16_t index = fmtinttostr(this->expect(Token::Type::INTEGER, "index")->value);
+        this->expect(Token::Type::RBRACKET, "]");
+        return new VarAddressing(
+          name, index
+        );
+      }
+      else {
         return new VariableRef(
           this->stream->pop()->value
         );

@@ -40,7 +40,7 @@ void *WindCompiler::visit(const VarAddressing &node) {
   IRLocalRef *local = this->current_fn->GetLocal(node.getName());
   assert(local != nullptr);
   this->current_fn->occupyOffset(local->offset());
-  return new IRLocalAddrRef(local->offset());
+  return new IRLocalAddrRef(local->offset(), local->datatype(), node.getIndex());
 }
 
 void* WindCompiler::visit(const Literal &node) {

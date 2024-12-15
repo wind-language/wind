@@ -58,7 +58,10 @@ class DataType {
     DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr) {}
     bool isArray() const { return array != nullptr; }
     uint16_t moveSize() const { if (!isArray()) return type_size; return 8; }
-    uint16_t index2offset(uint16_t index) const { return index * type_size; }
+    uint16_t index2offset(uint16_t index) const {
+      if (isArray()) { return index * type_size; }
+      return index;
+    }
     uint16_t memSize() const {
       uint32_t bytes = 0;
       if (!isArray()) {
@@ -108,10 +111,15 @@ public:
 
 class IRLocalAddrRef : public IRNode {
   uint16_t stack_offset;
+  int16_t index;
+  DataType *var_type;
 
 public:
-  IRLocalAddrRef(uint16_t stack_offset);
+  IRLocalAddrRef(uint16_t stack_offset, DataType *type, int16_t index = -1);
   uint16_t offset() const;
+  int16_t getIndex() const;
+  bool isIndexed() const { return index != -1; }
+  DataType *datatype() const;
   NodeType type() const override { return NodeType::LADDR_REF; }
 };
 

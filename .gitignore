@@ -1,8 +1,9 @@
 asmjit/
 build/
 .vscode/
-benchmarks/
-test*
+benchmarks/*.S
+benchmarks/testWIND
+benchmarks/testCPP
 *.o
 raw_std/*.o
 wind

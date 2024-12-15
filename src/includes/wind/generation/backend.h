@@ -53,6 +53,7 @@ private:
   void emitNode(IRNode *node);
   void emitReturn(IRRet *ret);
   void LitIntoVar(IRLocalRef *local, IRLiteral *lit);
+  void moveIntoIndex(const IRLocalAddrRef *local, IRNode *value);
   IRFunction *FindFunction(std::string name);
   asmjit::x86::Gp emitFunctionCall(IRFnCall *fn_call, asmjit::x86::Gp dest);
   void SolveCArg(IRNode *arg, DataType* type);

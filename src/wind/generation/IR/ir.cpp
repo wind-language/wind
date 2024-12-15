@@ -18,9 +18,15 @@ DataType* IRLocalRef::datatype() const {
   return var_type;
 }
 
-IRLocalAddrRef::IRLocalAddrRef(uint16_t stack_offset) : stack_offset(stack_offset) {}
+IRLocalAddrRef::IRLocalAddrRef(uint16_t stack_offset, DataType* type, int16_t index) : stack_offset(stack_offset), var_type(type), index(index) {}
 uint16_t IRLocalAddrRef::offset() const {
   return stack_offset;
+}
+int16_t IRLocalAddrRef::getIndex() const {
+  return index;
+}
+DataType* IRLocalAddrRef::datatype() const {
+  return var_type;
 }
 
 IRBody::IRBody(std::vector<std::unique_ptr<IRNode>> s) : statements(std::move(s)) {}

@@ -185,6 +185,21 @@ Token *WindLexer::LexString() {
   return new Token(value, Token::Type::STRING, "String", std::make_pair(start, end));
 }
 
+Token *WindLexer::LexChar() {
+  std::string value;
+  TokenPos start = this->stream.position();
+  start.second--;
+  this->stream.advance();
+  while (this->stream.current() != '\'') {
+    value += this->stream.current();
+    this->stream.advance();
+  }
+  TokenPos end = this->stream.position();
+  this->stream.advance();
+  std::string strnum = std::to_string(value[0]);
+  return new Token(strnum, Token::Type::INTEGER, "Char", std::make_pair(start, end));
+}
+
 Token *WindLexer::Discriminate() {
   SymbolMatch is_symbol = this->MatchSymbol();
   if ( LexUtils::digit(this->stream.current()) ) {
@@ -201,6 +216,9 @@ Token *WindLexer::Discriminate() {
   }
   else if (this->stream.current() == '"') {
     return this->LexString();
+  }
+  else if (this->stream.current() == '\'') {
+    return this->LexChar();
   }
   else if ( is_symbol != nullptr ) {
     return this->LexSymbol(is_symbol);

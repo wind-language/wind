@@ -200,10 +200,38 @@ asmjit::x86::Gp WindEmitter::emitString(IRStringLiteral *str, asmjit::x86::Gp de
 }
 
 asmjit::x86::Gp WindEmitter::emitLRef(IRLocalAddrRef *local, asmjit::x86::Gp dest) {
-  this->assembler->lea(
-    dest,
-    asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), 8)
-  );
+  if (local->isIndexed()) {
+    if (local->datatype()->isArray()) {
+      uint16_t offset = local->offset() - local->datatype()->index2offset(local->getIndex());
+      if (offset < 0) {
+        throw std::runtime_error("Invalid offset");
+      }
+      this->assembler->mov(
+        dest,
+        asmjit::x86::ptr(asmjit::x86::rbp, -offset, dest.size())
+      );
+    } else {
+      if (local->datatype()->rawSize()==DataType::Sizes::QWORD) {
+        // Assume 64bit address
+        // Retrieve pointing type from index
+        this->assembler->mov(
+          asmjit::x86::rbx,
+          asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), 8)
+        );
+        this->assembler->mov(
+          dest,
+          asmjit::x86::ptr(asmjit::x86::rbx, -local->getIndex()*dest.size(), dest.size())
+        );
+      } else {
+        std::runtime_error("TODO: Implement non-qword address");
+      }
+    }
+  } else {
+    this->assembler->lea(
+      dest,
+      asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), 8)
+    );
+  }
   this->OptClearReg(dest);
   return dest;
 }

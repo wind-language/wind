@@ -10,7 +10,7 @@ asmjit::x86::Gp WindEmitter::moveVar(IRLocalRef *local, asmjit::x86::Gp dest) {
   }
   if (local->datatype()->isArray()) {
     // Arrays turn into pointers
-    this->emitLRef(new IRLocalAddrRef(local->offset()), reg);
+    this->emitLRef(new IRLocalAddrRef(local->offset(), local->datatype()), reg);
     return reg;
   }
   this->assembler->mov(reg, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
@@ -42,14 +42,40 @@ void WindEmitter::moveIntoVar(IRLocalRef *local, IRNode *value) {
   }
 }
 
+void WindEmitter::moveIntoIndex(const IRLocalAddrRef *local, IRNode *value) {
+  if (local->datatype()->isArray()) {
+    uint16_t offset = local->offset() - local->datatype()->index2offset(local->getIndex());
+    this->moveIntoVar(new IRLocalRef(offset, local->datatype()->getArrayType()), value);
+  } else {
+    if (local->datatype()->rawSize() == DataType::Sizes::QWORD) {
+      // Assume 64bit address
+      // Retrieve pointing type from value
+      this->assembler->mov(
+        asmjit::x86::rbx,
+        asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), 8)
+      );
+      asmjit::x86::Gp res = this->emitExpr(value, asmjit::x86::rax);
+      this->assembler->mov(
+        asmjit::x86::ptr(asmjit::x86::rbx, -local->getIndex()*res.size(), res.size()),
+        res
+      );
+    }
+  }
+}
+
 asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
   IRNode *right_node = (IRNode*)bin_op->right();
   asmjit::x86::Gp left;
   if (bin_op->operation() == IRBinOp::Operation::ASSIGN) {
-    this->moveIntoVar((IRLocalRef*)bin_op->left()->as<IRLocalRef>(), right_node);
-    return dest;
+    if (bin_op->left()->is<IRLocalRef>()) {
+      this->moveIntoVar((IRLocalRef*)bin_op->left()->as<IRLocalRef>(), right_node);
+      return dest;
+    } else if (bin_op->left()->is<IRLocalAddrRef>() && bin_op->left()->as<IRLocalAddrRef>()->isIndexed()) {
+      this->moveIntoIndex(bin_op->left()->as<IRLocalAddrRef>(), right_node);
+      return dest;
+    }
   }
-  if (right_node->is<IRBinOp>()) {
+  else if (right_node->is<IRBinOp>()) {
     left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::r10);
     right_node = new IRRegister(this->emitBinOp(right_node->as<IRBinOp>(), asmjit::x86::rax));
   } else {
@@ -82,11 +108,6 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
         }
         case IRBinOp::Operation::SHR : {
           this->assembler->shr(left, lit->get());
-          break;
-        }
-        case IRBinOp::Operation::ASSIGN : {
-          std::cerr << "HERE\n";
-          this->assembler->mov(left, lit->get());
           break;
         }
         default: {
@@ -126,11 +147,6 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
         }
         case IRBinOp::Operation::SHR : {
           this->assembler->shr(this->adaptReg(asmjit::x86::r10, rax_sz.size()), rax_sz);
-          break;
-        }
-        case IRBinOp::Operation::ASSIGN : {
-          std::cerr << "HERE\n";
-          this->assembler->mov(this->adaptReg(asmjit::x86::r10, rax_sz.size()), rax_sz);
           break;
         }
         default: {
@@ -175,11 +191,6 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
         }
         case IRBinOp::Operation::SHR : {
           this->assembler->shr(left, this->moveVar(local, asmjit::x86::r10));
-          break;
-        }
-        case IRBinOp::Operation::ASSIGN : {
-          std::cerr << "HERE\n";
-          this->assembler->mov(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
           break;
         }
         default: {

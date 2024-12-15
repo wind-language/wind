@@ -60,6 +60,7 @@ private:
   Token *LexIdentifier();
   Token *LexSymbol(const SymbolMatch& type);
   Token *LexString();
+  Token *LexChar();
   SymbolMatch MatchSymbol();
 };
 
