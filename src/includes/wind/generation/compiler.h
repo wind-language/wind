@@ -16,7 +16,7 @@ private:
   IRFunction *current_fn;
 
   void compile();
-  uint16_t ResolveType(const std::string &type);
+  DataType *ResolveDataType(const std::string &type);
 
   // Visitor
   void *visit(const BinaryExpr &node) override;

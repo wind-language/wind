@@ -12,6 +12,7 @@ const std::unordered_map<IRBinOp::Operation, std::string> BOpTTable = {
   {IRBinOp::Operation::DIV, "div"},
   {IRBinOp::Operation::SHL, "shl"},
   {IRBinOp::Operation::SHR, "shr"},
+  {IRBinOp::Operation::ASSIGN, "ass"}
 };
 
 IRPrinter::~IRPrinter() {}
@@ -37,9 +38,16 @@ void IRPrinter::print_node(const IRNode *node) {
       break;
     }
     case IRNode::NodeType::BIN_OP : {
+      const IRBinOp *bop = node->as<IRBinOp>();
+      if (bop->operation() == IRBinOp::Operation::ASSIGN) {
+        this->print_tabs();
+      }
       this->print_bin_op(
-        node->as<IRBinOp>()
+        bop
       );
+      if (bop->operation() == IRBinOp::Operation::ASSIGN) {
+        std::cout << std::endl;
+      }
       break;
     }
     case IRNode::NodeType::LITERAL : {
@@ -165,7 +173,7 @@ void IRPrinter::print_lit(const IRLiteral *node) {
 
 void IRPrinter::print_ldecl(const IRLocalDecl *node) {
   this->print_tabs();
-  std::cout << "alloc [" << node->local()->size() << "] loc" << node->local()->offset() << std::endl;
+  std::cout << "alloc [" << node->local()->datatype()->memSize() << "] loc" << node->local()->offset() << std::endl;
   if (node->value()) {
     this->print_tabs();
     std::cout << "store ";
@@ -175,7 +183,7 @@ void IRPrinter::print_ldecl(const IRLocalDecl *node) {
 }
 
 void IRPrinter::print_argdecl(const IRArgDecl *node) {
-  std::cout << "  alloc [" << node->local()->size() << "] loc" << node->local()->offset() << std::endl;
+  std::cout << "  alloc [" << node->local()->datatype()->memSize() << "] loc" << node->local()->offset() << std::endl;
 }
 
 void IRPrinter::print_asm(const IRInlineAsm *node) {

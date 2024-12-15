@@ -175,7 +175,7 @@ IRNode *WindOptimizer::OptimizeLDecl(IRLocalDecl *local_decl) {
   }
   assert (this->current_fn != nullptr);
   if (!this->current_fn->isUsed(local_decl->local())) {
-    this->current_fn->stack_size -= local_decl->local()->size();
+    this->current_fn->stack_size -= local_decl->local()->datatype()->memSize();
     return nullptr;
   }
   IRNode *opt_value = nullptr;

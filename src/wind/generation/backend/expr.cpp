@@ -3,29 +3,40 @@
 #include <iostream>
 
 asmjit::x86::Gp WindEmitter::moveVar(IRLocalRef *local, asmjit::x86::Gp dest) {
-  asmjit::x86::Gp reg = adaptReg(dest, local->size());
+  asmjit::x86::Gp reg = adaptReg(dest, local->datatype()->moveSize());
   if (this->OptVarGet(local->offset()) == reg) {
     return reg;
   }
-  this->assembler->mov(reg, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()));
+  if (local->datatype()->isArray()) {
+    // Arrays turn into pointers
+    this->emitLRef(new IRLocalAddrRef(local->offset()), reg);
+    return reg;
+  }
+  this->assembler->mov(reg, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
   return reg;
 }
 
 void WindEmitter::LitIntoVar(IRLocalRef *local, IRLiteral *lit) {
+  if (local->datatype()->isArray()) {
+    std::runtime_error("TODO: Move into array");
+  }
   this->assembler->mov(
-  asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()),
+  asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()),
   lit->get()
 );
 }
 
 void WindEmitter::moveIntoVar(IRLocalRef *local, IRNode *value) {
+  if (local->datatype()->isArray()) {
+    std::runtime_error("TODO: Move into array");
+  }
   if (value->is<IRLiteral>()) {
     IRLiteral *lit = value->as<IRLiteral>();
     this->LitIntoVar(local, lit);
   } else {
-    asmjit::x86::Gp reg = this->adaptReg(asmjit::x86::rax, local->size());
-    asmjit::x86::Gp src = this->adaptReg(this->emitExpr(value, reg), local->size());
-    this->assembler->mov(asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()), src);
+    asmjit::x86::Gp reg = this->adaptReg(asmjit::x86::rax, local->datatype()->moveSize());
+    asmjit::x86::Gp src = this->adaptReg(this->emitExpr(value, reg), local->datatype()->moveSize());
+    this->assembler->mov(asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()), src);
     this->OptVarMoved(local->offset(), src);
   }
 }
@@ -37,7 +48,12 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
     left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::r10);
     right_node = new IRRegister(this->emitBinOp(right_node->as<IRBinOp>(), asmjit::x86::rax));
   } else {
-    left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::rax);
+    if (bin_op->operation() == IRBinOp::Operation::ASSIGN) {
+      this->moveIntoVar((IRLocalRef*)bin_op->left()->as<IRLocalRef>(), right_node);
+      return dest;
+    } else {
+      left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::rax);
+    }
   }
 
   switch (right_node->type()) {
@@ -66,6 +82,14 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
         }
         case IRBinOp::Operation::SHR : {
           this->assembler->shr(left, lit->get());
+          break;
+        }
+        case IRBinOp::Operation::ASSIGN : {
+          this->assembler->mov(left, lit->get());
+          break;
+        }
+        default: {
+          std::cout << "Unknown operation" << std::endl;
           break;
         }
       }
@@ -103,6 +127,14 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
           this->assembler->shr(this->adaptReg(asmjit::x86::r10, rax_sz.size()), rax_sz);
           break;
         }
+        case IRBinOp::Operation::ASSIGN : {
+          this->assembler->mov(this->adaptReg(asmjit::x86::r10, rax_sz.size()), rax_sz);
+          break;
+        }
+        default: {
+          std::cout << "Unknown operation" << std::endl;
+          break;
+        }
       }
       asmjit::x86::Gp dest_sz = this->adaptReg(dest, rax_sz.size());
       if (dest.r64() != asmjit::x86::rax) {
@@ -114,18 +146,21 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
 
     case IRNode::NodeType::LOCAL_REF : {
       IRLocalRef *local = right_node->as<IRLocalRef>();
-      left = this->adaptReg(left, local->size());
+      if (local->datatype()->isArray()) {
+        std::runtime_error("TODO: Implement array binop");
+      }
+      left = this->adaptReg(left, local->datatype()->moveSize());
       switch (bin_op->operation()) {
         case IRBinOp::Operation::ADD : {
-          this->assembler->add(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()));
+          this->assembler->add(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
           break;
         }
         case IRBinOp::Operation::SUB : {
-          this->assembler->sub(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()));
+          this->assembler->sub(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
           break;
         }
         case IRBinOp::Operation::MUL : {
-          this->assembler->imul(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()));
+          this->assembler->imul(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
           break;
         }
         case IRBinOp::Operation::DIV : {
@@ -138,6 +173,14 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
         }
         case IRBinOp::Operation::SHR : {
           this->assembler->shr(left, this->moveVar(local, asmjit::x86::r10));
+          break;
+        }
+        case IRBinOp::Operation::ASSIGN : {
+          this->assembler->mov(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
+          break;
+        }
+        default: {
+          std::cout << "Unknown operation" << std::endl;
           break;
         }
       }
@@ -175,6 +218,14 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
         }
         case IRBinOp::Operation::SHR : {
           this->assembler->shr(left, right);
+          break;
+        }
+        case IRBinOp::Operation::ASSIGN : {
+          this->assembler->mov(left, right);
+          break;
+        }
+        default : {
+          std::cout << "Unknown operation" << std::endl;
           break;
         }
       }

@@ -11,5 +11,6 @@ namespace LexUtils {
 
 std::string generateRandomFilePath(const std::string& directory, const std::string& extension);
 
+long long fmtinttostr(std::string &str);
 
 #endif

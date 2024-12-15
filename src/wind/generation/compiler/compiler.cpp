@@ -2,6 +2,7 @@
 #include <wind/bridge/ast.h>
 #include <wind/generation/compiler.h>
 #include <wind/common/debug.h>
+#include <wind/processing/utils.h>
 
 #include <assert.h>
 
@@ -68,12 +69,12 @@ void* WindCompiler::visit(const Body &node) {
 
 void* WindCompiler::visit(const Function &node) {
   IRFunction *fn = new IRFunction(node.getName(), {}, std::unique_ptr<IRBody>(new IRBody({})));
-  fn->ret_size = this->ResolveType(node.getType());
-  std::vector<int> arg_types;
+  fn->return_type = this->ResolveDataType(node.getType());
+  std::vector<DataType*> arg_types;
   for (std::string type : node.getArgTypes()) {
-    arg_types.push_back(this->ResolveType(type));
+    arg_types.push_back(this->ResolveDataType(type));
   }
-  fn->copyArgSizes(arg_types);
+  fn->copyArgTypes(arg_types);
   this->current_fn = fn;
   fn->flags = node.flags;
   IRBody *body = (IRBody*)node.getBody()->accept(*this);
@@ -81,41 +82,61 @@ void* WindCompiler::visit(const Function &node) {
   return fn;
 }
 
-uint16_t WindCompiler::ResolveType(const std::string &type) {
-  if (type == "int") {
-    return 4;
-  } else if (type == "byte") {
-    return 1;
-  } else if (type == "short") {
-    return 2;
-  } else if (type == "long") {
-    return 8;
-  } else if (type=="void") {
-    return 0;
-  } else {
-    assert(false); // TODO: Implement typedef resolution
+DataType *WindCompiler::ResolveDataType(const std::string &type) {
+  if (type == "byte") {
+    return new DataType(DataType::Sizes::BYTE);
   }
+  else if (type == "short") {
+    return new DataType(DataType::Sizes::WORD);
+  }
+  else if (type == "int") {
+    return new DataType(DataType::Sizes::DWORD);
+  }
+  else if (type == "long") {
+    return new DataType(DataType::Sizes::QWORD);
+  }
+  else if (type == "void") {
+    return new DataType(DataType::Sizes::VOID);
+  }
+  else if (type[0]=='[' && type[type.size()-1]==']') {
+    uint32_t capacity = 0, size=0;
+    std::string inner = type.substr(1, type.size()-2);
+    // if semicolon is present, there's capacity
+    if (inner.find(';') != std::string::npos) {
+      std::string cap = inner.substr(inner.find(';')+1);
+      inner = inner.substr(0, inner.find(';'));
+      capacity = fmtinttostr(cap);
+    }
+    DataType *intype = this->ResolveDataType(inner);
+    size = intype->moveSize();
+    if (capacity != 0) {
+      return new DataType(size, capacity, intype);
+    }
+    return new DataType(size, intype);
+  }
+
+  throw std::runtime_error("Invalid type " +type);
 }
 
 void *WindCompiler::visit(const LocalDecl &node) {
   assert(this->current_fn != nullptr);
   if (node.getValue()) {
     IRNode *val = (IRNode*)node.getValue()->accept(*this);
-    IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveType(node.getType()));
+    IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType()));
     return new IRLocalDecl(
       local,
       val
     );
   }
   return new IRLocalDecl(
-    this->current_fn->NewLocal(node.getName(), this->ResolveType(node.getType())),
+    this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType())),
     nullptr
   );
 }
 
 void *WindCompiler::visit(const ArgDecl &node) {
   assert(this->current_fn != nullptr);
-  IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveType(node.getType()));
+  IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType()));
   return new IRArgDecl(local);
 }
 

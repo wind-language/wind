@@ -10,12 +10,12 @@ void IRRet::set(std::unique_ptr<IRNode> v) {
   value = std::move(v);
 }
 
-IRLocalRef::IRLocalRef(uint16_t stack_offset, uint16_t size) : stack_offset(stack_offset), var_size(size) {}
+IRLocalRef::IRLocalRef(uint16_t stack_offset, DataType *type) : stack_offset(stack_offset), var_type(type) {}
 uint16_t IRLocalRef::offset() const {
   return stack_offset;
 }
-uint16_t IRLocalRef::size() const {
-  return var_size;
+DataType* IRLocalRef::datatype() const {
+  return var_type;
 }
 
 IRLocalAddrRef::IRLocalAddrRef(uint16_t stack_offset) : stack_offset(stack_offset) {}
@@ -66,12 +66,12 @@ bool IRFunction::isUsed(IRLocalRef *local) {
   return std::find(used_offsets.begin(), used_offsets.end(), local->offset()) != used_offsets.end();
 }
 
-void IRFunction::copyArgSizes(std::vector<int> &types) {
-  arg_sizes = types;
+void IRFunction::copyArgTypes(std::vector<DataType*> &types) {
+  arg_types = types;
 }
 
-int IRFunction::GetArgSize(int index) {
-  return arg_sizes[index];
+DataType* IRFunction::GetArgType(int index) {
+  return arg_types[index];
 }
 
 IRFunction *IRFunction::clone() {
@@ -81,17 +81,19 @@ IRFunction *IRFunction::clone() {
   new_fn->local_table = std::move(local_table);
   new_fn->used_offsets = std::move(used_offsets);
   new_fn->flags = flags;
-  new_fn->arg_sizes = arg_sizes;
+  new_fn->arg_types = arg_types;
   new_fn->call_sub = call_sub;
-  new_fn->ret_size = ret_size;
+  new_fn->arg_types = arg_types;
+  new_fn->return_type = return_type;
   return new_fn;
 }
 
-IRLocalRef *IRFunction::NewLocal(std::string name, uint16_t size) {
-  uint16_t offset = stack_size+0x10; // left for canary
-  stack_size += size;
-  local_table.insert({name, new IRLocalRef(offset, size)});
-  this->fn_locals.push_back(std::make_unique<IRLocalRef>(offset, size));
+IRLocalRef *IRFunction::NewLocal(std::string name, DataType *type) {
+  uint16_t offset = stack_size+0x08; // left for canary
+  offset += type->memSize();
+  stack_size += type->memSize();
+  local_table.insert({name, new IRLocalRef(offset, type)});
+  this->fn_locals.push_back(std::make_unique<IRLocalRef>(offset, type));
   return this->fn_locals.back().get();
 }
 IRLocalRef* IRFunction::GetLocal(std::string name) {
@@ -125,6 +127,8 @@ IRBinOp::Operation IRstr2op(std::string str) {
     return IRBinOp::SHL;
   } else if (str == ">>") {
     return IRBinOp::SHR;
+  } else if (str == "=") {
+    return IRBinOp::ASSIGN;
   }
   else {
     throw std::runtime_error("Invalid operation");

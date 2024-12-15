@@ -1,15 +1,15 @@
-@extern func malloc(size: int) : long;
-@extern func memset(ptr: long, value: byte, size: int) : long;
-@extern func puts(str: long) : int;
+@extern func memcpy(dest: long, src: long, size: int) : long;
 @extern func printf(str: long, ...) : int;
 
-func add(a: int, b: int) : short {
-	return a + b;
-}
+//@type ptr = long;
+//@type string = ptr;
 
 func main() : int {
-	var localVar: int = 0;
-	memset(&localVar, 1, 12);
-	//printf("Sum: %d\n" add(1,2));
-	return localVar;
+	var localVar: [byte; 32];
+	var strVar: long = "Hai";
+	strVar = strVar + 1;
+	memcpy(localVar, "Hello", 5);
+	printf("Mem: %s\n" localVar);
+	printf("Int: %s\n" strVar);
+	return 0;
 }

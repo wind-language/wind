@@ -2,6 +2,7 @@
 #include <memory>
 #include <wind/processing/lexer.h>
 #include <wind/processing/parser.h>
+#include <wind/processing/utils.h>
 #include <wind/bridge/ast.h>
 #include <wind/reporter/parser.h>
 #include <wind/bridge/opt_flags.h>
@@ -30,12 +31,26 @@ std::string WindParser::typeSignature(Token::Type until, Token::Type oruntil) {
 
 std::string WindParser::typeSignature(Token::Type while_) {
   std::string signature = "";
+
+  if (this->stream->current()->type == Token::Type::LBRACKET) {
+    signature += this->expect(Token::Type::LBRACKET, "[")->value;
+    signature += this->typeSignature(Token::Type::IDENTIFIER);
+    if (this->stream->current()->type == Token::Type::SEMICOLON) {
+      signature += this->expect(Token::Type::SEMICOLON, ";")->value;
+      signature += this->expect(Token::Type::INTEGER, "array size")->value;
+    }
+    signature += this->expect(Token::Type::RBRACKET, "]")->value;
+    return signature;
+  }
+
   while (this->until(while_)) {
     Token *token = stream->pop();
     signature += token->value;
   }
   return signature;
 }
+
+
 
 Function *WindParser::parseFn() {
   this->expect(Token::Type::IDENTIFIER, "func");
@@ -81,10 +96,11 @@ Function *WindParser::parseFn() {
 }
 
 static Token::Type TOK_OP_LIST[]={
-    Token::Type::PLUS,
-    Token::Type::MINUS,
-    Token::Type::MULTIPLY,
-    Token::Type::COLON
+  Token::Type::PLUS,
+  Token::Type::MINUS,
+  Token::Type::MULTIPLY,
+  Token::Type::COLON,
+  Token::Type::ASSIGN
 };
 
 bool tokIsOperator(Token *tok) {
@@ -94,13 +110,6 @@ bool tokIsOperator(Token *tok) {
         }
     }
     return false;
-}
-
-long long fmtinttostr(std::string &str) {
-  if (str.size()>2 && str[0]=='0' && str[1]=='x') {
-    return std::stoll(str.substr(2), nullptr, 16);
-  }
-  return std::stoll(str);
 }
 
 ASTNode *WindParser::parseExprLiteral() {

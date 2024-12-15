@@ -42,3 +42,10 @@ std::string generateRandomFilePath(const std::string& directory, const std::stri
   std::string randomFileName = "tmp" + std::to_string(dist(gen)) + extension;
   return tempDir + "/" + randomFileName;
 }
+
+long long fmtinttostr(std::string &str) {
+  if (str.size()>2 && str[0]=='0' && str[1]=='x') {
+    return std::stoll(str.substr(2), nullptr, 16);
+  }
+  return std::stoll(str);
+}

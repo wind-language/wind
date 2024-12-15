@@ -67,9 +67,8 @@ void WindEmitter::emitPrologue() {
   }
   this->assembler->push(asmjit::x86::rbp);
   this->assembler->mov(asmjit::x86::rbp, asmjit::x86::rsp);
-  if (current_function->isCallSub()) {
-    this->assembler->sub(asmjit::x86::rsp, 0x20);
-  }
+  uint32_t stack_size = nextpow2(current_function->stack_size + (current_function->isCallSub() ? 0x08 : 0));
+  this->assembler->sub(asmjit::x86::rsp, stack_size);
   if ((current_function->flags & PURE_STCHK)==0) {
     this->canaryPrologue();
   }
@@ -137,12 +136,16 @@ IRFunction *WindEmitter::FindFunction(std::string name) {
   return nullptr;
 }
 
-void WindEmitter::SolveCArg(IRNode *arg, int type) {
+void WindEmitter::SolveCArg(IRNode *arg, DataType *type) {
+  // type is function declared type
+  if (type->isArray()) {
+    throw std::runtime_error("TODO: Array arguments");
+  }
   if (this->cconv_index >= 0) {
-    this->emitExpr(arg, this->adaptReg(SystemVABI[this->cconv_index], type));
-    this->OptClearReg(this->adaptReg(SystemVABI[this->cconv_index], type));
+    asmjit::x86::Gp resreg = this->emitExpr(arg, this->adaptReg(SystemVABI[this->cconv_index], type->moveSize()));
+    this->OptClearReg(this->adaptReg(SystemVABI[this->cconv_index], type->moveSize()));
   } else {
-    asmjit::x86::Gp reg = this->emitExpr(arg, this->adaptReg(asmjit::x86::rax, type));
+    asmjit::x86::Gp reg = this->emitExpr(arg, this->adaptReg(asmjit::x86::rax, type->moveSize()));
     this->assembler->push(reg);
   }
   this->cconv_index--;
@@ -161,18 +164,18 @@ asmjit::x86::Gp WindEmitter::emitFunctionCall(IRFnCall *fn_call, asmjit::x86::Gp
   for (int i = fn_call->args().size()-1; i >= 0; i--) {
     if ((int)i >= fn->ArgNum()) {
       if (fn->flags & FN_VARIADIC) {
-        this->SolveCArg(fn_call->args()[i].get(), 8);
+        this->SolveCArg(fn_call->args()[i].get(), new DataType(DataType::Sizes::QWORD));
         continue;
       }
       else { throw std::runtime_error("Too many arguments"); }
     }
-    this->SolveCArg(fn_call->args()[i].get(), fn->GetArgSize(i));
+    this->SolveCArg(fn_call->args()[i].get(), fn->GetArgType(i));
   }
   // TODO: Implement parameter scheduling, for calls with more than 2 args where args are overwriting each other
   this->assembler->call(this->assembler->labelByName(fn->name().c_str()));
   this->OptTabulaRasa(); // yk, functions can change registers
   this->cconv_index = saved_index;
-  if (fn->ret_size != 0) {
+  if (!fn->return_type->isVoid()) {
     asmjit::x86::Gp raxreg = this->adaptReg(asmjit::x86::rax, dest.size());
     if (!dest.equals(raxreg)) {
       this->assembler->mov(dest, raxreg);
@@ -182,6 +185,9 @@ asmjit::x86::Gp WindEmitter::emitFunctionCall(IRFnCall *fn_call, asmjit::x86::Gp
 }
 
 asmjit::x86::Gp WindEmitter::emitString(IRStringLiteral *str, asmjit::x86::Gp dest) {
+  if (dest.size() < 4) {
+    throw std::runtime_error("Invalid move size for string");
+  }
   std::string name = this->newRoString(str->get());
   this->assembler->lea(
     dest,
@@ -245,23 +251,26 @@ asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
 
 void WindEmitter::SolveArg(IRArgDecl *decl) {
   IRLocalRef *local = decl->local();
+  if (local->datatype()->isArray()) {
+    throw std::runtime_error("TODO: Implement array in arguments");
+  }
   if (this->cconv_index < 6) {
-    OptVarMoved(local->offset(), this->adaptReg(SystemVABI[this->cconv_index], local->size()));
+    OptVarMoved(local->offset(), this->adaptReg(SystemVABI[this->cconv_index], local->datatype()->moveSize()));
     if (this->current_function->flags & PURE_STACK) {
       this->cconv_index++;
       return;
     }
     this->assembler->mov(
-      asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()),
-      this->adaptReg(SystemVABI[this->cconv_index], local->size())
+      asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()),
+      this->adaptReg(SystemVABI[this->cconv_index], local->datatype()->moveSize())
     );
   } else {
-    asmjit::x86::Gp rax = this->adaptReg(asmjit::x86::rax, local->size());
+    asmjit::x86::Gp rax = this->adaptReg(asmjit::x86::rax, local->datatype()->moveSize());
     this->assembler->mov(
-      rax, asmjit::x86::ptr(asmjit::x86::rbp, (this->cconv_index-6)*8, local->size())
+      rax, asmjit::x86::ptr(asmjit::x86::rbp, (this->cconv_index-6)*8, local->datatype()->moveSize())
     );
     this->assembler->mov(
-      asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()), rax
+      asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()), rax
     );
   }
   this->cconv_index++;
@@ -296,7 +305,7 @@ void WindEmitter::emitAsm(IRInlineAsm *asm_node) {
     IRLocalRef *local = this->current_function->GetLocal(localRef);
     char off_hex[16];
     sprintf(off_hex, "%#x", local->offset());
-    std::string ref = wordstr(local->size()) + " ptr [rbp-" + std::string(off_hex) + "]";
+    std::string ref = wordstr(local->datatype()->moveSize()) + " ptr [rbp-" + std::string(off_hex) + "]";
     code = std::regex_replace(code, localRefPattern, ref);
   }
   this->logger->content().appendFormat("%s\n", code.c_str());

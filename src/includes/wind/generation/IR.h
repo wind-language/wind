@@ -46,6 +46,45 @@ public:
   }
 };
 
+class DataType {
+  private:
+    DataType *array;
+    uint16_t type_size;
+    uint16_t capacity;
+  public:
+    DataType(uint16_t size) : type_size(size), capacity(1), array(nullptr) {}
+    DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr) {}
+    DataType(uint16_t size, DataType *arr) : type_size(size), capacity(UINT16_MAX), array(arr) {}
+    DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr) {}
+    bool isArray() const { return array != nullptr; }
+    uint16_t moveSize() const { if (!isArray()) return type_size; return 8; }
+    uint16_t index2offset(uint16_t index) const { return index * type_size; }
+    uint16_t memSize() const {
+      uint32_t bytes = 0;
+      if (!isArray()) {
+        return type_size;
+      }
+      if (capacity != UINT16_MAX) {
+        bytes = array->memSize() * capacity;
+      } else {
+        bytes = array->memSize() + Sizes::QWORD;
+      }
+      return bytes;
+    }
+    uint16_t rawSize() const { return type_size; }
+    DataType *getArrayType() const { return array; }
+    bool isVoid() const { return type_size == 0; }
+
+    enum Sizes {
+      BYTE = 1,
+      WORD = 2,
+      DWORD = 4,
+      QWORD = 8,
+      VOID = 0
+    };
+};
+
+
 class IRRet : public IRNode {
 
 public:
@@ -58,12 +97,12 @@ public:
 
 class IRLocalRef : public IRNode {
   uint16_t stack_offset;
-  uint16_t var_size;
+  DataType *var_type;
 
 public:
-  IRLocalRef(uint16_t stack_offset, uint16_t size);
+  IRLocalRef(uint16_t stack_offset, DataType *type);
   uint16_t offset() const;
-  uint16_t size() const;
+  DataType *datatype() const;
   NodeType type() const override { return NodeType::LOCAL_REF; }
 };
 
@@ -97,9 +136,9 @@ public:
   uint16_t stack_size = 0;
   std::vector<uint16_t> used_offsets;
   FnFlags flags = 0;
-  std::vector<int> arg_sizes;
+  std::vector<DataType*> arg_types;
   bool call_sub = false;
-  int ret_size=0;
+  DataType *return_type;
 
 public:
   explicit IRFunction(std::string name, std::vector<std::unique_ptr<IRLocalRef>> locals, std::unique_ptr<IRBody> body);
@@ -111,13 +150,13 @@ public:
   bool isUsed(IRLocalRef *local);
   void occupyOffset(uint16_t offset);
   IRFunction *clone();
-  void copyArgSizes(std::vector<int> &types);
-  int GetArgSize(int index);
-  int ArgNum() const { return arg_sizes.size(); }
+  void copyArgTypes(std::vector<DataType*> &types);
+  DataType *GetArgType(int index);
+  int ArgNum() const { return arg_types.size(); }
   bool isVariadic() const { return flags & FN_VARIADIC; }
   bool isCallSub() const { return call_sub; }
 
-  IRLocalRef *NewLocal(std::string name, uint16_t size);
+  IRLocalRef *NewLocal(std::string name, DataType *type);
   IRLocalRef* GetLocal(std::string name);
 
 
@@ -132,7 +171,8 @@ public:
     MUL,
     DIV,
     SHL,
-    SHR
+    SHR,
+    ASSIGN
   };
 
 private:
