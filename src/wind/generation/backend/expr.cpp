@@ -1,4 +1,5 @@
 #include <wind/generation/backend.h>
+#include <wind/common/debug.h>
 #include <asmjit/asmjit.h>
 #include <iostream>
 
@@ -44,16 +45,15 @@ void WindEmitter::moveIntoVar(IRLocalRef *local, IRNode *value) {
 asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
   IRNode *right_node = (IRNode*)bin_op->right();
   asmjit::x86::Gp left;
+  if (bin_op->operation() == IRBinOp::Operation::ASSIGN) {
+    this->moveIntoVar((IRLocalRef*)bin_op->left()->as<IRLocalRef>(), right_node);
+    return dest;
+  }
   if (right_node->is<IRBinOp>()) {
     left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::r10);
     right_node = new IRRegister(this->emitBinOp(right_node->as<IRBinOp>(), asmjit::x86::rax));
   } else {
-    if (bin_op->operation() == IRBinOp::Operation::ASSIGN) {
-      this->moveIntoVar((IRLocalRef*)bin_op->left()->as<IRLocalRef>(), right_node);
-      return dest;
-    } else {
-      left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::rax);
-    }
+    left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::rax);
   }
 
   switch (right_node->type()) {
@@ -85,6 +85,7 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
           break;
         }
         case IRBinOp::Operation::ASSIGN : {
+          std::cerr << "HERE\n";
           this->assembler->mov(left, lit->get());
           break;
         }
@@ -128,6 +129,7 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
           break;
         }
         case IRBinOp::Operation::ASSIGN : {
+          std::cerr << "HERE\n";
           this->assembler->mov(this->adaptReg(asmjit::x86::r10, rax_sz.size()), rax_sz);
           break;
         }
@@ -176,6 +178,7 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
           break;
         }
         case IRBinOp::Operation::ASSIGN : {
+          std::cerr << "HERE\n";
           this->assembler->mov(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
           break;
         }
