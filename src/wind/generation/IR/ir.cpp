@@ -18,6 +18,11 @@ uint16_t IRLocalRef::size() const {
   return var_size;
 }
 
+IRLocalAddrRef::IRLocalAddrRef(uint16_t stack_offset) : stack_offset(stack_offset) {}
+uint16_t IRLocalAddrRef::offset() const {
+  return stack_offset;
+}
+
 IRBody::IRBody(std::vector<std::unique_ptr<IRNode>> s) : statements(std::move(s)) {}
 const std::vector<std::unique_ptr<IRNode>>& IRBody::get() const {
   return statements;

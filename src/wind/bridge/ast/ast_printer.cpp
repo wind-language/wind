@@ -22,6 +22,11 @@ void *ASTPrinter::visit(const VariableRef &node) {
   return nullptr;
 }
 
+void *ASTPrinter::visit(const VarAddressing &node) {
+  std::cout << "&" << node.getName();
+  return nullptr;
+}
+
 void *ASTPrinter::visit(const Literal &node) {
   std::cout << node.get();
   return nullptr;

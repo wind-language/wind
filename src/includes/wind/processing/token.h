@@ -30,7 +30,8 @@ public:
     AT,
     QMARK,
     STRING,
-    VARDC
+    VARDC,
+    AND
   };
   
   std::string value;
@@ -64,7 +65,8 @@ std::unordered_map<std::string, Token::Type> const SymbolTable = {
   {"]", Token::Type::RBRACKET},
   {"@", Token::Type::AT},
   {"?", Token::Type::QMARK},
-  {"...", Token::Type::VARDC}
+  {"...", Token::Type::VARDC},
+  {"&", Token::Type::AND}
 };
 
 #endif

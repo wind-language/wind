@@ -23,7 +23,8 @@ public:
     ARG_DECL,
     FUNCTION_CALL,
     REGISTER,
-    IN_ASM
+    IN_ASM,
+    LADDR_REF
   };
 
   virtual ~IRNode() = default;
@@ -64,6 +65,15 @@ public:
   uint16_t offset() const;
   uint16_t size() const;
   NodeType type() const override { return NodeType::LOCAL_REF; }
+};
+
+class IRLocalAddrRef : public IRNode {
+  uint16_t stack_offset;
+
+public:
+  IRLocalAddrRef(uint16_t stack_offset);
+  uint16_t offset() const;
+  NodeType type() const override { return NodeType::LADDR_REF; }
 };
 
 class IRBody : public IRNode {

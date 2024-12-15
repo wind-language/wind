@@ -60,6 +60,12 @@ void IRPrinter::print_node(const IRNode *node) {
       this->print_ref(node->as<IRLocalRef>());
       break;
     }
+    case IRNode::NodeType::LADDR_REF : {
+      this->print_laddr(
+        node->as<IRLocalAddrRef>()
+      );
+      break;
+    }
     case IRNode::NodeType::BODY : {
       this->print_body(
         node->as<IRBody>()
@@ -147,6 +153,10 @@ void IRPrinter::print_ret(const IRRet *node) {
 
 void IRPrinter::print_ref(const IRLocalRef *node) {
   std::cout << "loc" << node->offset();
+}
+
+void IRPrinter::print_laddr(const IRLocalAddrRef *node) {
+  std::cout << "&loc" << node->offset();
 }
 
 void IRPrinter::print_lit(const IRLiteral *node) {

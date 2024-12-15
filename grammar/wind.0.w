@@ -9,7 +9,7 @@ func add(a: int, b: int) : short {
 
 func main() : int {
 	var localVar: int = 0;
-	memset(&localVar, 1, 16);
-	printf("Sum: %d\n" add(1,2));
+	memset(&localVar, 1, 12);
+	//printf("Sum: %d\n" add(1,2));
 	return localVar;
 }

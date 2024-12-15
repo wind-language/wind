@@ -19,6 +19,7 @@ private:
   void print_bin_op(const IRBinOp *node);
   void print_ret(const IRRet *node);
   void print_ref(const IRLocalRef *node);
+  void print_laddr(const IRLocalAddrRef *node);
   void print_lit(const IRLiteral *node);
   void print_ldecl(const IRLocalDecl *node);
   void print_argdecl(const IRArgDecl *node);

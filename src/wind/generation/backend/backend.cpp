@@ -68,7 +68,7 @@ void WindEmitter::emitPrologue() {
   this->assembler->push(asmjit::x86::rbp);
   this->assembler->mov(asmjit::x86::rbp, asmjit::x86::rsp);
   if (current_function->isCallSub()) {
-    this->assembler->sub(asmjit::x86::rsp, 16);
+    this->assembler->sub(asmjit::x86::rsp, 0x20);
   }
   if ((current_function->flags & PURE_STCHK)==0) {
     this->canaryPrologue();
@@ -140,6 +140,7 @@ IRFunction *WindEmitter::FindFunction(std::string name) {
 void WindEmitter::SolveCArg(IRNode *arg, int type) {
   if (this->cconv_index >= 0) {
     this->emitExpr(arg, this->adaptReg(SystemVABI[this->cconv_index], type));
+    this->OptClearReg(this->adaptReg(SystemVABI[this->cconv_index], type));
   } else {
     asmjit::x86::Gp reg = this->emitExpr(arg, this->adaptReg(asmjit::x86::rax, type));
     this->assembler->push(reg);
@@ -154,6 +155,9 @@ asmjit::x86::Gp WindEmitter::emitFunctionCall(IRFnCall *fn_call, asmjit::x86::Gp
   }
   int saved_index = this->cconv_index;
   this->cconv_index = fn_call->args().size()-1;
+  if (fn->flags & FN_VARIADIC) {
+    this->assembler->xor_(asmjit::x86::rax, asmjit::x86::rax); // TODO: Change when implementing float
+  }
   for (int i = fn_call->args().size()-1; i >= 0; i--) {
     if ((int)i >= fn->ArgNum()) {
       if (fn->flags & FN_VARIADIC) {
@@ -166,6 +170,7 @@ asmjit::x86::Gp WindEmitter::emitFunctionCall(IRFnCall *fn_call, asmjit::x86::Gp
   }
   // TODO: Implement parameter scheduling, for calls with more than 2 args where args are overwriting each other
   this->assembler->call(this->assembler->labelByName(fn->name().c_str()));
+  this->OptTabulaRasa(); // yk, functions can change registers
   this->cconv_index = saved_index;
   if (fn->ret_size != 0) {
     asmjit::x86::Gp raxreg = this->adaptReg(asmjit::x86::rax, dest.size());
@@ -184,6 +189,16 @@ asmjit::x86::Gp WindEmitter::emitString(IRStringLiteral *str, asmjit::x86::Gp de
       this->assembler->labelByName(name.c_str())
     )
   );
+  this->OptClearReg(dest);
+  return dest;
+}
+
+asmjit::x86::Gp WindEmitter::emitLRef(IRLocalAddrRef *local, asmjit::x86::Gp dest) {
+  this->assembler->lea(
+    dest,
+    asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), 8)
+  );
+  this->OptClearReg(dest);
   return dest;
 }
 
@@ -203,6 +218,11 @@ asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
     case IRNode::NodeType::LOCAL_REF : {
       IRLocalRef *local = node->as<IRLocalRef>();
       return this->moveVar(local, dest);
+    }
+
+    case IRNode::NodeType::LADDR_REF : {
+      IRLocalAddrRef *laddr = node->as<IRLocalAddrRef>();
+      return this->emitLRef(laddr, dest);
     }
 
     case IRNode::NodeType::FUNCTION_CALL : {
@@ -226,6 +246,11 @@ asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
 void WindEmitter::SolveArg(IRArgDecl *decl) {
   IRLocalRef *local = decl->local();
   if (this->cconv_index < 6) {
+    OptVarMoved(local->offset(), this->adaptReg(SystemVABI[this->cconv_index], local->size()));
+    if (this->current_function->flags & PURE_STACK) {
+      this->cconv_index++;
+      return;
+    }
     this->assembler->mov(
       asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->size()),
       this->adaptReg(SystemVABI[this->cconv_index], local->size())

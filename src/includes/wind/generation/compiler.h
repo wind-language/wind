@@ -21,6 +21,7 @@ private:
   // Visitor
   void *visit(const BinaryExpr &node) override;
   void *visit(const VariableRef &node) override;
+  void *visit(const VarAddressing &node) override;
   void *visit(const Literal &node) override;
   void *visit(const Return &node) override;
   void *visit(const Body &node) override;

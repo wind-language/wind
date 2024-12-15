@@ -108,6 +108,7 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
       if (dest.r64() != asmjit::x86::rax) {
         this->assembler->mov(dest_sz, rax_sz);
       }
+      this->OptClearReg(dest_sz);
       return dest_sz;
     }
 
@@ -194,5 +195,6 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
 asmjit::x86::Gp WindEmitter::emitLiteral(IRLiteral *lit, asmjit::x86::Gp dest) {
   long long value = lit->get();
   this->assembler->mov(dest, value);
+  this->OptClearReg(dest);
   return dest;
 }

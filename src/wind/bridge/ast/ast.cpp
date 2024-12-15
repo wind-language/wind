@@ -34,6 +34,18 @@ const std::string& VariableRef::getName() const {
   return name;
 }
 
+// VarAddressing
+
+VarAddressing::VarAddressing(const std::string& n) : name(n) {}
+
+void *VarAddressing::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+
+const std::string& VarAddressing::getName() const {
+  return name;
+}
+
 // Literal
 
 Literal::Literal(long long v) : value(v) {}

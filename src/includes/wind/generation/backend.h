@@ -37,6 +37,8 @@ private:
   std::map<int, asmjit::x86::Gp> *reg_vars;
   void OptVarMoved(int offset, asmjit::x86::Gp reg);
   asmjit::x86::Gp OptVarGet(int offset);
+  void OptClearReg(asmjit::x86::Gp reg);
+  void OptTabulaRasa(); // Cool name, right?
 
   // Security
   void secHeader();
@@ -60,6 +62,7 @@ private:
   void emitAsm(IRInlineAsm *asm_node);
   asmjit::x86::Gp emitExpr(IRNode *node, asmjit::x86::Gp dest);
   asmjit::x86::Gp moveVar(IRLocalRef *local, asmjit::x86::Gp dest);
+  asmjit::x86::Gp emitLRef(IRLocalAddrRef *local, asmjit::x86::Gp dest);
   asmjit::x86::Gp adaptReg(asmjit::x86::Gp reg, int size);
   void SolveArg(IRArgDecl *decl);
   void moveIntoVar(IRLocalRef *local, IRNode *value);

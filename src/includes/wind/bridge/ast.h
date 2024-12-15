@@ -42,6 +42,18 @@ public:
   const std::string& getName() const;
 };
 
+class VarAddressing : public ASTNode {
+  std::string name;
+
+public:
+  explicit VarAddressing(const std::string& n);
+
+  void *accept(ASTVisitor &visitor) const override;
+
+  // Getter
+  const std::string& getName() const;
+};
+
 class Literal : public ASTNode {
   long long value;
 
@@ -174,6 +186,7 @@ class ASTVisitor {
 public:
   virtual void *visit(const BinaryExpr &node) = 0;
   virtual void *visit(const VariableRef &node) = 0;
+  virtual void *visit(const VarAddressing &node) = 0;
   virtual void *visit(const Literal &node) = 0;
   virtual void *visit(const Return &node) = 0;
   virtual void *visit(const Body &node) = 0;

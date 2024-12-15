@@ -151,6 +151,13 @@ ASTNode *WindParser::parseExprPrimary() {
       }
     }
 
+    case Token::AND : {
+      this->expect(Token::Type::AND, "&");
+      return new VarAddressing(
+        this->expect(Token::Type::IDENTIFIER, "variable name")->value
+      );
+    }
+
     default:
       Token *token = this->stream->pop();
       this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
