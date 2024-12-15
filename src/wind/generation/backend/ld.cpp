@@ -17,7 +17,6 @@ std::string WindLdInterface::link() {
     this->output = generateRandomFilePath("", ".out");
   }
   std::string command = "ld" + this->files + this->flags + " -o " + this->output;
-  LOG(command);
   this->retcode = std::system(command.c_str());
   return this->output;
 }
