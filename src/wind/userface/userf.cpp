@@ -9,6 +9,7 @@
 #include <wind/generation/ir_printer.h>
 #include <wind/generation/backend.h>
 #include <wind/generation/ld.h>
+#include <wind/isc/isc.h>
 
 #include <filesystem>
 #include <iostream>
@@ -52,12 +53,13 @@ void WindUserInterface::parseArgument(std::string arg, int &i) {
 }
 
 void WindUserInterface::emitObject(std::string path) {
+  global_isc->tabulaRasa();
   WindLexer *lexer = TokenizeFile(path.c_str());
   if (lexer == nullptr) {
     std::cerr << "File not found: " << path << std::endl;
     _Exit(1);
   }
-  WindParser *parser = new WindParser(lexer->get(), lexer->source());
+  WindParser *parser = new WindParser(lexer->get(), path);
   Body *ast = parser->parse();
   if (flags & SHOW_AST) {
     std::cout << "[" << path << "] AST:" << std::endl;
@@ -125,7 +127,13 @@ void WindUserInterface::processFiles() {
   for (std::string obj : this->objects) {
     ld->addFile(obj);
   }
-  ld->link();
+  std::string outtmp = ld->link();
+  for (std::string obj : this->objects) {
+    std::filesystem::remove(obj);
+  }
+  if (this->output == "") {
+    std::filesystem::remove(outtmp);
+  }
 
   delete ld;
 }

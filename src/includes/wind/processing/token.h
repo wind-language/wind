@@ -7,6 +7,8 @@
 typedef std::pair<u_int16_t, u_int16_t> TokenPos;
 typedef std::pair<TokenPos, TokenPos> TokenRange;
 
+typedef uint16_t TokenSrcId;
+
 class Token {
 public:
   enum Type {
@@ -38,13 +40,15 @@ public:
   Token::Type type;
   std::string name;
   TokenRange range;
+  TokenSrcId srcId;
 
   Token(
     std::string value,
     Token::Type type,
     std::string name,
-    TokenRange range
-  ) : value(value), type(type), name(name), range(range) {}
+    TokenRange range,
+    TokenSrcId srcId
+  ) : value(value), type(type), name(name), range(range), srcId(srcId) {}
 };
 
 std::unordered_map<std::string, Token::Type> const SymbolTable = {

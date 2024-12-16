@@ -1,3 +1,6 @@
+#include <string>
+#include <vector>
+
 #ifndef COMPILER_H
 #define COMPILER_H
 
@@ -14,6 +17,7 @@ private:
   Body *program;
   IRBody *emission;
   IRFunction *current_fn;
+  std::vector<std::string> fn_names;
 
   void compile();
   DataType *ResolveDataType(const std::string &type);

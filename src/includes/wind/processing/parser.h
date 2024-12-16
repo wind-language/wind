@@ -6,7 +6,7 @@
 
 class WindParser {
 public:
-  WindParser(TokenStream *stream, std::string src);
+  WindParser(TokenStream *stream, std::string src_path);
   ASTNode *Discriminate();
   Body *parse();
 
@@ -33,10 +33,12 @@ private:
   ASTNode *parseExpr(int precedence);
   ASTNode *parseExprSemi();
 
+  void pathWork(std::string relative, Token *token_ref);
+
 private:
   TokenStream *stream;
+  std::string file_path;
   Body *ast;
-  ParserReport *reporter;
   int flag_holder=0;
 };
 

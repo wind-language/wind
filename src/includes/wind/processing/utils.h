@@ -13,4 +13,6 @@ std::string generateRandomFilePath(const std::string& directory, const std::stri
 
 long long fmtinttostr(std::string &str);
 
+std::string getRealPath(const std::string& path);
+
 #endif

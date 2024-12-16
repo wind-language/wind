@@ -7,8 +7,18 @@
 #include <wind/reporter/parser.h>
 #include <wind/bridge/opt_flags.h>
 #include <wind/common/debug.h>
+#include <wind/isc/isc.h>
+#include <filesystem>
 
-WindParser::WindParser(TokenStream *stream, std::string src) : stream(stream), ast(new Body({})), reporter(new ParserReport(src)), flag_holder(0) {}
+ParserReport *GetReporter(Token *src) {
+  return global_isc->getParserReport(src->srcId);
+}
+
+WindParser::WindParser(TokenStream *stream, std::string src_path) :
+  stream(stream),
+  ast(new Body({})),
+  flag_holder(0),
+  file_path(src_path) {}
 
 bool WindParser::isKeyword(Token *src, std::string value) {
   if (src->type == Token::Type::IDENTIFIER && src->value == value) return true;
@@ -49,7 +59,6 @@ std::string WindParser::typeSignature(Token::Type while_) {
   }
   return signature;
 }
-
 
 
 Function *WindParser::parseFn() {
@@ -178,9 +187,8 @@ ASTNode *WindParser::parseExprPrimary() {
 
     default:
       Token *token = this->stream->pop();
-      this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
-      token->value, token->type, "Nothing (Unexpected token in expression)", token->range
-    ), token);
+      GetReporter(token)->Report(ParserReport::PARSER_ERROR, new Token(
+      token->value, token->type, "Nothing (Unexpected token in expression)", token->range, token->srcId), token);
       return nullptr;
   }
 }
@@ -284,9 +292,32 @@ FnFlags macroIntoFlag(std::string name) {
   return 0;
 }
 
+void WindParser::pathWork(std::string relative, Token *token_ref) {
+  std::string folder = std::filesystem::path(this->file_path).parent_path().string();
+  std::string path = std::filesystem::path(folder).append(relative).string();
+  int srcId = global_isc->getSrcId(path);
+  if (srcId == -1) {
+    if (global_isc->workOnInclude(path)) {
+      GetReporter(token_ref)->Report(ParserReport::PARSER_ERROR, new Token(
+        token_ref->value, token_ref->type, "Nothing (Failed to include)", token_ref->range, token_ref->srcId
+      ), token_ref);
+    }
+    Body *commit_diff = global_isc->commitAST(this->ast);
+    if (commit_diff != nullptr) {
+      this->ast = commit_diff;
+    }
+  }
+  else {
+    GetReporter(token_ref)->Report(ParserReport::PARSER_WARNING, new Token(
+      token_ref->value, token_ref->type, "Nothing (Already included)", token_ref->range, token_ref->srcId
+    ), token_ref);
+  }
+}
+
 void WindParser::parseMacro() {
   this->expect(Token::Type::AT, "@");
-  std::string name = this->expect(Token::Type::IDENTIFIER, "macro name")->value;
+  Token *macro_tok = this->expect(Token::Type::IDENTIFIER, "macro name");
+  std::string name = macro_tok->value;
 
   if (name == "pure") {
     this->expect(Token::Type::LBRACKET, "[");
@@ -296,9 +327,8 @@ void WindParser::parseMacro() {
       if (flagged) {
         this->flag_holder |= flagged;
       } else {
-        this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
-          flag->value, flag->type, "Nothing (Unexpected flag)", flag->range
-        ), flag);
+        GetReporter(flag)->Report(ParserReport::PARSER_ERROR, new Token(
+          flag->value, flag->type, "Nothing (Unexpected flag)", flag->range, flag->srcId), flag);
       }
     }
     this->expect(Token::Type::RBRACKET, "]");
@@ -309,10 +339,14 @@ void WindParser::parseMacro() {
   else if (name == "pub") {
     this->flag_holder |= FN_PUBLIC;
   }
+  else if (name == "include") {
+    Token *path = this->expect(Token::Type::STRING, "include path");
+    this->pathWork(path->value, macro_tok);
+  }
   else {
     Token *token = stream->pop();
-    this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
-      token->value, token->type, "Nothing (Unexpected macro)", token->range
+    GetReporter(token)->Report(ParserReport::PARSER_ERROR, new Token(
+      token->value, token->type, "Nothing (Unexpected macro)", token->range, token->srcId
     ), token);
   }
 }
@@ -378,8 +412,8 @@ Body *WindParser::parse() {
 Token* WindParser::expect(Token::Type type, std::string str_repr) {
   Token *token = stream->pop();
   if (token->type != type) {
-    this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
-      token->value, type, str_repr, token->range
+    GetReporter(token)->Report(ParserReport::PARSER_ERROR, new Token(
+      token->value, type, str_repr, token->range, token->srcId
     ), token);
   }
   return token;
@@ -388,8 +422,8 @@ Token* WindParser::expect(Token::Type type, std::string str_repr) {
 Token* WindParser::expect(std::string value, std::string str_repr) {
   Token *token = stream->pop();
   if (token->value != value) {
-    this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
-      value, token->type, str_repr, token->range
+    GetReporter(token)->Report(ParserReport::PARSER_ERROR, new Token(
+      value, token->type, str_repr, token->range, token->srcId
     ), token);
   }
   return token;
@@ -398,8 +432,8 @@ Token* WindParser::expect(std::string value, std::string str_repr) {
 Token *WindParser::expect(Token::Type type, std::string value, std::string str_repr) {
   Token *token = stream->pop();
   if (token->type != type || token->value != value) {
-    this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
-      value, type, str_repr, token->range
+    GetReporter(token)->Report(ParserReport::PARSER_ERROR, new Token(
+      value, type, str_repr, token->range, token->srcId
     ), token);
   }
   return token;

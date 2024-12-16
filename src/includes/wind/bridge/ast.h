@@ -97,6 +97,7 @@ public:
   const std::vector<std::unique_ptr<ASTNode>>& get() const;
   Body& operator + (std::unique_ptr<ASTNode> statement);
   Body& operator += (std::unique_ptr<ASTNode> statement);
+  Body& operator + (Body&) = delete;
 };
 
 class Function : public ASTNode {

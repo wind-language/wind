@@ -1,6 +1,7 @@
 #include <string>
 #include <wind/processing/lexer.h>
 #include <sstream>
+#include <iostream>
 #ifndef PARSER_REP_H
 #define PARSER_REP_H
 
@@ -11,7 +12,7 @@ public:
     PARSER_WARNING
   };
 
-  ParserReport(std::string src) : src(src) {}
+  ParserReport(std::string srcx) : src(srcx) {}
   void Report(
     ParserReport::Type type,
     Token *expecting=nullptr,

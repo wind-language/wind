@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <iterator>
+#include <wind/isc/isc.h>
 
 std::string ParserReport::line(uint16_t t_line) {
     std::string line;
@@ -23,6 +24,7 @@ std::string ParserReport::line(uint16_t t_line) {
 }
 
 void ParserReport::Report(ParserReport::Type type, Token *expecting, Token *found) {
+    std::string path = global_isc->getPath(found->srcId);
     if (type == ParserReport::Type::PARSER_WARNING) {
         std::cerr << "\x1b[33m[WARNING] \x1b[0m\x1b[1m" << "Unexpected token" << "\x1b[0m" << std::endl;
     } else if (type == ParserReport::Type::PARSER_ERROR) {
@@ -34,17 +36,18 @@ void ParserReport::Report(ParserReport::Type type, Token *expecting, Token *foun
     }
 
     std::cerr << "\x1b[1m" << "Expecting: " << "\x1b[0m" << expecting->name << std::endl;
-    std::cerr << "\x1b[1m" << "Found: `" << "\x1b[0m" << found->name << "\x1b[0m\x1b[36m` (" 
+    std::cerr << "\x1b[1m" << "Found: `" << "\x1b[0m" << found->name << "\x1b[0m`\x1b[36m (" 
               << found->range.first.first << ":" << found->range.first.second << " to "
-              << found->range.second.first << ":" << found->range.second.second << ")\x1b[0m" << std::endl;
+              << found->range.second.first << ":" << found->range.second.second << ")\x1b[0m" 
+              << " in \x1b[1m" << path << "\x1b[0m" << std::endl;
 
     std::string start_line = this->line(found->range.first.first);
     std::string end_line = this->line(found->range.second.first);
     int start_line_length = (int)start_line.size();
     int end_line_length = (int)end_line.size();
 
-    int start_col = found->range.first.second - 1;
-    int end_col = found->range.second.second - 1;
+    int start_col = found->range.first.second + 3;
+    int end_col = found->range.second.second + 3;
 
     if (start_col > start_line_length) {
         start_col = start_line_length;
@@ -53,7 +56,7 @@ void ParserReport::Report(ParserReport::Type type, Token *expecting, Token *foun
         end_col = end_line_length;
     }
 
-    std::cerr << start_line << std::endl;
+    std::cerr << "\x1b[33m" << found->range.first.first << "\x1b[0m | " << start_line << std::endl;
     for (int i = 0; i < start_line_length; i++) {
         if (i >= start_col && i < start_col + (found->range.second.second - found->range.first.second)) {
             std::cerr << "\x1b[31m" << "^" << "\x1b[0m";
@@ -74,5 +77,7 @@ void ParserReport::Report(ParserReport::Type type, Token *expecting, Token *foun
         }
         std::cerr << std::endl;
     }
-    exit(1);
+    if (type == ParserReport::Type::PARSER_ERROR) {
+        _Exit(1);
+    }
 }

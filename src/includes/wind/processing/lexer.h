@@ -34,6 +34,10 @@ public:
   Token *peek(u_int16_t offset=1) const;
   bool end() const;
   Token *last() const;
+  std::vector<Token*> getVec() const;
+  void join(TokenStream *stream);
+  void joinAfterindex(TokenStream *stream, u_int16_t index);
+  const u_int16_t getIndex() const { return index; }
 
 private:
   u_int16_t index=0;
@@ -48,6 +52,7 @@ public:
   TokenStream *tokenize();
   TokenStream *get();
   std::string source() const;
+  uint16_t srcId;
 
 private:
   CharStream stream;

@@ -49,3 +49,8 @@ long long fmtinttostr(std::string &str) {
   }
   return std::stoll(str);
 }
+
+std::string getRealPath(const std::string& path) {
+  std::filesystem::path p(path);
+  return std::filesystem::absolute(p).string();
+}

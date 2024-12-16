@@ -3,6 +3,7 @@
 #include <fstream>
 #include <wind/processing/lexer.h>
 #include <wind/processing/utils.h>
+#include <wind/isc/isc.h>
 #include <iostream>
 
 CharStream::CharStream(std::string data) {
@@ -98,6 +99,31 @@ bool TokenStream::end() const {
   return this->index >= this->tokens.size();
 }
 
+std::vector<Token*> TokenStream::getVec() const {
+  return this->tokens;
+}
+
+void TokenStream::join(TokenStream *stream) {
+  for (Token *token : stream->getVec()) {
+    this->push(token);
+  }
+}
+
+void TokenStream::joinAfterindex(TokenStream *stream, u_int16_t index) {
+  std::vector<Token*> new_tokens;
+  for (u_int16_t i = 0; i < index; i++) {
+    new_tokens.push_back(this->tokens[i]);
+  }
+  for (Token *token : stream->getVec()) {
+    new_tokens.push_back(token);
+  }
+  for (u_int16_t i = index; i < this->tokens.size(); i++) {
+    new_tokens.push_back(this->tokens[i]);
+  }
+  this->tokens = new_tokens;
+}
+
+
 WindLexer *TokenizeFile(const char *filename) {
   std::ifstream file(filename);
   if (!file.is_open()) {
@@ -111,11 +137,16 @@ WindLexer *TokenizeFile(const char *filename) {
   }
   WindLexer *lex = new WindLexer(data);
   lex->tokenize();
+  global_isc->setPath(lex->srcId, getRealPath(filename));
+  global_isc->setStream(lex->srcId, lex->get());
+  global_isc->newParserReport(lex->srcId, data);
   return lex;
 }
 
 
-WindLexer::WindLexer(std::string data) : stream(data), reporter(new LexerReport()), tokens(new TokenStream()), source_back(data) {}
+WindLexer::WindLexer(std::string data) : stream(data), reporter(new LexerReport()), tokens(new TokenStream()), source_back(data) {
+  srcId = global_isc->getNewSrcId();
+}
 
 SymbolMatch WindLexer::MatchSymbol() {
   for (const auto &symbol : SymbolTable) {
@@ -145,7 +176,7 @@ Token *WindLexer::LexHexadecimal() {
   }
   TokenPos end = this->stream.position();
   end.second--;
-  return new Token(value, Token::Type::INTEGER, "Integer", std::make_pair(start, end));
+  return new Token(value, Token::Type::INTEGER, "Integer", std::make_pair(start, end), this->srcId);
 }
 
 Token *WindLexer::LexIdentifier() {
@@ -158,7 +189,7 @@ Token *WindLexer::LexIdentifier() {
   }
   TokenPos end = this->stream.position();
   end.second--;
-  return new Token(value, Token::Type::IDENTIFIER, "Identifier", std::make_pair(start, end));
+  return new Token(value, Token::Type::IDENTIFIER, "Identifier", std::make_pair(start, end), this->srcId);
 }
 
 Token *WindLexer::LexSymbol(const SymbolMatch& symbol) {
@@ -168,7 +199,7 @@ Token *WindLexer::LexSymbol(const SymbolMatch& symbol) {
   this->stream.advance(symbol->first.size());
   TokenPos end = this->stream.position();
   end.second += symbol->first.size()-2;
-  return new Token(value, symbol->second, symbol->first, std::make_pair(start, end));
+  return new Token(value, symbol->second, symbol->first, std::make_pair(start, end), this->srcId);
 }
 
 Token *WindLexer::LexString() {
@@ -182,7 +213,7 @@ Token *WindLexer::LexString() {
   }
   TokenPos end = this->stream.position();
   this->stream.advance();
-  return new Token(value, Token::Type::STRING, "String", std::make_pair(start, end));
+  return new Token(value, Token::Type::STRING, "String", std::make_pair(start, end), this->srcId);
 }
 
 Token *WindLexer::LexChar() {
@@ -197,7 +228,7 @@ Token *WindLexer::LexChar() {
   TokenPos end = this->stream.position();
   this->stream.advance();
   std::string strnum = std::to_string(value[0]);
-  return new Token(strnum, Token::Type::INTEGER, "Char", std::make_pair(start, end));
+  return new Token(strnum, Token::Type::INTEGER, "Char", std::make_pair(start, end), this->srcId);
 }
 
 Token *WindLexer::Discriminate() {

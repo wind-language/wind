@@ -5,6 +5,7 @@
 #include <wind/generation/gas.h>
 #include <wind/generation/ld.h>
 #include <asmjit/asmjit.h>
+#include <filesystem>
 #include <fstream>
 #include <math.h>
 #include <map>
@@ -413,5 +414,7 @@ std::string WindEmitter::emitObj(std::string outpath) {
   }
   WindGasInterface *gas = new WindGasInterface(path, outpath);
   gas->addFlag("-O3");
-  return gas->assemble();
+  std::string ret = gas->assemble();
+  std::filesystem::remove(path);
+  return ret;
 }

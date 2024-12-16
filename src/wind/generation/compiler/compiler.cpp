@@ -3,6 +3,7 @@
 #include <wind/generation/compiler.h>
 #include <wind/common/debug.h>
 #include <wind/processing/utils.h>
+#include <algorithm>
 
 #include <assert.h>
 
@@ -69,6 +70,10 @@ void* WindCompiler::visit(const Body &node) {
 
 void* WindCompiler::visit(const Function &node) {
   IRFunction *fn = new IRFunction(node.getName(), {}, std::unique_ptr<IRBody>(new IRBody({})));
+  if (std::find(this->fn_names.begin(), this->fn_names.end(), node.getName()) != this->fn_names.end()) {
+    throw std::runtime_error("Function " + node.getName() + " already defined");
+  }
+  this->fn_names.push_back(node.getName());
   fn->return_type = this->ResolveDataType(node.getType());
   std::vector<DataType*> arg_types;
   for (std::string type : node.getArgTypes()) {
