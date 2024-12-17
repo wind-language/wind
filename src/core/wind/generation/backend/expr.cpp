@@ -5,7 +5,11 @@
 
 asmjit::x86::Gp WindEmitter::moveVar(IRLocalRef *local, asmjit::x86::Gp dest) {
   asmjit::x86::Gp reg = adaptReg(dest, local->datatype()->moveSize());
+  asmjit::x86::Gp var_reg = OptVarGet(local->offset());
   if (this->OptVarGet(local->offset()) == reg) {
+    return reg;
+  } else if (var_reg != asmjit::x86::r15) {
+    this->assembler->mov(reg, var_reg);
     return reg;
   }
   if (local->datatype()->isArray()) {
@@ -14,6 +18,7 @@ asmjit::x86::Gp WindEmitter::moveVar(IRLocalRef *local, asmjit::x86::Gp dest) {
     return reg;
   }
   this->assembler->mov(reg, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
+  this->OptVarMoved(local->offset(), reg);
   return reg;
 }
 
@@ -38,7 +43,6 @@ void WindEmitter::moveIntoVar(IRLocalRef *local, IRNode *value) {
     asmjit::x86::Gp reg = this->adaptReg(asmjit::x86::rax, local->datatype()->moveSize());
     asmjit::x86::Gp src = this->adaptReg(this->emitExpr(value, reg), local->datatype()->moveSize());
     this->assembler->mov(asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()), src);
-    this->OptVarMoved(local->offset(), src);
   }
 }
 
@@ -118,6 +122,7 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
       if (left != dest) {
         this->assembler->mov(dest, left);
       }
+      this->OptClearReg(left);
       return left;
     }
 
@@ -201,25 +206,23 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
       if (left != dest) {
         this->assembler->mov(dest, left);
       }
+      this->OptClearReg(left);
       return left;
     }
 
     case IRNode::NodeType::REGISTER : {
       asmjit::x86::Gp right = right_node->as<IRRegister>()->reg();
-      int biggest_size = std::max(left.size(), right.size());
-      left = this->adaptReg(left, biggest_size);
-      right = this->adaptReg(right, biggest_size);
       switch (bin_op->operation()) {
         case IRBinOp::Operation::ADD : {
-          this->assembler->add(left, right);
+          this->assembler->add(right, left);
           break;
         }
         case IRBinOp::Operation::SUB : {
-          this->assembler->sub(left, right);
+          this->assembler->sub(right, left);
           break;
         }
         case IRBinOp::Operation::MUL : {
-          this->assembler->imul(left, right);
+          this->assembler->imul(right, left);
           break;
         }
         case IRBinOp::Operation::DIV : {
@@ -227,15 +230,15 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
           break;
         }
         case IRBinOp::Operation::SHL : {
-          this->assembler->shl(left, right);
+          this->assembler->shl(right, left);
           break;
         }
         case IRBinOp::Operation::SHR : {
-          this->assembler->shr(left, right);
+          this->assembler->shr(right, left);
           break;
         }
         case IRBinOp::Operation::ASSIGN : {
-          this->assembler->mov(left, right);
+          this->assembler->mov(right, left);
           break;
         }
         default : {
@@ -243,10 +246,11 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
           break;
         }
       }
-      if (left != dest) {
-        this->assembler->mov(dest, left);
+      if (right != dest) {
+        this->assembler->mov(dest, right);
       }
-      return left;
+      this->OptClearReg(right);
+      return right;
     }
 
     default: {
@@ -254,12 +258,14 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
       break;
     }
   }
+  this->OptClearReg(dest);
   return dest;
 }
 
 asmjit::x86::Gp WindEmitter::emitLiteral(IRLiteral *lit, asmjit::x86::Gp dest) {
   long long value = lit->get();
   this->assembler->mov(dest, value);
+  this->OptClearReg(dest);
   this->OptClearReg(dest);
   return dest;
 }

@@ -1,10 +1,15 @@
-asmjit/
+# Libs: [ asmjit ]
+external/
+
+# CMake
 build/
+
+# IDE
 .vscode/
-benchmarks/*.S
-benchmarks/test*.out
-*.o
-raw_std/*.o
-wind
 .clangd
 TODO
+
+# Testing files
+testing/**/*.S
+testing/**/*.o
+testing/**/*.out

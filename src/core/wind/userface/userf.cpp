@@ -14,12 +14,18 @@
 #include <filesystem>
 #include <iostream>
 
+#ifndef WIND_RUNTIME_PATH
+#warning "WIND_RUNTIME_PATH not defined"
+#define WIND_RUNTIME_PATH ""
+#endif
+
 const char HELP[] = "Usage: wind [options] [files]\n"
                     "Options:\n"
                     "  -ej  Emit object file\n"
                     "  -o   Output file path\n"
                     "  -sa  Show AST\n"
                     "  -si  Show IR\n"
+                    "  -ss"
                     "  -h   Display this help message\n";
 
 WindUserInterface::WindUserInterface(int argc, char **argv) {
@@ -42,6 +48,9 @@ void WindUserInterface::parseArgument(std::string arg, int &i) {
   }
   else if (arg == "-si") {
     this->flags |= SHOW_IR;
+  }
+  else if (arg == "-ss") {
+    this->flags |= SHOW_ASM;
   }
   else if (arg == "-h") {
     std::cout << HELP;
@@ -87,6 +96,10 @@ void WindUserInterface::emitObject(std::string path) {
   } else {
     output = backend->emitObj();
   }
+  if (this->flags & SHOW_ASM) {
+    std::cout << "[" << path << "] ASM:" << std::endl;
+    std::cout << backend->logger->content().data() << std::endl;
+  }
   this->objects.push_back(output);
 
   delete ir;
@@ -101,7 +114,8 @@ void WindUserInterface::ldDefFlags(WindLdInterface *ld) {
 void WindUserInterface::ldExecFlags(WindLdInterface *ld) {
   ld->addFlag("-dynamic-linker /lib64/ld-linux-x86-64.so.2");
   ld->addFlag("-lc");
-  ld->addFile("raw_std/wind_lib.o");
+  std::string runtime_lib = std::string(WIND_RUNTIME_PATH) + "/wind_runtime.o";
+  ld->addFile(runtime_lib);
 }
 
 void WindUserInterface::processFiles() {

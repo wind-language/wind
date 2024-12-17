@@ -108,6 +108,7 @@ static Token::Type TOK_OP_LIST[]={
   Token::Type::PLUS,
   Token::Type::MINUS,
   Token::Type::MULTIPLY,
+  Token::Type::DIVIDE,
   Token::Type::COLON,
   Token::Type::ASSIGN
 };
@@ -183,6 +184,13 @@ ASTNode *WindParser::parseExprPrimary() {
       return new VarAddressing(
         this->expect(Token::Type::IDENTIFIER, "variable name")->value
       );
+    }
+
+    case Token::LPAREN : {
+      this->expect(Token::Type::LPAREN, "(");
+      ASTNode *expr = this->parseExpr(0);
+      this->expect(Token::Type::RPAREN, ")");
+      return expr;
     }
 
     default:

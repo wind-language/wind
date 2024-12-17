@@ -3,6 +3,10 @@
 #include <iostream>
 
 void WindEmitter::OptVarMoved(int offset, asmjit::x86::Gp reg) {
+asmjit::x86::Gp check = this->OptVarGet(offset);
+  if (check != asmjit::x86::r15) {
+    this->OptClearReg(check);
+  }
   this->reg_vars->insert({offset, reg});
 }
 asmjit::x86::Gp WindEmitter::OptVarGet(int offset) {

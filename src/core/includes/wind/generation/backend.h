@@ -16,6 +16,7 @@ public:
   void process();
   std::string emitObj(std::string outpath="");
   std::string emit();
+  asmjit::StringLogger *logger;
 
 private:
   IRBody *program;
@@ -26,7 +27,6 @@ private:
   // Asmjit
   asmjit::x86::Assembler *assembler;
   asmjit::CodeHolder code_holder;
-  asmjit::StringLogger *logger;
   asmjit::Section *text;
   asmjit::Section *data;
   asmjit::Section *bss;

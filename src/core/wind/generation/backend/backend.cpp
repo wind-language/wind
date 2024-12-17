@@ -159,9 +159,6 @@ asmjit::x86::Gp WindEmitter::emitFunctionCall(IRFnCall *fn_call, asmjit::x86::Gp
   }
   int saved_index = this->cconv_index;
   this->cconv_index = fn_call->args().size()-1;
-  if (fn->flags & FN_VARIADIC) {
-    this->assembler->xor_(asmjit::x86::rax, asmjit::x86::rax); // TODO: Change when implementing float
-  }
   for (int i = fn_call->args().size()-1; i >= 0; i--) {
     if ((int)i >= fn->ArgNum()) {
       if (fn->flags & FN_VARIADIC) {
@@ -173,6 +170,9 @@ asmjit::x86::Gp WindEmitter::emitFunctionCall(IRFnCall *fn_call, asmjit::x86::Gp
     this->SolveCArg(fn_call->args()[i].get(), fn->GetArgType(i));
   }
   // TODO: Implement parameter scheduling, for calls with more than 2 args where args are overwriting each other
+  if (fn->flags & FN_VARIADIC) {
+    this->assembler->xor_(asmjit::x86::rax, asmjit::x86::rax); // TODO: Change when implementing float
+  }
   this->assembler->call(this->assembler->labelByName(fn->name().c_str()));
   this->OptTabulaRasa(); // yk, functions can change registers
   this->cconv_index = saved_index;

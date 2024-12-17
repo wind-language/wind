@@ -49,9 +49,10 @@ This code compiles **46% faster than C++** and **120% faster than Rust**
 | :--------: | :---------------: |
 |    `-o`    |    Output file    |
 |    `-h`    |     Show help     |
-|   `--ej`   | Compile as object |
-|   `--sa`   |     Show AST      |
-|   `--si`   |      Show IR      |
+|   `-ej`    | Compile as object |
+|   `-sa`    |     Show AST      |
+|   `-si`    |      Show IR      |
+|   `-ss`    |     Show ASM      |
 
 <h3 align="center">
 Example
