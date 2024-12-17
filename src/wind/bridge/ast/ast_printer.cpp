@@ -101,3 +101,8 @@ void *ASTPrinter::visit(const StringLiteral &node) {
   std::cout << "\"" << node.getValue() << "\"";
   return nullptr;
 }
+
+void *ASTPrinter::visit(const TypeDecl &node) {
+  std::cout << "type " << node.getName() << " = " << node.getType() << std::endl;
+  return nullptr;
+}

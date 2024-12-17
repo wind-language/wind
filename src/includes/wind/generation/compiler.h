@@ -1,3 +1,4 @@
+#include <map>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,7 @@ private:
   IRBody *emission;
   IRFunction *current_fn;
   std::vector<std::string> fn_names;
+  std::map<std::string, DataType*> userdef_types_map;
 
   void compile();
   DataType *ResolveDataType(const std::string &type);
@@ -35,6 +37,7 @@ private:
   void *visit(const FnCall &node) override;
   void *visit(const InlineAsm &node) override;
   void *visit(const StringLiteral &node) override;
+  void *visit(const TypeDecl &node) override;
 };
 
 #endif // COMPILER_H

@@ -63,7 +63,10 @@ void* WindCompiler::visit(const Return &node) {
 void* WindCompiler::visit(const Body &node) {
   IRBody *body = new IRBody({});
   for (const auto &child : node.get()) {
-    *body += (std::unique_ptr<IRNode>((IRNode*)child->accept(*this)));
+    auto *child_node = (IRNode*)child->accept(*this);
+    if (child_node != nullptr) {
+      *body += std::unique_ptr<IRNode>(child_node);
+    }
   }
   return body;
 }
@@ -119,6 +122,9 @@ DataType *WindCompiler::ResolveDataType(const std::string &type) {
     }
     return new DataType(size, intype);
   }
+  else if (this->userdef_types_map.find(type) != this->userdef_types_map.end()) {
+    return this->userdef_types_map[type];
+  }
 
   throw std::runtime_error("Invalid type " +type);
 }
@@ -157,4 +163,10 @@ void* WindCompiler::visit(const FnCall &node) {
 void *WindCompiler::visit(const InlineAsm &node) {
   IRInlineAsm *asm_node = new IRInlineAsm(node.getCode());
   return asm_node;
+}
+
+void *WindCompiler::visit(const TypeDecl &node) {
+  DataType *type = this->ResolveDataType(node.getType());
+  this->userdef_types_map[node.getName()] = type;
+  return nullptr;
 }

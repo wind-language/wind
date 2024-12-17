@@ -185,3 +185,14 @@ void *StringLiteral::accept(ASTVisitor &visitor) const {
 const std::string& StringLiteral::getValue() const {
   return str;
 }
+
+TypeDecl::TypeDecl(std::string n, std::string t) : name(n), type(t) {}
+void *TypeDecl::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const std::string& TypeDecl::getName() const {
+  return name;
+}
+const std::string& TypeDecl::getType() const {
+  return type;
+}

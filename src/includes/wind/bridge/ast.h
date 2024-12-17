@@ -184,6 +184,17 @@ private:
   std::string str;
 };
 
+class TypeDecl : public ASTNode {
+  std::string name;
+  std::string type;
+
+public:
+  TypeDecl(std::string n, std::string t);
+  void *accept(ASTVisitor &visitor) const;
+  const std::string& getName() const;
+  const std::string& getType() const;
+};
+
 
 class ASTVisitor {
 public:
@@ -199,6 +210,7 @@ public:
   virtual void *visit(const FnCall &node) = 0;
   virtual void *visit(const InlineAsm &node) = 0;
   virtual void *visit(const StringLiteral &node) = 0;
+  virtual void *visit(const TypeDecl &node) = 0;
 };
 
 #endif // AST_H

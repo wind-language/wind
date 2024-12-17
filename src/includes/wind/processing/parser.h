@@ -24,7 +24,7 @@ private:
   LocalDecl *parseVarDecl();
   InlineAsm *parseInlAsm();
 
-  void parseMacro();
+  ASTNode *parseMacro();
 
   ASTNode *parseExprBinOp(ASTNode *left, int precedence);
   ASTNode *parseExprFnCall();

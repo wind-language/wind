@@ -314,7 +314,7 @@ void WindParser::pathWork(std::string relative, Token *token_ref) {
   }
 }
 
-void WindParser::parseMacro() {
+ASTNode* WindParser::parseMacro() {
   this->expect(Token::Type::AT, "@");
   Token *macro_tok = this->expect(Token::Type::IDENTIFIER, "macro name");
   std::string name = macro_tok->value;
@@ -343,12 +343,20 @@ void WindParser::parseMacro() {
     Token *path = this->expect(Token::Type::STRING, "include path");
     this->pathWork(path->value, macro_tok);
   }
+  else if (name == "type") {
+    std::string type = this->typeSignature(Token::Type::IDENTIFIER);
+    this->expect(Token::Type::ASSIGN, "=");
+    std::string value = this->typeSignature(Token::Type::IDENTIFIER);
+    this->expect(Token::Type::SEMICOLON, ";");
+    return new TypeDecl(type, value);
+  }
   else {
     Token *token = stream->pop();
     GetReporter(token)->Report(ParserReport::PARSER_ERROR, new Token(
       token->value, token->type, "Nothing (Unexpected macro)", token->range, token->srcId
     ), token);
   }
+  return nullptr;
 }
 
 InlineAsm *WindParser::parseInlAsm() {
@@ -386,7 +394,7 @@ ASTNode *WindParser::Discriminate() {
     return this->parseInlAsm();
   }
   else if (this->stream->current()->type == Token::Type::AT) {
-    this->parseMacro();
+    return this->parseMacro();
   }
   else {
     /* Token *token = stream->current();

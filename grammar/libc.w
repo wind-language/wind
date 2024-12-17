@@ -1,4 +1,4 @@
-@extern func memcpy(dest: long, src: long, size: int) : long;
-@extern func printf(str: long, ...) : int;
-
 @include "types.w"
+
+@extern func memcpy(dest: ptr, src: ptr, size: int) : ptr;
+@extern func printf(str: string, ...) : int;

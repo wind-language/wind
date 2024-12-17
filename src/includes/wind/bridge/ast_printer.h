@@ -17,6 +17,7 @@ public:
     void *visit(const FnCall &node) override;
     void *visit(const InlineAsm &node) override;
     void *visit(const StringLiteral &node) override;
+    void *visit(const TypeDecl &node) override;
 
 private:
     void print_tabs();
