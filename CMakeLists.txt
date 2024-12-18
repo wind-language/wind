@@ -5,6 +5,8 @@ project(Wind VERSION 1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+
+set(TESTLIB_OUTDIR ${CMAKE_CURRENT_LIST_DIR}/testing/suite/lib)
 add_subdirectory(src)
 
 set(SRC_FILES src/main/proc.cpp)

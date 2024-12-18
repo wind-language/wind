@@ -13,3 +13,7 @@ TODO
 testing/**/*.S
 testing/**/*.o
 testing/**/*.out
+
+# Test suite
+testing/**/__pycache__/
+testing/suite/lib/*
