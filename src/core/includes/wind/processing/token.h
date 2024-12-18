@@ -1,5 +1,6 @@
 #include <string>
 #include <unordered_map>
+#include <stdint.h>
 
 #ifndef TOKEN_H
 #define TOKEN_H

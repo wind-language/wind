@@ -71,6 +71,7 @@ if (WIND_BUILD_TESTLIB)
     OUTPUT_VARIABLE PYSUFFIX
     OUTPUT_STRIP_TRAILING_WHITESPACE
   )
+  string(REPLACE ".so" "" PYSUFFIX ${PYSUFFIX})
 
   execute_process(
     COMMAND python3 -m pybind11 --include
