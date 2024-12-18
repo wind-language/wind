@@ -301,8 +301,13 @@ FnFlags macroIntoFlag(std::string name) {
 }
 
 void WindParser::pathWork(std::string relative, Token *token_ref) {
-  std::string folder = std::filesystem::path(this->file_path).parent_path().string();
-  std::string path = std::filesystem::path(folder).append(relative).string();
+  std::string path;
+  if (relative[0] != '#') {
+    std::string folder = std::filesystem::path(this->file_path).parent_path().string();
+    path = std::filesystem::path(folder).append(relative).string();
+  } else {
+    path = std::filesystem::path(WIND_STD_PATH).append(relative.substr(1)).string();
+  }
   int srcId = global_isc->getSrcId(path);
   if (srcId == -1) {
     if (global_isc->workOnInclude(path)) {
@@ -348,8 +353,17 @@ ASTNode* WindParser::parseMacro() {
     this->flag_holder |= FN_PUBLIC;
   }
   else if (name == "include") {
-    Token *path = this->expect(Token::Type::STRING, "include path");
-    this->pathWork(path->value, macro_tok);
+    if (this->stream->current()->type != Token::Type::LBRACKET) {
+      Token *path = this->expect(Token::Type::STRING, "include path");
+      this->pathWork(path->value, macro_tok);
+    } else {
+      this->expect(Token::Type::LBRACKET, "[");
+      while (!this->until(Token::Type::RBRACKET)) {
+        Token *path = this->expect(Token::Type::STRING, "include path");
+        this->pathWork(path->value, path);
+      }
+      this->expect(Token::Type::RBRACKET, "]");
+    }
   }
   else if (name == "type") {
     std::string type = this->typeSignature(Token::Type::IDENTIFIER);

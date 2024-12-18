@@ -147,6 +147,7 @@ public:
   std::vector<DataType*> arg_types;
   bool call_sub = false;
   DataType *return_type;
+  bool ignore_stack_abi=false;
 
 public:
   explicit IRFunction(std::string name, std::vector<std::unique_ptr<IRLocalRef>> locals, std::unique_ptr<IRBody> body);
@@ -245,6 +246,7 @@ public:
   const std::string& name() const;
   const std::vector<std::unique_ptr<IRNode>>& args() const;
   void push_arg(std::unique_ptr<IRNode> arg);
+  void replaceArg(int index, std::unique_ptr<IRNode> arg);
   NodeType type() const override { return NodeType::FUNCTION_CALL; }
 };
 

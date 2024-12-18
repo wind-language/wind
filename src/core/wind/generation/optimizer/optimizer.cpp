@@ -189,6 +189,26 @@ IRNode *WindOptimizer::OptimizeLDecl(IRLocalDecl *local_decl) {
   return opt_local_decl;
 }
 
+IRNode *WindOptimizer::OptimizeFnCall(IRFnCall *fn_call) {
+  std::vector<IRNode*> opt_args;
+  for (int i=0;i<fn_call->args().size();i++) {
+    std::unique_ptr<IRNode> opt_arg = std::unique_ptr<IRNode>(this->OptimizeExpr(fn_call->args()[i].get()));
+    fn_call->replaceArg(i, std::move(opt_arg));
+    std::cerr << (int)fn_call->args()[i]->type() << std::endl;
+  }
+  return fn_call;
+}
+
+IRNode *WindOptimizer::OptimizeFunction(IRFunction *fn) {
+  IRFunction *fn_copy = fn->clone();
+  if (fn->ArgNum()==1) {
+    // clear stack usage
+    fn_copy->stack_size -= fn->GetArgType(0)->memSize();
+    fn_copy->ignore_stack_abi = true;
+  }
+  return fn_copy;
+}
+
 IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   if (node->is<IRRet>()) {
     IRRet *ret = node->as<IRRet>();
@@ -200,6 +220,9 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   else if (node->is<IRLocalDecl>()) {
     return this->OptimizeLDecl(node->as<IRLocalDecl>());
   }
+  /* else if (node->is<IRFnCall>()) {
+    return this->OptimizeFnCall(node->as<IRFnCall>());
+  } */
   return node;
 }
 
@@ -217,7 +240,7 @@ void WindOptimizer::optimize() {
   for (auto &node : this->program->get()) {
     if (node->is<IRFunction>()) {
       IRFunction *fn = (IRFunction*)node->as<IRFunction>();
-      IRFunction *fn_copy = fn->clone();
+      IRFunction *fn_copy = (IRFunction*)this->OptimizeFunction(fn);
       *this->emission += std::unique_ptr<IRNode>(fn_copy);
       this->current_fn = fn_copy;
       this->OptimizeBody(fn->body(), fn_copy);

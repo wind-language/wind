@@ -91,6 +91,7 @@ IRFunction *IRFunction::clone() {
   new_fn->call_sub = call_sub;
   new_fn->arg_types = arg_types;
   new_fn->return_type = return_type;
+  new_fn->ignore_stack_abi = ignore_stack_abi;
   return new_fn;
 }
 
@@ -171,6 +172,11 @@ const std::string& IRFnCall::name() const {
 const std::vector<std::unique_ptr<IRNode>>& IRFnCall::args() const {
   return fn_args;
 }
+
+void IRFnCall::replaceArg(int index, std::unique_ptr<IRNode> arg) {
+  this->fn_args[index] = std::move(arg);
+}
+
 void IRFnCall::push_arg(std::unique_ptr<IRNode> arg) {
   fn_args.push_back(std::move(arg));
 }

@@ -63,7 +63,8 @@ int nextpow2(int n) {
 }
 
 void WindEmitter::emitPrologue() {
-  if (current_function->flags & PURE_LOGUE) {
+  if (current_function->flags & PURE_LOGUE || (current_function->stack_size == 0 && !current_function->isCallSub()) ) {
+    // suppose that's an inlineable function
     return;
   }
   this->assembler->push(asmjit::x86::rbp);
@@ -76,7 +77,7 @@ void WindEmitter::emitPrologue() {
 }
 
 void WindEmitter::emitEpilogue() {
-  if (current_function->flags & PURE_LOGUE) {
+  if (current_function->flags & PURE_LOGUE || (current_function->stack_size == 0 && !current_function->isCallSub()) ) {
     this->assembler->ret();
     return;
   }
@@ -289,10 +290,12 @@ void WindEmitter::SolveArg(IRArgDecl *decl) {
       this->cconv_index++;
       return;
     }
-    this->assembler->mov(
-      asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()),
-      this->adaptReg(SystemVABI[this->cconv_index], local->datatype()->moveSize())
-    );
+    if (!this->current_function->ignore_stack_abi) {
+      this->assembler->mov(
+        asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()),
+        this->adaptReg(SystemVABI[this->cconv_index], local->datatype()->moveSize())
+      );
+    }
   } else {
     asmjit::x86::Gp rax = this->adaptReg(asmjit::x86::rax, local->datatype()->moveSize());
     this->assembler->mov(

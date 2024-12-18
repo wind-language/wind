@@ -80,7 +80,7 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
     }
   }
   else if (right_node->is<IRBinOp>()) {
-    left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::r10);
+    left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::rdx);
     right_node = new IRRegister(this->emitBinOp(right_node->as<IRBinOp>(), asmjit::x86::rax));
   } else {
     left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::rax);
@@ -127,19 +127,19 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
     }
 
     case IRNode::NodeType::FUNCTION_CALL : {
-      this->assembler->mov(asmjit::x86::r10, left);
+      this->assembler->mov(asmjit::x86::rdx, left);
       asmjit::x86::Gp rax_sz = this->emitExpr(right_node, asmjit::x86::rax);
       switch (bin_op->operation()) {
         case IRBinOp::Operation::ADD : {
-          this->assembler->add(this->adaptReg(asmjit::x86::r10, rax_sz.size()), rax_sz);
+          this->assembler->add(this->adaptReg(asmjit::x86::rdx, rax_sz.size()), rax_sz);
           break;
         }
         case IRBinOp::Operation::SUB : {
-          this->assembler->sub(this->adaptReg(asmjit::x86::r10, rax_sz.size()), rax_sz);
+          this->assembler->sub(this->adaptReg(asmjit::x86::rdx, rax_sz.size()), rax_sz);
           break;
         }
         case IRBinOp::Operation::MUL : {
-          this->assembler->imul(this->adaptReg(asmjit::x86::r10, rax_sz.size()), rax_sz);
+          this->assembler->imul(this->adaptReg(asmjit::x86::rdx, rax_sz.size()), rax_sz);
           break;
         }
         case IRBinOp::Operation::DIV : {
@@ -147,11 +147,11 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
           break;
         }
         case IRBinOp::Operation::SHL : {
-          this->assembler->shl(this->adaptReg(asmjit::x86::r10, rax_sz.size()), rax_sz);
+          this->assembler->shl(this->adaptReg(asmjit::x86::rdx, rax_sz.size()), rax_sz);
           break;
         }
         case IRBinOp::Operation::SHR : {
-          this->assembler->shr(this->adaptReg(asmjit::x86::r10, rax_sz.size()), rax_sz);
+          this->assembler->shr(this->adaptReg(asmjit::x86::rdx, rax_sz.size()), rax_sz);
           break;
         }
         default: {
@@ -191,11 +191,11 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
           break;
         }
         case IRBinOp::Operation::SHL : {
-          this->assembler->shl(left, this->moveVar(local, asmjit::x86::r10));
+          this->assembler->shl(left, this->moveVar(local, asmjit::x86::rdx));
           break;
         }
         case IRBinOp::Operation::SHR : {
-          this->assembler->shr(left, this->moveVar(local, asmjit::x86::r10));
+          this->assembler->shr(left, this->moveVar(local, asmjit::x86::rdx));
           break;
         }
         default: {

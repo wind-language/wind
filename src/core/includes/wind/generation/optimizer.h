@@ -20,6 +20,8 @@ private:
   IRNode *OptimizeBinOp(IRBinOp *node);
   IRNode *OptimizeExpr(IRNode *node);
   IRNode *OptimizeLDecl(IRLocalDecl *local_decl);
+  IRNode *OptimizeFnCall(IRFnCall *fn_call);
+  IRNode *OptimizeFunction(IRFunction *fn);
 
   IRLiteral *OptimizeConstFold(IRBinOp *node);
 };
