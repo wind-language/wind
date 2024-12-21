@@ -272,7 +272,7 @@ asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
     }
 
     default: {
-      std::cout << "H1, Unknown node type" << std::endl;
+      std::cerr << "H1, Unknown node type" << std::endl;
       break;
     }
   }
@@ -310,7 +310,7 @@ void WindEmitter::SolveArg(IRArgDecl *decl) {
 
 void WindEmitter::emitReturn(IRRet *ret) {
   this->emitExpr(ret->get(), asmjit::x86::rax);
-  //asmjit::x86::Gp target_reg = this->adaptReg(asmjit::x86::rax, this->current_function->ret_size);
+  this->emitEpilogue();
 }
 
 std::string wordstr(int size) {
@@ -343,6 +343,63 @@ void WindEmitter::emitAsm(IRInlineAsm *asm_node) {
   this->logger->content().appendFormat("%s\n", code.c_str());
 }
 
+asmjit::Label WindEmitter::newBranchLabel() {
+  std::string name = ".WL" + std::to_string(this->branch_i);
+  this->branch_i++;
+  return this->assembler->newNamedLabel(name.c_str());
+}
+
+void WindEmitter::emitCJmp(IRNode *node, asmjit::Label label, bool invert) {
+  this->emitExpr(node, asmjit::x86::rax);
+  this->assembler->test(asmjit::x86::al, asmjit::x86::al);
+  if (invert) {
+    this->assembler->jz(label);
+  } else {
+    this->assembler->jnz(label);
+  }
+}
+
+
+void WindEmitter::emitBranch(IRBranching *branch) {
+  std::vector<asmjit::Label> labels;
+  int N = branch->getBranches().size() + 1;;
+  for (int i = 0; i < N ; i++) {
+    labels.push_back(this->newBranchLabel());
+  }
+  for (int i = 0; i < branch->getBranches().size(); i++) {
+    this->emitCJmp(branch->getBranches()[i].condition.get(), labels[i]);
+  }
+  if (branch->getElseBranch() != nullptr) {
+    for (auto &statement : branch->getElseBranch()->get()) {
+      this->emitNode(statement.get());
+    }
+  }
+  this->assembler->jmp(labels[N-1]);
+  for (int i = 0; i < branch->getBranches().size(); i++) {
+    this->assembler->bind(labels[i]);
+    IRBody *body = branch->getBranches()[i].body.get()->as<IRBody>();
+    for (auto &statement : body->get()) {
+      this->emitNode(statement.get());
+    }
+    if (i < N-1) {
+      this->assembler->jmp(labels[N-1]);
+    }
+  }
+  this->assembler->bind(labels[N-1]);
+}
+
+void WindEmitter::emitLoop(IRLooping *loop) {
+  asmjit::Label start = this->newBranchLabel();
+  asmjit::Label end = this->newBranchLabel();
+  this->assembler->bind(start);
+  this->emitCJmp(loop->getCondition(), end, true);
+  for (auto &statement : loop->getBody()->get()) {
+    this->emitNode(statement.get());
+  }
+  this->assembler->jmp(start);
+  this->assembler->bind(end);
+}
+
 void WindEmitter::emitNode(IRNode *node) {
   switch (node->type()) {
     case IRNode::NodeType::FUNCTION : {
@@ -371,6 +428,14 @@ void WindEmitter::emitNode(IRNode *node) {
       this->emitAsm(asm_node);
       break;
     }
+    case IRNode::NodeType::BRANCH : {
+      IRBranching *branch = node->as<IRBranching>();
+      return this->emitBranch(branch);
+    }
+    case IRNode::NodeType::LOOP : {
+      IRLooping *loop = node->as<IRLooping>();
+      return this->emitLoop(loop);
+    }
     default: {
       this->emitExpr(node, asmjit::x86::rax);
       break;
@@ -381,6 +446,9 @@ void WindEmitter::emitNode(IRNode *node) {
 void cleanLoggerContent(std::string& outemit) {
   std::regex sectionPattern(R"(\.section\s+([^\s]+)\s+\{\#[0-9]+\})");
   outemit = std::regex_replace(outemit, sectionPattern, ".section $1");
+  // match short jmp and replace with jmp
+  std::regex shortJmpPattern(R"(short jmp)");
+  outemit = std::regex_replace(outemit, shortJmpPattern, "jmp");
 }
 
 std::string WindEmitter::newRoString(std::string str) {

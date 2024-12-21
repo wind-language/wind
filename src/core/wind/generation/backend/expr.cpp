@@ -67,205 +67,205 @@ void WindEmitter::moveIntoIndex(const IRLocalAddrRef *local, IRNode *value) {
   }
 }
 
+void WindEmitter::moveIfNot(asmjit::x86::Gp dest, asmjit::x86::Gp src) {
+  if (dest != src) {
+    this->assembler->mov(dest, src);
+  }
+}
+
 asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
   IRNode *right_node = (IRNode*)bin_op->right();
   asmjit::x86::Gp left;
+
   if (bin_op->operation() == IRBinOp::Operation::ASSIGN) {
-    if (bin_op->left()->is<IRLocalRef>()) {
-      this->moveIntoVar((IRLocalRef*)bin_op->left()->as<IRLocalRef>(), right_node);
+    if (auto left_ref = ((IRNode*)bin_op->left())->as<IRLocalRef>()) {
+      moveIntoVar(left_ref, right_node);
       return dest;
-    } else if (bin_op->left()->is<IRLocalAddrRef>() && bin_op->left()->as<IRLocalAddrRef>()->isIndexed()) {
-      this->moveIntoIndex(bin_op->left()->as<IRLocalAddrRef>(), right_node);
+    } else if (auto left_addr = ((IRNode*)bin_op->left())->as<IRLocalAddrRef>();
+              left_addr && left_addr->isIndexed()) {
+      moveIntoIndex(left_addr, right_node);
       return dest;
     }
   }
-  else if (right_node->is<IRBinOp>()) {
-    left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::rdx);
-    right_node = new IRRegister(this->emitBinOp(right_node->as<IRBinOp>(), asmjit::x86::rax));
+
+  if (auto right_bin_op = dynamic_cast<IRBinOp*>(right_node)) {
+    left = emitExpr((IRNode*)bin_op->left(), asmjit::x86::rdx);
+    right_node = new IRRegister(emitBinOp(right_bin_op, asmjit::x86::rax));
   } else {
-    left = this->emitExpr((IRNode*)bin_op->left(), asmjit::x86::rax);
+    left = emitExpr((IRNode*)bin_op->left(), asmjit::x86::rax);
   }
+
+  // Helper to handle operations with literals
+  auto handleLiteralOp = [&](IRLiteral* lit) {
+    switch (bin_op->operation()) {
+      case IRBinOp::Operation::ADD: assembler->add(left, lit->get()); break;
+      case IRBinOp::Operation::SUB: assembler->sub(left, lit->get()); break;
+      case IRBinOp::Operation::MUL: assembler->imul(left, lit->get()); break;
+      case IRBinOp::Operation::DIV: throw std::runtime_error("TODO: Implement division");
+      case IRBinOp::Operation::MOD: {
+        this->assembler->mov(asmjit::x86::rdx, 0);
+        this->moveIfNot(asmjit::x86::rax, left);
+        this->assembler->mov(asmjit::x86::rcx, lit->get());
+        this->assembler->div(asmjit::x86::rcx);
+        this->moveIfNot(dest, asmjit::x86::rdx);
+        break;
+      }
+
+      case IRBinOp::Operation::SHL: assembler->shl(left, lit->get()); break;
+      case IRBinOp::Operation::SHR: assembler->shr(left, lit->get()); break;
+
+
+      case IRBinOp::Operation::EQ:  {
+        this->assembler->cmp(left, lit->get());
+        this->assembler->sete(dest.r8());
+        left = dest.r8();
+        break;
+      }
+      case IRBinOp::Operation::LESS: {
+        this->assembler->cmp(left, lit->get());
+        this->assembler->setl(dest.r8());
+        left = dest.r8();
+        break;
+      }
+
+      case IRBinOp::Operation::LOGAND : {
+        this->assembler->test(left, lit->get());
+        this->assembler->setne(dest.r8());
+        left = dest.r8();
+        break;
+      }
+
+      default: throw std::runtime_error("Unknown operation");
+    }
+    if (left != dest) assembler->mov(dest, left);
+    OptClearReg(left);
+    return left;
+  };
+
+  auto handleRegisterOp = [&](asmjit::x86::Gp right) {
+    switch (bin_op->operation()) {
+        case IRBinOp::Operation::ADD: assembler->add(right, left); break;
+        case IRBinOp::Operation::SUB: assembler->sub(right, left); break;
+        case IRBinOp::Operation::MUL: assembler->imul(right, left); break;
+        case IRBinOp::Operation::DIV: throw std::runtime_error("TODO: Implement division");
+        case IRBinOp::Operation::MOD: {
+          this->assembler->mov(asmjit::x86::rdx, 0);
+          this->moveIfNot(asmjit::x86::rax, left);
+          this->assembler->div(right);
+          this->moveIfNot(dest, asmjit::x86::rdx);
+          break;
+        }
+
+        case IRBinOp::Operation::SHL: assembler->shl(right, left); break;
+        case IRBinOp::Operation::SHR: assembler->shr(right, left); break;
+
+        case IRBinOp::Operation::ASSIGN: assembler->mov(right, left); break;
+
+        case IRBinOp::Operation::EQ: {
+          this->assembler->cmp(left, right);
+          this->assembler->sete(dest.r8());
+          right = dest.r8();
+          break;
+        }
+        case IRBinOp::Operation::LESS: {
+          this->assembler->cmp(left, right);
+          this->assembler->setl(dest.r8());
+          right = dest.r8();
+          break;
+        }
+
+        case IRBinOp::Operation::LOGAND: {
+          this->assembler->test(left, right);
+          this->assembler->setne(dest.r8());
+          right = dest.r8();
+          break;
+        }
+
+        default: throw std::runtime_error("Unknown operation");
+    }
+    if (right != dest) assembler->mov(dest, right);
+    OptClearReg(right);
+    return right;
+  };
 
   switch (right_node->type()) {
-    case IRNode::NodeType::LITERAL : {
-      IRLiteral *lit = right_node->as<IRLiteral>();
+    case IRNode::NodeType::LITERAL:
+        return handleLiteralOp(dynamic_cast<IRLiteral*>(right_node));
+
+    case IRNode::NodeType::FUNCTION_CALL: {
+        assembler->mov(asmjit::x86::rdx, left);
+        asmjit::x86::Gp rax_sz = emitExpr(right_node, asmjit::x86::rax);
+        asmjit::x86::Gp dest_sz = adaptReg(dest, rax_sz.size());
+        handleRegisterOp(adaptReg(asmjit::x86::rdx, rax_sz.size()));
+        if (dest.r64() != asmjit::x86::rax) assembler->mov(dest_sz, rax_sz);
+        OptClearReg(dest_sz);
+        return dest_sz;
+    }
+
+    case IRNode::NodeType::LOCAL_REF: {
+      auto local = dynamic_cast<IRLocalRef*>(right_node);
+      if (!local) throw std::runtime_error("Invalid local reference");
+      if (local->datatype()->isArray()) throw std::runtime_error("TODO: Implement array binop");
+      left = adaptReg(left, local->datatype()->moveSize());
+      auto local_ptr = asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize());
       switch (bin_op->operation()) {
-        case IRBinOp::Operation::ADD : {
-          this->assembler->add(left, lit->get());
+        case IRBinOp::Operation::ADD: assembler->add(left, local_ptr); break;
+        case IRBinOp::Operation::SUB: assembler->sub(left, local_ptr); break;
+        case IRBinOp::Operation::MUL: assembler->imul(left, local_ptr); break;
+        case IRBinOp::Operation::DIV: throw std::runtime_error("TODO: Implement division");
+        case IRBinOp::Operation::MOD: {
+          this->assembler->mov(asmjit::x86::rdx, 0);
+          this->moveIfNot(asmjit::x86::rax, left);
+          this->assembler->div(local_ptr);
+          this->moveIfNot(dest, asmjit::x86::rdx);
           break;
         }
-        case IRBinOp::Operation::SUB : {
-          this->assembler->sub(left, lit->get());
+
+        case IRBinOp::Operation::SHL: assembler->shl(left, moveVar(local, asmjit::x86::rdx)); break;
+        case IRBinOp::Operation::SHR: assembler->shr(left, moveVar(local, asmjit::x86::rdx)); break;
+
+        case IRBinOp::Operation::EQ : {
+          this->assembler->cmp(left, local_ptr);
+          this->assembler->sete(dest.r8());
+          left = dest.r8();
           break;
         }
-        case IRBinOp::Operation::MUL : {
-          this->assembler->imul(left, lit->get());
+        case IRBinOp::Operation::LESS: {
+          this->assembler->cmp(left, local_ptr);
+          this->assembler->setl(dest.r8());
+          left = dest.r8();
           break;
         }
-        case IRBinOp::Operation::DIV : {
-          throw std::runtime_error("TODO: Implement division");
+
+        case IRBinOp::Operation::LOGAND: {
+          asmjit::x86::Gp vreg = this->adaptReg(asmjit::x86::rdx, local->datatype()->moveSize());
+          this->assembler->mov(vreg, local_ptr);
+          this->assembler->test(left, vreg);
+          this->assembler->setne(dest.r8());
+          left = dest.r8();
           break;
         }
-        case IRBinOp::Operation::SHL : {
-          this->assembler->shl(left, lit->get());
-          break;
-        }
-        case IRBinOp::Operation::SHR : {
-          this->assembler->shr(left, lit->get());
-          break;
-        }
-        default: {
-          std::cout << "Unknown operation" << std::endl;
-          break;
-        }
+
+        default: throw std::runtime_error("Unknown operation");
       }
-      if (left != dest) {
-        this->assembler->mov(dest, left);
-      }
-      this->OptClearReg(left);
+      if (left != dest) assembler->mov(dest, left);
+      OptClearReg(left);
       return left;
     }
 
-    case IRNode::NodeType::FUNCTION_CALL : {
-      this->assembler->mov(asmjit::x86::rdx, left);
-      asmjit::x86::Gp rax_sz = this->emitExpr(right_node, asmjit::x86::rax);
-      switch (bin_op->operation()) {
-        case IRBinOp::Operation::ADD : {
-          this->assembler->add(this->adaptReg(asmjit::x86::rdx, rax_sz.size()), rax_sz);
-          break;
-        }
-        case IRBinOp::Operation::SUB : {
-          this->assembler->sub(this->adaptReg(asmjit::x86::rdx, rax_sz.size()), rax_sz);
-          break;
-        }
-        case IRBinOp::Operation::MUL : {
-          this->assembler->imul(this->adaptReg(asmjit::x86::rdx, rax_sz.size()), rax_sz);
-          break;
-        }
-        case IRBinOp::Operation::DIV : {
-          throw std::runtime_error("TODO: Implement division");
-          break;
-        }
-        case IRBinOp::Operation::SHL : {
-          this->assembler->shl(this->adaptReg(asmjit::x86::rdx, rax_sz.size()), rax_sz);
-          break;
-        }
-        case IRBinOp::Operation::SHR : {
-          this->assembler->shr(this->adaptReg(asmjit::x86::rdx, rax_sz.size()), rax_sz);
-          break;
-        }
-        default: {
-          std::cout << "Unknown operation" << std::endl;
-          break;
-        }
-      }
-      asmjit::x86::Gp dest_sz = this->adaptReg(dest, rax_sz.size());
-      if (dest.r64() != asmjit::x86::rax) {
-        this->assembler->mov(dest_sz, rax_sz);
-      }
-      this->OptClearReg(dest_sz);
-      return dest_sz;
-    }
+    case IRNode::NodeType::REGISTER:
+      return handleRegisterOp(dynamic_cast<IRRegister*>(right_node)->reg());
 
-    case IRNode::NodeType::LOCAL_REF : {
-      IRLocalRef *local = right_node->as<IRLocalRef>();
-      if (local->datatype()->isArray()) {
-        std::runtime_error("TODO: Implement array binop");
-      }
-      left = this->adaptReg(left, local->datatype()->moveSize());
-      switch (bin_op->operation()) {
-        case IRBinOp::Operation::ADD : {
-          this->assembler->add(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
-          break;
-        }
-        case IRBinOp::Operation::SUB : {
-          this->assembler->sub(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
-          break;
-        }
-        case IRBinOp::Operation::MUL : {
-          this->assembler->imul(left, asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize()));
-          break;
-        }
-        case IRBinOp::Operation::DIV : {
-          throw std::runtime_error("TODO: Implement division");
-          break;
-        }
-        case IRBinOp::Operation::SHL : {
-          this->assembler->shl(left, this->moveVar(local, asmjit::x86::rdx));
-          break;
-        }
-        case IRBinOp::Operation::SHR : {
-          this->assembler->shr(left, this->moveVar(local, asmjit::x86::rdx));
-          break;
-        }
-        default: {
-          std::cout << "Unknown operation" << std::endl;
-          break;
-        }
-      }
-      if (left != dest) {
-        this->assembler->mov(dest, left);
-      }
-      this->OptClearReg(left);
-      return left;
-    }
-
-    case IRNode::NodeType::REGISTER : {
-      asmjit::x86::Gp right = right_node->as<IRRegister>()->reg();
-      switch (bin_op->operation()) {
-        case IRBinOp::Operation::ADD : {
-          this->assembler->add(right, left);
-          break;
-        }
-        case IRBinOp::Operation::SUB : {
-          this->assembler->sub(right, left);
-          break;
-        }
-        case IRBinOp::Operation::MUL : {
-          this->assembler->imul(right, left);
-          break;
-        }
-        case IRBinOp::Operation::DIV : {
-          throw std::runtime_error("TODO: Implement division");
-          break;
-        }
-        case IRBinOp::Operation::SHL : {
-          this->assembler->shl(right, left);
-          break;
-        }
-        case IRBinOp::Operation::SHR : {
-          this->assembler->shr(right, left);
-          break;
-        }
-        case IRBinOp::Operation::ASSIGN : {
-          this->assembler->mov(right, left);
-          break;
-        }
-        default : {
-          std::cout << "Unknown operation" << std::endl;
-          break;
-        }
-      }
-      if (right != dest) {
-        this->assembler->mov(dest, right);
-      }
-      this->OptClearReg(right);
-      return right;
-    }
-
-    default: {
-      std::cout << "Unknown node type" << std::endl;
-      break;
+    default:
+      throw std::runtime_error("Unknown node type");
     }
   }
-  this->OptClearReg(dest);
-  return dest;
-}
 
-asmjit::x86::Gp WindEmitter::emitLiteral(IRLiteral *lit, asmjit::x86::Gp dest) {
-  long long value = lit->get();
-  this->assembler->mov(dest, value);
-  this->OptClearReg(dest);
-  this->OptClearReg(dest);
-  return dest;
-}
+
+  asmjit::x86::Gp WindEmitter::emitLiteral(IRLiteral *lit, asmjit::x86::Gp dest) {
+    long long value = lit->get();
+    this->assembler->mov(dest, value);
+    this->OptClearReg(dest);
+    this->OptClearReg(dest);
+    return dest;
+  }

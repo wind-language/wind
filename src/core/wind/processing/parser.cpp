@@ -10,6 +10,10 @@
 #include <wind/isc/isc.h>
 #include <filesystem>
 
+#ifndef WIND_STD_PATH
+#define WIND_STD_PATH ""
+#endif
+
 ParserReport *GetReporter(Token *src) {
   return global_isc->getParserReport(src->srcId);
 }
@@ -89,7 +93,7 @@ Function *WindParser::parseFn() {
     this->expect(Token::Type::LBRACE, "{");
     while (!this->until(Token::Type::RBRACE)) {
       *fn_body += std::unique_ptr<ASTNode>(
-        this->Discriminate()
+        this->DiscriminateBody()
       );
     }
     this->expect(Token::Type::RBRACE, "}");
@@ -109,8 +113,11 @@ static Token::Type TOK_OP_LIST[]={
   Token::Type::MINUS,
   Token::Type::MULTIPLY,
   Token::Type::DIVIDE,
-  Token::Type::COLON,
-  Token::Type::ASSIGN
+  Token::Type::MODULO,
+  Token::Type::ASSIGN,
+  Token::Type::EQ,
+  Token::Type::LESS,
+  Token::Type::LOGAND
 };
 
 bool tokIsOperator(Token *tok) {
@@ -122,11 +129,11 @@ bool tokIsOperator(Token *tok) {
     return false;
 }
 
-ASTNode *WindParser::parseExprLiteral() {
+ASTNode *WindParser::parseExprLiteral(bool negative) {
   switch (this->stream->current()->type) {
     case Token::INTEGER:
       return new Literal(
-        fmtinttostr(this->stream->pop()->value)
+        negative ? -fmtinttostr(this->stream->pop()->value) : fmtinttostr(this->stream->pop()->value)
       );
     case Token::STRING:
       return new StringLiteral(
@@ -192,6 +199,12 @@ ASTNode *WindParser::parseExprPrimary() {
       this->expect(Token::Type::RPAREN, ")");
       return expr;
     }
+    case Token::MINUS : {
+      // a negative number
+      this->expect(Token::Type::MINUS, "-");
+      return this->parseExprLiteral(true);
+    }
+
 
     default:
       Token *token = this->stream->pop();
@@ -218,6 +231,15 @@ ASTNode *WindParser::parseExprSemi() {
   return root;
 }
 
+ASTNode *WindParser::parseExprColon() {
+  ASTNode *root = this->parseExpr(0);
+  if (!root) {
+    return nullptr;
+  }
+  this->expect(Token::Type::COLON, ":");
+  return root;
+}
+
 int getOpPrecedence(Token *tok) {
   switch (tok->type) {
     case Token::Type::PLUS:
@@ -225,7 +247,13 @@ int getOpPrecedence(Token *tok) {
       return 1;
     case Token::Type::MULTIPLY:
     case Token::Type::DIVIDE:
+    case Token::Type::MODULO:
       return 2;
+    
+    case Token::Type::EQ:
+    case Token::Type::LESS:
+      return 2;
+
     // TODO: More
     default:
       return 0;
@@ -402,11 +430,83 @@ InlineAsm *WindParser::parseInlAsm() {
   return new InlineAsm(code);
 }
 
-ASTNode *WindParser::Discriminate() {
+Body *WindParser::parseBranchBody() {
+  Body *branch_body = new Body({});
+  if (this->stream->current()->type == Token::Type::LBRACE) {
+    this->expect(Token::Type::LBRACE, "{");
+    while (!this->until(Token::Type::RBRACE)) {
+      *branch_body += std::unique_ptr<ASTNode>(
+        this->DiscriminateBody()
+      );
+    }
+    this->expect(Token::Type::RBRACE, "}");
+  }
+  else {
+    *branch_body += std::unique_ptr<ASTNode>(
+      this->DiscriminateBody()
+    );
+  }
+  return branch_body;
+}
+
+Branching *WindParser::parseBranch() {
+  this->expect(Token::Type::IDENTIFIER, "branch");
+  Branching *branch = new Branching();
+  this->expect(Token::Type::LBRACKET, "[");
+  while (!this->until(Token::Type::RBRACKET)) {
+
+    // else
+    if (this->isKeyword(stream->current(), "else")) {
+      this->expect(Token::Type::IDENTIFIER, "else");
+      this->expect(Token::Type::COLON, ":");
+      branch->setElseBranch(this->parseBranchBody());
+      break;
+    }
+    
+    
+    // condition
+    else {
+      ASTNode *condition = this->parseExprColon();
+      branch->addBranch(
+        std::unique_ptr<ASTNode>(condition),
+        std::unique_ptr<Body>(this->parseBranchBody())
+      );
+    }
+
+  }
+  this->expect(Token::Type::RBRACKET, "]");
+  return branch;
+}
+
+Looping *WindParser::parseLoop() {
+  this->expect(Token::Type::IDENTIFIER, "loop");
+  this->expect(Token::Type::LBRACKET, "[");
+  Looping *loop = new Looping();
+  loop->setCondition(this->parseExpr(0));
+  this->expect(Token::Type::RBRACKET, "]");
+  loop->setBody( this->parseBranchBody() );
+  return loop;
+}
+
+
+ASTNode *WindParser::DiscriminateTop() {
   if (this->isKeyword(stream->current(), "func")) {
     return this->parseFn();
   }
-  else if (this->isKeyword(stream->current(), "return")) {
+  else if (this->stream->current()->type == Token::Type::AT) {
+    return this->parseMacro();
+  }
+  else {
+    Token *token = stream->current();
+    GetReporter(token)->Report(ParserReport::PARSER_ERROR, new Token(
+      token->value, token->type, "Nothing (Unexpected combination)", token->range, token->srcId
+    ), token);
+  }
+  return nullptr;
+}
+
+ASTNode *WindParser::DiscriminateBody() {
+  if (this->isKeyword(stream->current(), "return")) {
     return this->parseRet();
   }
   else if (this->isKeyword(stream->current(), "var")) {
@@ -414,23 +514,21 @@ ASTNode *WindParser::Discriminate() {
   }
   else if (this->isKeyword(stream->current(), "asm")) {
     return this->parseInlAsm();
+  } 
+  else if (this->isKeyword(stream->current(), "branch")) {
+    return this->parseBranch();
   }
-  else if (this->stream->current()->type == Token::Type::AT) {
-    return this->parseMacro();
+  else if (this->isKeyword(stream->current(), "loop")) {
+    return this->parseLoop();
   }
   else {
-    /* Token *token = stream->current();
-    this->reporter->Report(ParserReport::PARSER_ERROR, new Token(
-      token->value, token->type, "Nothing (Unexpected combination)", token->range
-    ), token); */
     return this->parseExprSemi();
   }
-  return nullptr;
 }
 
 Body *WindParser::parse() {
   while (!stream->end()) {
-    ASTNode *node = this->Discriminate();
+    ASTNode *node = this->DiscriminateTop();
     if (!node) continue;
     *this->ast += std::unique_ptr<ASTNode>(
       node

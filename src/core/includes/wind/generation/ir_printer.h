@@ -25,6 +25,8 @@ private:
   void print_argdecl(const IRArgDecl *node);
   void print_fncall(const IRFnCall *node);
   void print_asm(const IRInlineAsm *node);
+  void print_branch(const IRBranching *node);
+  void print_loop(const IRLooping *node);
 
   void print_tabs();
 };

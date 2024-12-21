@@ -58,7 +58,7 @@ This code compiles **46% faster than C++** and **120% faster than Rust**
 Example
 </h3>
 
-Run [std compilation](#troubleshooting) before running the following commands.
+Run [runtime compilation](#troubleshooting) before running the following commands.
 
 ```sh
 wind <file> -o <output>
@@ -74,15 +74,14 @@ wind main.w -o main.o --ej
 
 ## Troubleshooting
 
-> [!WARNING]  
-> `ld: cannot find raw_std/wind_lib.o: No such file or directory`
+> [!WARNING] > `ld: cannot find wind_runtime.o: No such file or directory`
 
 ---
 
 <details>
 <summary> Why is this happening? </summary>
 
-[❗] The link command when compiling into executable is linking emitted object with the standard library object file. If the standard library object file is not found, the error will be thrown.
+[❗] Wind has a runtime utility that is required to jump to main function and run stack checks. Just compile it before linking executables.
 
 </details>
 
@@ -91,5 +90,5 @@ wind main.w -o main.o --ej
 ### Solution
 
 ```sh
-wind raw_std/stack.w raw_std/start.w -ej -o raw_std/wind_lib.o
+wind src/runtime/stack.w src/runtime/start.w -ej -o src/runtime/wind_runtime.o
 ```

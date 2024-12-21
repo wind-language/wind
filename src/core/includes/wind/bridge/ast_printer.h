@@ -18,6 +18,8 @@ public:
     void *visit(const InlineAsm &node) override;
     void *visit(const StringLiteral &node) override;
     void *visit(const TypeDecl &node) override;
+    void *visit(const Branching &node) override;
+    void *visit(const Looping &node) override;
 
 private:
     void print_tabs();

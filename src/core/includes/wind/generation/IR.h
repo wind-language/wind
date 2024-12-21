@@ -24,7 +24,9 @@ public:
     FUNCTION_CALL,
     REGISTER,
     IN_ASM,
-    LADDR_REF
+    LADDR_REF,
+    BRANCH,
+    LOOP
   };
 
   virtual ~IRNode() = default;
@@ -181,7 +183,11 @@ public:
     DIV,
     SHL,
     SHR,
-    ASSIGN
+    EQ,
+    LESS,
+    ASSIGN,
+    MOD,
+    LOGAND
   };
 
 private:
@@ -266,6 +272,35 @@ public:
   explicit IRInlineAsm(std::string code);
   const std::string& code() const;
   NodeType type() const override { return NodeType::IN_ASM; }
+};
+
+struct IRBranch {
+  std::unique_ptr<IRNode> condition;
+  std::unique_ptr<IRNode> body;
+};
+
+class IRBranching : public IRNode {
+  std::vector<IRBranch> branches;
+  IRBody *else_branch;
+
+public:
+  explicit IRBranching(std::vector<IRBranch> &branches);
+  const std::vector<IRBranch>& getBranches() const;
+  IRBody* getElseBranch() const;
+  void setElseBranch(IRBody *body);
+  NodeType type() const override { return NodeType::BRANCH; }
+};
+
+class IRLooping : public IRNode {
+  IRNode *condition;
+  IRBody *body;
+
+public:
+  IRNode* getCondition() const;
+  void setCondition(IRNode* c);
+  IRBody* getBody() const;
+  void setBody(IRBody *body);
+  NodeType type() const override { return NodeType::LOOP; }
 };
 
 #endif // IR_H

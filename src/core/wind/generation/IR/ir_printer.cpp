@@ -12,7 +12,11 @@ const std::unordered_map<IRBinOp::Operation, std::string> BOpTTable = {
   {IRBinOp::Operation::DIV, "div"},
   {IRBinOp::Operation::SHL, "shl"},
   {IRBinOp::Operation::SHR, "shr"},
-  {IRBinOp::Operation::ASSIGN, "ass"}
+  {IRBinOp::Operation::ASSIGN, "ass"},
+  {IRBinOp::Operation::EQ, "eq"},
+  {IRBinOp::Operation::LESS, "le"},
+  {IRBinOp::Operation::MOD, "mod"},
+  {IRBinOp::Operation::LOGAND, "&&"}
 };
 
 IRPrinter::~IRPrinter() {}
@@ -101,6 +105,18 @@ void IRPrinter::print_node(const IRNode *node) {
     case IRNode::NodeType::IN_ASM : {
       this->print_asm(
         node->as<IRInlineAsm>()
+      );
+      break;
+    }
+    case IRNode::NodeType::BRANCH : {
+      this->print_branch(
+        node->as<IRBranching>()
+      );
+      break;
+    }
+    case IRNode::NodeType::LOOP : {
+      this->print_loop(
+        node->as<IRLooping>()
       );
       break;
     }
@@ -212,4 +228,45 @@ void IRPrinter::print_fncall(const IRFnCall *node) {
   if (!this->in_expr) {
     std::cout << std::endl;
   }
+}
+
+void IRPrinter::print_branch(const IRBranching *node) {
+  this->print_tabs();
+  std::cout << "branch [\n";
+  this->tabs++;
+  for (const auto &branch : node->getBranches()) {
+    this->print_tabs();
+    std::cout << "if ";
+    this->print_node(branch.condition.get());
+    std::cout << " {\n";
+    this->tabs++;
+    this->print_node(branch.body.get());
+    this->tabs--;
+    this->print_tabs();
+    std::cout << "}\n";
+  }
+  if (node->getElseBranch()) {
+    this->print_tabs();
+    std::cout << "else {\n";
+    this->tabs++;
+    this->print_node(node->getElseBranch());
+    this->tabs--;
+    this->print_tabs();
+    std::cout << "}\n";
+  }
+  this->tabs--;
+  this->print_tabs();
+  std::cout << "]\n";
+}
+
+void IRPrinter::print_loop(const IRLooping *node) {
+  this->print_tabs();
+  std::cout << "while ";
+  this->print_node(node->getCondition());
+  std::cout << " {\n";
+  this->tabs++;
+  this->print_node(node->getBody());
+  this->tabs--;
+  this->print_tabs();
+  std::cout << "}\n";
 }

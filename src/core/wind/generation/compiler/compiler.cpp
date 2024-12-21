@@ -170,3 +170,30 @@ void *WindCompiler::visit(const TypeDecl &node) {
   this->userdef_types_map[node.getName()] = type;
   return nullptr;
 }
+
+void *WindCompiler::visit(const Branching &node) {
+  std::vector<IRBranch> branches;
+  IRBody *else_branch = nullptr;
+
+  for (const auto &branch : node.getBranches()) {
+    IRNode *cond = (IRNode*)branch.condition->accept(*this);
+    IRBody *body = (IRBody*)branch.body->accept(*this);
+    branches.push_back({std::unique_ptr<IRNode>(cond), std::unique_ptr<IRNode>(body)});
+  }
+  if (node.getElseBranch()) {
+    else_branch = (IRBody*)node.getElseBranch()->accept(*this);
+  }
+
+  IRBranching *brir = new IRBranching(branches);
+  brir->setElseBranch(else_branch);
+  return brir;
+}
+
+void *WindCompiler::visit(const Looping &node) {
+  IRNode *cond = (IRNode*)node.getCondition()->accept(*this);
+  IRBody *body = (IRBody*)node.getBody()->accept(*this);
+  IRLooping *loop = new IRLooping();
+  loop->setCondition(cond);
+  loop->setBody(body);
+  return loop;
+}

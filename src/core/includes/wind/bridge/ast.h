@@ -195,6 +195,35 @@ public:
   const std::string& getType() const;
 };
 
+struct Branch {
+  std::unique_ptr<ASTNode> condition;
+  std::unique_ptr<Body> body;
+};
+
+class Branching : public ASTNode {
+  std::vector<Branch> branches;
+  Body* else_branch;
+
+public:
+  void *accept(ASTVisitor &visitor) const;
+  const std::vector<Branch>& getBranches() const;
+  const Body *getElseBranch() const;
+  void setElseBranch(Body* body);
+  void addBranch(std::unique_ptr<ASTNode> condition, std::unique_ptr<Body> body);
+};
+
+class Looping : public ASTNode {
+  ASTNode* condition;
+  Body* body;
+
+public:
+  void *accept(ASTVisitor &visitor) const;
+  void setCondition(ASTNode* c);
+  const ASTNode* getCondition() const;
+  void setBody(Body* b);
+  const Body* getBody() const;
+};
+
 
 class ASTVisitor {
 public:
@@ -211,6 +240,8 @@ public:
   virtual void *visit(const InlineAsm &node) = 0;
   virtual void *visit(const StringLiteral &node) = 0;
   virtual void *visit(const TypeDecl &node) = 0;
+  virtual void *visit(const Branching &node) = 0;
+  virtual void *visit(const Looping &node) = 0;
 };
 
 #endif // AST_H

@@ -196,3 +196,35 @@ const std::string& TypeDecl::getName() const {
 const std::string& TypeDecl::getType() const {
   return type;
 }
+
+void *Branching::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const std::vector<Branch>& Branching::getBranches() const {
+  return branches;
+}
+const Body* Branching::getElseBranch() const {
+  return else_branch;
+}
+void Branching::addBranch(std::unique_ptr<ASTNode> condition, std::unique_ptr<Body> body) {
+  branches.push_back({std::move(condition), std::move(body)});
+}
+void Branching::setElseBranch(Body* body) {
+  else_branch = body;
+}
+
+void *Looping::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+void Looping::setCondition(ASTNode* c) {
+  condition = c;
+}
+void Looping::setBody(Body* b) {
+  body = b;
+}
+const Body* Looping::getBody() const {
+  return body;
+}
+const ASTNode* Looping::getCondition() const {
+  return condition;
+}

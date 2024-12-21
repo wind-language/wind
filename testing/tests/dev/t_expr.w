@@ -8,6 +8,6 @@ func sum(n: long) : long {
 }
 
 func main() : int {
-  printf("Sum: %llu\n", sum(50));
+  printf("Res: %d\n", fib(15));
   return 0;
 }

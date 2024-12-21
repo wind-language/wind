@@ -17,3 +17,6 @@ testing/**/*.out
 # Test suite
 testing/**/__pycache__/
 testing/suite/lib/*
+
+# dev benchmarks
+benchmarks

@@ -23,6 +23,16 @@ std::string ParserReport::line(uint16_t t_line) {
     return "";
 }
 
+#define LNUM_ADAPT_LEN 5
+void ReportLine(std::string line, TokenPos start, TokenPos end) {
+    std::string line_num = std::to_string(start.first);
+    line_num = std::string(LNUM_ADAPT_LEN - line_num.size(), ' ') + line_num;
+    line_num = line_num + " | ";
+    std::cerr << line_num << line << "\x1b[0m" << std::endl;
+    std::cerr << std::string(line_num.size()+start.second-1, ' ');
+    std::cerr << "\x1b[32m" << std::string(end.second-start.second, '^') << "\x1b[0m" << std::endl;
+}
+
 void ParserReport::Report(ParserReport::Type type, Token *expecting, Token *found) {
     std::string path = global_isc->getPath(found->srcId);
     if (type == ParserReport::Type::PARSER_WARNING) {
@@ -35,48 +45,22 @@ void ParserReport::Report(ParserReport::Type type, Token *expecting, Token *foun
         return;
     }
 
-    std::cerr << "\x1b[1m" << "Expecting: " << "\x1b[0m" << expecting->name << std::endl;
+    std::cerr << "\x1b[1m" << "Expecting: " << "\x1b[0m" << expecting->name;
+    if (expecting->type == Token::Type::SEMICOLON) {
+        std::cerr << " (Expression parsing)";
+    }
+    std::cerr << std::endl;
     std::cerr << "\x1b[1m" << "Found: `" << "\x1b[0m" << found->name << "\x1b[0m`\x1b[36m (" 
               << found->range.first.first << ":" << found->range.first.second << " to "
               << found->range.second.first << ":" << found->range.second.second << ")\x1b[0m" 
               << " in \x1b[1m" << path << "\x1b[0m" << std::endl;
-
-    std::string start_line = this->line(found->range.first.first);
-    std::string end_line = this->line(found->range.second.first);
-    int start_line_length = (int)start_line.size();
-    int end_line_length = (int)end_line.size();
-
-    int start_col = found->range.first.second + 3;
-    int end_col = found->range.second.second + 3;
-
-    if (start_col > start_line_length) {
-        start_col = start_line_length;
-    }
-    if (end_col > end_line_length) {
-        end_col = end_line_length;
-    }
-
-    std::cerr << "\x1b[33m" << found->range.first.first << "\x1b[0m | " << start_line << std::endl;
-    for (int i = 0; i < start_line_length; i++) {
-        if (i >= start_col && i < start_col + (found->range.second.second - found->range.first.second)) {
-            std::cerr << "\x1b[31m" << "^" << "\x1b[0m";
-        } else {
-            std::cerr << " ";
-        }
-    }
-    std::cerr << std::endl;
-
+    
     if (found->range.first.first != found->range.second.first) {
-        std::cerr << end_line << std::endl;
-        for (int i = 0; i < end_line_length; i++) {
-            if (i < end_col) {
-                std::cerr << "\x1b[31m" << "^" << "\x1b[0m";
-            } else {
-                std::cerr << " ";
-            }
-        }
-        std::cerr << std::endl;
+        throw std::runtime_error("TODO: Multiline report");
     }
+    
+    ReportLine(this->line(found->range.first.first), found->range.first, found->range.second);
+
     if (type == ParserReport::Type::PARSER_ERROR) {
         _Exit(1);
     }

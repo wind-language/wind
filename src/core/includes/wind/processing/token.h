@@ -35,6 +35,9 @@ public:
     STRING,
     VARDC,
     AND,
+    LOGAND, // &&
+    EQ,
+    LESS
   };
   
   std::string value;
@@ -53,12 +56,17 @@ public:
 };
 
 std::unordered_map<std::string, Token::Type> const SymbolTable = {
+  // double char symbols
+  {"==", Token::Type::EQ},
+  {"&&", Token::Type::LOGAND},
+  
   {"+", Token::Type::PLUS},
   {"-", Token::Type::MINUS},
   {"*", Token::Type::MULTIPLY},
   {"/", Token::Type::DIVIDE},
   {"%", Token::Type::MODULO},
   {"=", Token::Type::ASSIGN},
+  {"<", Token::Type::LESS},
   {"(", Token::Type::LPAREN},
   {")", Token::Type::RPAREN},
   {":", Token::Type::COLON},
@@ -71,7 +79,7 @@ std::unordered_map<std::string, Token::Type> const SymbolTable = {
   {"@", Token::Type::AT},
   {"?", Token::Type::QMARK},
   {"...", Token::Type::VARDC},
-  {"&", Token::Type::AND}
+  {"&", Token::Type::AND},
 };
 
 #endif

@@ -136,6 +136,15 @@ IRBinOp::Operation IRstr2op(std::string str) {
     return IRBinOp::SHR;
   } else if (str == "=") {
     return IRBinOp::ASSIGN;
+  } else if (str == "==") {
+    return IRBinOp::EQ;
+  } else if (str == "<") {
+    return IRBinOp::LESS;
+  } else if (str == "&&") {
+    return IRBinOp::LOGAND;
+  }
+  else if (str == "%") {
+    return IRBinOp::MOD;
   }
   else {
     throw std::runtime_error("Invalid operation");
@@ -189,4 +198,28 @@ asmjit::x86::Gp IRRegister::reg() const {
 IRInlineAsm::IRInlineAsm(std::string code) : asm_code(code) {}
 const std::string &IRInlineAsm::code() const {
   return asm_code;
+}
+
+IRBranching::IRBranching(std::vector<IRBranch> &branches): branches(std::move(branches)) {}
+const std::vector<IRBranch>& IRBranching::getBranches() const {
+  return branches;
+}
+void IRBranching::setElseBranch(IRBody *body) {
+  else_branch = body;
+}
+IRBody *IRBranching::getElseBranch() const {
+  return else_branch;
+}
+
+IRNode *IRLooping::getCondition() const {
+  return condition;
+}
+IRBody *IRLooping::getBody() const {
+  return body;
+}
+void IRLooping::setCondition(IRNode *c) {
+  condition = c;
+}
+void IRLooping::setBody(IRBody *b) {
+  body = b;
 }

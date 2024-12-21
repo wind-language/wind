@@ -7,6 +7,7 @@ void ASTPrinter::print_tabs() {
 }
 
 void *ASTPrinter::visit(const BinaryExpr &node) {
+  this->print_tabs();
   this->in_expr=true;
   std::cout << "(";
   node.getLeft()->accept(*this);
@@ -104,5 +105,48 @@ void *ASTPrinter::visit(const StringLiteral &node) {
 
 void *ASTPrinter::visit(const TypeDecl &node) {
   std::cout << "type " << node.getName() << " = " << node.getType() << std::endl;
+  return nullptr;
+}
+
+void *ASTPrinter::visit(const Branching &node) {
+  this->print_tabs();
+  std::cout << "branch [\n";
+  this->tabs++;
+  for (const auto &branch : node.getBranches()) {
+    this->print_tabs();
+    std::cout << "if ";
+    branch.condition->accept(*this);
+    std::cout << " {\n";
+    this->tabs++;
+    branch.body->accept(*this);
+    this->tabs--;
+    this->print_tabs();
+    std::cout << "}\n";
+  }
+  if (node.getElseBranch()) {
+    this->print_tabs();
+    std::cout << "else {\n";
+    this->tabs++;
+    node.getElseBranch()->accept(*this);
+    this->tabs--;
+    this->print_tabs();
+    std::cout << "}\n";
+  }
+  this->tabs--;
+  this->print_tabs();
+  std::cout << "]\n";
+  return nullptr;
+}
+
+void *ASTPrinter::visit(const Looping &node) {
+  this->print_tabs();
+  std::cout << "loop [";
+  node.getCondition()->accept(*this);
+  std::cout << "] {\n";
+  this->tabs++;
+  node.getBody()->accept(*this);
+  this->tabs--;
+  this->print_tabs();
+  std::cout << "}\n";
   return nullptr;
 }

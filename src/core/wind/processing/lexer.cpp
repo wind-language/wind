@@ -150,18 +150,19 @@ WindLexer::WindLexer(std::string data) : stream(data), reporter(new LexerReport(
 
 SymbolMatch WindLexer::MatchSymbol() {
   for (const auto &symbol : SymbolTable) {
-    std::string matching(1, this->stream.current());
-    for (u_int16_t i = 1; i < symbol.first.size(); i++) {
-      if (this->stream.peek(i - 1) == symbol.first[i]) {
-        matching += symbol.first[i];
-      } else {
+    std::string strsym = symbol.first;
+    bool match = true;
+    for (int i=0;i<strsym.size();i++) {
+      if (this->stream.peek(i) == strsym[i]) {
+        continue;
+      }
+      else {
+        match=false;
         break;
       }
     }
-    if (matching == symbol.first) {
-      return std::make_unique<std::pair<std::string, Token::Type>>(
-        std::make_pair(symbol.first, symbol.second)
-      );
+    if (match) {
+      return std::unique_ptr<std::pair<std::string, Token::Type>>(new std::pair<std::string, Token::Type>(symbol.first, symbol.second));
     }
   }
   return nullptr;

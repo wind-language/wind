@@ -15,14 +15,14 @@ public:
   virtual ~WindEmitter();
   void process();
   std::string emitObj(std::string outpath="");
-  std::string emit();
   asmjit::StringLogger *logger;
 
 private:
   IRBody *program;
   IRFunction *current_function;
   int cconv_index = 0; // reset on each function call/decl
-  int rostring_i=0;
+  unsigned rostring_i=0;
+  unsigned branch_i=0;
 
   // Asmjit
   asmjit::x86::Assembler *assembler;
@@ -52,6 +52,8 @@ private:
   void InitializeSections();
   void emitNode(IRNode *node);
   void emitReturn(IRRet *ret);
+  void emitBranch(IRBranching *branch);
+  void emitLoop(IRLooping *loop);
   void LitIntoVar(IRLocalRef *local, IRLiteral *lit);
   void moveIntoIndex(const IRLocalAddrRef *local, IRNode *value);
   IRFunction *FindFunction(std::string name);
@@ -62,6 +64,7 @@ private:
   void emitEpilogue();
   void emitAsm(IRInlineAsm *asm_node);
   asmjit::x86::Gp emitExpr(IRNode *node, asmjit::x86::Gp dest);
+  void emitCJmp(IRNode *node, asmjit::Label label, bool invert=false);
   asmjit::x86::Gp moveVar(IRLocalRef *local, asmjit::x86::Gp dest);
   asmjit::x86::Gp emitLRef(IRLocalAddrRef *local, asmjit::x86::Gp dest);
   asmjit::x86::Gp adaptReg(asmjit::x86::Gp reg, int size);
@@ -70,6 +73,8 @@ private:
   asmjit::x86::Gp emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest);
   asmjit::x86::Gp emitLiteral(IRLiteral *lit, asmjit::x86::Gp dest);
   asmjit::x86::Gp emitString(IRStringLiteral *str, asmjit::x86::Gp dest);
+  void moveIfNot(asmjit::x86::Gp dest, asmjit::x86::Gp src);
+  asmjit::Label newBranchLabel();
 };
 
 #endif

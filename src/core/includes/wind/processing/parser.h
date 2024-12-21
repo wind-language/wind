@@ -7,7 +7,8 @@
 class WindParser {
 public:
   WindParser(TokenStream *stream, std::string src_path);
-  ASTNode *Discriminate();
+  ASTNode *DiscriminateTop();
+  ASTNode *DiscriminateBody();
   Body *parse();
 
 private:
@@ -23,15 +24,19 @@ private:
   Return *parseRet();
   LocalDecl *parseVarDecl();
   InlineAsm *parseInlAsm();
+  Branching *parseBranch();
+  Looping *parseLoop();
 
   ASTNode *parseMacro();
 
   ASTNode *parseExprBinOp(ASTNode *left, int precedence);
   ASTNode *parseExprFnCall();
-  ASTNode *parseExprLiteral();
+  ASTNode *parseExprLiteral(bool negative=false);
   ASTNode *parseExprPrimary();
   ASTNode *parseExpr(int precedence);
   ASTNode *parseExprSemi();
+  ASTNode *parseExprColon();
+  Body *parseBranchBody();
 
   void pathWork(std::string relative, Token *token_ref);
 
