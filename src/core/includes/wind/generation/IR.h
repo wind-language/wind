@@ -183,6 +183,7 @@ public:
     DIV,
     SHL,
     SHR,
+    AND,
     EQ,
     LESS,
     GREATER,

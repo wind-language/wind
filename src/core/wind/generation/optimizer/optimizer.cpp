@@ -157,7 +157,24 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
       IRBinOp::Operation::SHR
     );
   }
-
+  else if (
+    op == IRBinOp::Operation::MOD &&
+    opt_right->is<IRLiteral>()
+  ) {
+    if (opt_left->is<IRLiteral>()) {
+      return new IRLiteral(opt_left->as<IRLiteral>()->get() % opt_right->as<IRLiteral>()->get());
+    }
+    else if (opt_right->as<IRLiteral>()->get() == 1) {
+      return new IRLiteral(0);
+    }
+    else if (opt_right->as<IRLiteral>()->get() == 2) {
+      return new IRBinOp(
+        std::unique_ptr<IRNode>(opt_left),
+        std::unique_ptr<IRNode>(new IRLiteral(1)),
+        IRBinOp::Operation::AND
+      );
+    }
+  }
   IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(opt_left), std::unique_ptr<IRNode>(opt_right), op);
   return binop;
 }
@@ -201,12 +218,73 @@ IRNode *WindOptimizer::OptimizeFnCall(IRFnCall *fn_call) {
 
 IRNode *WindOptimizer::OptimizeFunction(IRFunction *fn) {
   IRFunction *fn_copy = fn->clone();
-  if (fn->ArgNum()==1) {
+  bool has_loop=false;
+
+  for (auto &node : fn->body()->get()) {
+    if (node->is<IRLooping>()) {
+      has_loop = true;
+      break;
+    }
+  }
+
+  if (fn->ArgNum()==1 && !has_loop) {
     // clear stack usage
     fn_copy->stack_size -= fn->GetArgType(0)->memSize();
     fn_copy->ignore_stack_abi = true;
   }
   return fn_copy;
+}
+
+IRNode *WindOptimizer::OptimizeBranching(IRBranching *branch) {
+  std::vector<IRBranch> opt_branches;
+  for (auto &branch : branch->getBranches()) {
+    IRNode *opt_cond = this->OptimizeExpr(branch.condition.get());
+    IRBody *opt_body = new IRBody({});
+    for (auto &node : branch.body->as<IRBody>()->get()) {
+      std::unique_ptr<IRNode> opt_node = std::unique_ptr<IRNode>(this->OptimizeNode(node.get()));
+      if (opt_node) {
+        *opt_body += std::move(opt_node);
+      }
+    }
+    opt_branches.push_back(
+      IRBranch({
+        std::unique_ptr<IRNode>(opt_cond),
+        std::unique_ptr<IRBody>(opt_body)
+      })
+    );
+  }
+  IRBody *opt_else = nullptr;
+  if (branch->getElseBranch()) {
+    opt_else = new IRBody({});
+    for (auto &node : branch->getElseBranch()->get()) {
+      std::unique_ptr<IRNode> opt_node = std::unique_ptr<IRNode>(this->OptimizeNode(node.get()));
+      if (opt_node) {
+        *opt_else += std::move(opt_node);
+      }
+    }
+  }
+  IRBranching *opt_branching = new IRBranching(
+    opt_branches
+  );
+  if (opt_else) {
+    opt_branching->setElseBranch(opt_else);
+  }
+  return opt_branching;
+}
+
+IRNode *WindOptimizer::OptimizeLooping(IRLooping *loop) {
+  IRNode *opt_cond = this->OptimizeExpr(loop->getCondition());
+  IRBody *opt_body = new IRBody({});
+  for (auto &node : loop->getBody()->get()) {
+    std::unique_ptr<IRNode> opt_node = std::unique_ptr<IRNode>(this->OptimizeNode(node.get()));
+    if (opt_node) {
+      *opt_body += std::move(opt_node);
+    }
+  }
+  IRLooping *opt_loop = new IRLooping();
+  opt_loop->setBody(opt_body);
+  opt_loop->setCondition(opt_cond);
+  return opt_loop;
 }
 
 IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
@@ -219,6 +297,12 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   }
   else if (node->is<IRLocalDecl>()) {
     return this->OptimizeLDecl(node->as<IRLocalDecl>());
+  }
+  else if (node->is<IRBranching>()) {
+    return this->OptimizeBranching(node->as<IRBranching>());
+  }
+  else if (node->is<IRLooping>()) {
+    return this->OptimizeLooping(node->as<IRLooping>());
   }
   /* else if (node->is<IRFnCall>()) {
     return this->OptimizeFnCall(node->as<IRFnCall>());

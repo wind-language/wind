@@ -16,7 +16,7 @@ testing/**/*.out
 
 # Test suite
 testing/**/__pycache__/
-testing/suite/lib/*
+testing/features/suite/lib/*
 
 # dev benchmarks
 testing/benchmarks/build/

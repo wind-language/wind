@@ -73,7 +73,7 @@ void WindEmitter::moveIfNot(asmjit::x86::Gp dest, asmjit::x86::Gp src) {
   }
 }
 
-asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
+asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest, bool isJmp) {
   IRNode *right_node = (IRNode*)bin_op->right();
   asmjit::x86::Gp left;
 
@@ -97,6 +97,11 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
 
   // Helper to handle operations with literals
   auto handleLiteralOp = [&](IRLiteral* lit) {
+    if (isJmp) {
+      this->assembler->cmp(left, lit->get());
+      return left;
+    }
+
     switch (bin_op->operation()) {
       case IRBinOp::Operation::ADD: assembler->add(left, lit->get()); break;
       case IRBinOp::Operation::SUB: assembler->sub(left, lit->get()); break;
@@ -113,6 +118,7 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
 
       case IRBinOp::Operation::SHL: assembler->shl(left, lit->get()); break;
       case IRBinOp::Operation::SHR: assembler->shr(left, lit->get()); break;
+      case IRBinOp::Operation::AND: assembler->and_(left, lit->get()); break;
 
 
       case IRBinOp::Operation::EQ:  {
@@ -149,6 +155,10 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
   };
 
   auto handleRegisterOp = [&](asmjit::x86::Gp right) {
+    if (isJmp) {
+      this->assembler->cmp(left, right);
+      return left;
+    }
     switch (bin_op->operation()) {
         case IRBinOp::Operation::ADD: assembler->add(right, left); break;
         case IRBinOp::Operation::SUB: assembler->sub(right, left); break;
@@ -164,6 +174,7 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
 
         case IRBinOp::Operation::SHL: assembler->shl(right, left); break;
         case IRBinOp::Operation::SHR: assembler->shr(right, left); break;
+        case IRBinOp::Operation::AND: assembler->and_(right, left); break;
 
         case IRBinOp::Operation::ASSIGN: assembler->mov(right, left); break;
 
@@ -220,6 +231,10 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
       if (local->datatype()->isArray()) throw std::runtime_error("TODO: Implement array binop");
       left = adaptReg(left, local->datatype()->moveSize());
       auto local_ptr = asmjit::x86::ptr(asmjit::x86::rbp, -local->offset(), local->datatype()->moveSize());
+      if (isJmp) {
+        this->assembler->cmp(left, local_ptr);
+        return left;
+      }
       switch (bin_op->operation()) {
         case IRBinOp::Operation::ADD: assembler->add(left, local_ptr); break;
         case IRBinOp::Operation::SUB: assembler->sub(left, local_ptr); break;
@@ -235,6 +250,7 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
 
         case IRBinOp::Operation::SHL: assembler->shl(left, moveVar(local, asmjit::x86::rdx)); break;
         case IRBinOp::Operation::SHR: assembler->shr(left, moveVar(local, asmjit::x86::rdx)); break;
+        case IRBinOp::Operation::AND: assembler->and_(left, moveVar(local, asmjit::x86::rdx)); break;
 
         case IRBinOp::Operation::EQ : {
           this->assembler->cmp(left, local_ptr);

@@ -54,6 +54,26 @@ WindEmitter::WindEmitter(IRBody *program) : program(program) {
   this->string_table.table = new std::map<std::string, std::string>();
   this->reg_vars = new std::map<int, asmjit::x86::Gp>();
   this->secHeader();
+
+
+  jmp_map[IRBinOp::Operation::EQ][0] = [this](asmjit::Label label) {
+    this->assembler->je(label);
+  };
+  jmp_map[IRBinOp::Operation::EQ][1] = [this](asmjit::Label label) {
+    this->assembler->jne(label);
+  };
+  jmp_map[IRBinOp::Operation::GREATER][0] = [this](asmjit::Label label) {
+    this->assembler->jg(label);
+  };
+  jmp_map[IRBinOp::Operation::GREATER][1] = [this](asmjit::Label label) {
+    this->assembler->jle(label);
+  };
+  jmp_map[IRBinOp::Operation::LESS][0] = [this](asmjit::Label label) {
+    this->assembler->jl(label);
+  };
+  jmp_map[IRBinOp::Operation::LESS][1] = [this](asmjit::Label label) {
+    this->assembler->jge(label);
+  };
 }
 
 WindEmitter::~WindEmitter() {}
@@ -242,7 +262,7 @@ asmjit::x86::Gp WindEmitter::emitLRef(IRLocalAddrRef *local, asmjit::x86::Gp des
   return dest;
 }
 
-asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
+asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest, bool isJmp) {
   switch (node->type()) {
 
     case IRNode::NodeType::LITERAL : {
@@ -272,7 +292,7 @@ asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest) {
 
     case IRNode::NodeType::BIN_OP : {
       IRBinOp *bin_op = node->as<IRBinOp>();
-      return this->emitBinOp(bin_op, dest);
+      return this->emitBinOp(bin_op, dest, isJmp);
     }
 
     default: {
@@ -289,7 +309,9 @@ void WindEmitter::SolveArg(IRArgDecl *decl) {
     throw std::runtime_error("TODO: Implement array in arguments");
   }
   if (this->cconv_index < 6) {
-    OptVarMoved(local->offset(), this->adaptReg(SystemVABI[this->cconv_index], local->datatype()->moveSize()));
+    if (this->current_function->ignore_stack_abi) {
+      OptVarMoved(local->offset(), this->adaptReg(SystemVABI[this->cconv_index], local->datatype()->moveSize()));
+    }
     if (this->current_function->flags & PURE_STACK) {
       this->cconv_index++;
       return;
@@ -348,18 +370,26 @@ void WindEmitter::emitAsm(IRInlineAsm *asm_node) {
 }
 
 asmjit::Label WindEmitter::newBranchLabel() {
-  std::string name = ".WL" + std::to_string(this->branch_i);
+  std::string name = ".L" + std::to_string(this->branch_i);
   this->branch_i++;
   return this->assembler->newNamedLabel(name.c_str());
 }
 
 void WindEmitter::emitCJmp(IRNode *node, asmjit::Label label, bool invert) {
-  this->emitExpr(node, asmjit::x86::rax);
-  this->assembler->test(asmjit::x86::al, asmjit::x86::al);
-  if (invert) {
-    this->assembler->jz(label);
+  asmjit::x86::Gp rreg = this->emitExpr(node, asmjit::x86::rax, true);
+  if (node->type() != IRNode::NodeType::BIN_OP) {
+    this->assembler->test(rreg,rreg);
+    this->assembler->je(label);
   } else {
-    this->assembler->jnz(label);
+    IRBinOp *bin_op = node->as<IRBinOp>();
+    auto jmp_it = this->jmp_map.find(bin_op->operation());
+    if (jmp_it == this->jmp_map.end()) {
+      this->assembler->test(rreg, rreg);
+      this->assembler->je(label);
+    } else {
+      // real deal
+      jmp_it->second[invert ? 1 : 0](label);
+    }
   }
 }
 
@@ -396,6 +426,7 @@ void WindEmitter::emitLoop(IRLooping *loop) {
   asmjit::Label start = this->newBranchLabel();
   asmjit::Label end = this->newBranchLabel();
   this->assembler->bind(start);
+  this->OptTabulaRasa(); // loops can change registers
   this->emitCJmp(loop->getCondition(), end, true);
   for (auto &statement : loop->getBody()->get()) {
     this->emitNode(statement.get());
@@ -481,6 +512,7 @@ void WindEmitter::process() {
 std::string WindEmitter::emitObj(std::string outpath) {
   std::string outemit = this->logger->content().data();
   cleanLoggerContent(outemit);
+  outemit = this->OptCommonRed(outemit);
   std::string path = generateRandomFilePath("", ".S");
   std::ofstream file(path);
   if (file.is_open()) {
@@ -490,6 +522,6 @@ std::string WindEmitter::emitObj(std::string outpath) {
   WindGasInterface *gas = new WindGasInterface(path, outpath);
   gas->addFlag("-O3");
   std::string ret = gas->assemble();
-  std::filesystem::remove(path);
+  //std::filesystem::remove(path);
   return ret;
 }

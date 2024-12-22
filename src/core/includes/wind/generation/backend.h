@@ -1,6 +1,7 @@
 #include <wind/generation/IR.h>
 #include <asmjit/asmjit.h>
 #include <map>
+#include <functional>
 
 #ifndef BACKEND_H
 #define BACKEND_H
@@ -24,6 +25,9 @@ private:
   unsigned rostring_i=0;
   unsigned branch_i=0;
 
+  typedef std::function<void(asmjit::Label)> asmjit_jmp_generic;
+  std::map<IRBinOp::Operation, asmjit_jmp_generic[2]> jmp_map;
+
   // Asmjit
   asmjit::x86::Assembler *assembler;
   asmjit::CodeHolder code_holder;
@@ -39,6 +43,7 @@ private:
   asmjit::x86::Gp OptVarGet(int offset);
   void OptClearReg(asmjit::x86::Gp reg);
   void OptTabulaRasa(); // Cool name, right?
+  std::string OptCommonRed(std::string asmr);
 
   // Security
   void secHeader();
@@ -63,14 +68,14 @@ private:
   void emitPrologue();
   void emitEpilogue();
   void emitAsm(IRInlineAsm *asm_node);
-  asmjit::x86::Gp emitExpr(IRNode *node, asmjit::x86::Gp dest);
+  asmjit::x86::Gp emitExpr(IRNode *node, asmjit::x86::Gp dest, bool isJmp=false);
   void emitCJmp(IRNode *node, asmjit::Label label, bool invert=false);
   asmjit::x86::Gp moveVar(IRLocalRef *local, asmjit::x86::Gp dest);
   asmjit::x86::Gp emitLRef(IRLocalAddrRef *local, asmjit::x86::Gp dest);
   asmjit::x86::Gp adaptReg(asmjit::x86::Gp reg, int size);
   void SolveArg(IRArgDecl *decl);
   void moveIntoVar(IRLocalRef *local, IRNode *value);
-  asmjit::x86::Gp emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest);
+  asmjit::x86::Gp emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest, bool isJmp=false);
   asmjit::x86::Gp emitLiteral(IRLiteral *lit, asmjit::x86::Gp dest);
   asmjit::x86::Gp emitString(IRStringLiteral *str, asmjit::x86::Gp dest);
   void moveIfNot(asmjit::x86::Gp dest, asmjit::x86::Gp src);

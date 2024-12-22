@@ -22,6 +22,8 @@ private:
   IRNode *OptimizeLDecl(IRLocalDecl *local_decl);
   IRNode *OptimizeFnCall(IRFnCall *fn_call);
   IRNode *OptimizeFunction(IRFunction *fn);
+  IRNode *OptimizeBranching(IRBranching *branch);
+  IRNode *OptimizeLooping(IRLooping *loop);
 
   IRLiteral *OptimizeConstFold(IRBinOp *node);
 };
