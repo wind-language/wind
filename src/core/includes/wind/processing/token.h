@@ -37,7 +37,8 @@ public:
     AND,
     LOGAND, // &&
     EQ,
-    LESS
+    LESS,
+    GREATER
   };
   
   std::string value;
@@ -67,6 +68,7 @@ std::unordered_map<std::string, Token::Type> const SymbolTable = {
   {"%", Token::Type::MODULO},
   {"=", Token::Type::ASSIGN},
   {"<", Token::Type::LESS},
+  {">", Token::Type::GREATER},
   {"(", Token::Type::LPAREN},
   {")", Token::Type::RPAREN},
   {":", Token::Type::COLON},

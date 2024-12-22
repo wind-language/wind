@@ -185,6 +185,7 @@ public:
     SHR,
     EQ,
     LESS,
+    GREATER,
     ASSIGN,
     MOD,
     LOGAND

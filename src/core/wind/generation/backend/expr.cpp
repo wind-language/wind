@@ -127,6 +127,12 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
         left = dest.r8();
         break;
       }
+      case IRBinOp::Operation::GREATER: {
+        this->assembler->cmp(left, lit->get());
+        this->assembler->setg(dest.r8());
+        left = dest.r8();
+        break;
+      }
 
       case IRBinOp::Operation::LOGAND : {
         this->assembler->test(left, lit->get());
@@ -170,6 +176,12 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
         case IRBinOp::Operation::LESS: {
           this->assembler->cmp(left, right);
           this->assembler->setl(dest.r8());
+          right = dest.r8();
+          break;
+        }
+        case IRBinOp::Operation::GREATER: {
+          this->assembler->cmp(left, right);
+          this->assembler->setg(dest.r8());
           right = dest.r8();
           break;
         }
@@ -233,6 +245,12 @@ asmjit::x86::Gp WindEmitter::emitBinOp(IRBinOp *bin_op, asmjit::x86::Gp dest) {
         case IRBinOp::Operation::LESS: {
           this->assembler->cmp(left, local_ptr);
           this->assembler->setl(dest.r8());
+          left = dest.r8();
+          break;
+        }
+        case IRBinOp::Operation::GREATER: {
+          this->assembler->cmp(left, local_ptr);
+          this->assembler->setg(dest.r8());
           left = dest.r8();
           break;
         }

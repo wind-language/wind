@@ -19,4 +19,4 @@ testing/**/__pycache__/
 testing/suite/lib/*
 
 # dev benchmarks
-benchmarks
+testing/benchmarks/build/

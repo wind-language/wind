@@ -140,6 +140,8 @@ IRBinOp::Operation IRstr2op(std::string str) {
     return IRBinOp::EQ;
   } else if (str == "<") {
     return IRBinOp::LESS;
+  } else if (str == ">") {
+    return IRBinOp::GREATER;
   } else if (str == "&&") {
     return IRBinOp::LOGAND;
   }

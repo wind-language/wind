@@ -104,10 +104,14 @@ void WindEmitter::emitFunction(IRFunction *fn) {
   this->cconv_index = 0;
   this->assembler->bind(this->assembler->newNamedLabel(fn->name().c_str()));
   this->emitPrologue();
+  IRNode *last;
   for (auto &statement : fn->body()->get()) {
-    this->emitNode(statement.get());
+    last = statement.get();
+    this->emitNode(last);
   }
-  this->emitEpilogue();
+  if (last->type() != IRNode::NodeType::RET) {
+    this->emitEpilogue();
+  }
 }
 
 asmjit::x86::Gp WindEmitter::adaptReg(asmjit::x86::Gp reg, int size) {

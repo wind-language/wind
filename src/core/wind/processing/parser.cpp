@@ -117,6 +117,7 @@ static Token::Type TOK_OP_LIST[]={
   Token::Type::ASSIGN,
   Token::Type::EQ,
   Token::Type::LESS,
+  Token::Type::GREATER,
   Token::Type::LOGAND
 };
 
@@ -252,6 +253,7 @@ int getOpPrecedence(Token *tok) {
     
     case Token::Type::EQ:
     case Token::Type::LESS:
+    case Token::Type::GREATER:
       return 2;
 
     // TODO: More

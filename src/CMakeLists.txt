@@ -13,7 +13,7 @@ set(ASMJIT_LIB_DIR ${EXTERN_DIR}/asmjit/build)
 
 set(WIND_STD_PATH "${CMAKE_CURRENT_LIST_DIR}/std" CACHE STRING "Path to the standard lib files")
 set(WIND_RUNTIME_PATH "${CMAKE_CURRENT_LIST_DIR}/runtime" CACHE STRING "Path to the runtime files")
-option(WIND_BUILD_TESTLIB "Build the API for python testing" ON)
+option(WIND_BUILD_TESTLIB "Build the API for python testing" OFF)
 
 # ugly asmjit build process, I don't want to use external project
 # it's not necessary to build asmjit every time
