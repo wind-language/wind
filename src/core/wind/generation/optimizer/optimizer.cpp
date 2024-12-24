@@ -186,7 +186,7 @@ IRNode *WindOptimizer::OptimizeExpr(IRNode *node) {
   return node;
 }
 
-IRNode *WindOptimizer::OptimizeLDecl(IRLocalDecl *local_decl) {
+IRNode *WindOptimizer::OptimizeLDecl(IRVariableDecl *local_decl) {
   if (this->current_fn->flags & PURE_STACK) {
     return local_decl;
   }
@@ -199,7 +199,7 @@ IRNode *WindOptimizer::OptimizeLDecl(IRLocalDecl *local_decl) {
   if (local_decl->value()) {
     opt_value = this->OptimizeExpr(local_decl->value());
   }
-  IRLocalDecl *opt_local_decl = new IRLocalDecl(
+  IRVariableDecl *opt_local_decl = new IRVariableDecl(
     local_decl->local(),
     opt_value
   );
@@ -295,8 +295,8 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
     );
     return opt_ret;
   }
-  else if (node->is<IRLocalDecl>()) {
-    return this->OptimizeLDecl(node->as<IRLocalDecl>());
+  else if (node->is<IRVariableDecl>()) {
+    return this->OptimizeLDecl(node->as<IRVariableDecl>());
   }
   else if (node->is<IRBranching>()) {
     return this->OptimizeBranching(node->as<IRBranching>());

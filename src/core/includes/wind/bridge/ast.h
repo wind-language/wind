@@ -121,13 +121,14 @@ public:
   FnFlags flags;
 };
 
-class LocalDecl : public ASTNode {
+class VariableDecl : public ASTNode {
   std::string name;
   std::string type; // Will resolve on IR generation
   std::unique_ptr<ASTNode> value;
+  bool is_global = false;
 
 public:
-  LocalDecl(std::string n, std::string t, std::unique_ptr<ASTNode> v = nullptr);
+  VariableDecl(std::string n, std::string t, std::unique_ptr<ASTNode> v = nullptr, bool global = false);
 
   void *accept(ASTVisitor &visitor) const override;
 
@@ -235,7 +236,7 @@ public:
   virtual void *visit(const Body &node) = 0;
   virtual void *visit(const Function &node) = 0;
   virtual void *visit(const ArgDecl &node) = 0;
-  virtual void *visit(const LocalDecl &node) = 0;
+  virtual void *visit(const VariableDecl &node) = 0;
   virtual void *visit(const FnCall &node) = 0;
   virtual void *visit(const InlineAsm &node) = 0;
   virtual void *visit(const StringLiteral &node) = 0;

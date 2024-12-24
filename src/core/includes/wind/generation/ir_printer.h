@@ -21,7 +21,7 @@ private:
   void print_ref(const IRLocalRef *node);
   void print_laddr(const IRLocalAddrRef *node);
   void print_lit(const IRLiteral *node);
-  void print_ldecl(const IRLocalDecl *node);
+  void print_ldecl(const IRVariableDecl *node);
   void print_argdecl(const IRArgDecl *node);
   void print_fncall(const IRFnCall *node);
   void print_asm(const IRInlineAsm *node);

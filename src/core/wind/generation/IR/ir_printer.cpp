@@ -15,6 +15,7 @@ const std::unordered_map<IRBinOp::Operation, std::string> BOpTTable = {
   {IRBinOp::Operation::ASSIGN, "ass"},
   {IRBinOp::Operation::EQ, "eq"},
   {IRBinOp::Operation::LESS, "le"},
+  {IRBinOp::Operation::LESSEQ, "leq"},
   {IRBinOp::Operation::GREATER, "gr"},
   {IRBinOp::Operation::MOD, "mod"},
   {IRBinOp::Operation::LOGAND, "&&"}
@@ -87,7 +88,7 @@ void IRPrinter::print_node(const IRNode *node) {
     }
     case IRNode::NodeType::LOCAL_DECL : {
       this->print_ldecl(
-        node->as<IRLocalDecl>()
+        node->as<IRVariableDecl>()
       );
       break;
     }
@@ -140,6 +141,10 @@ void IRPrinter::print_body(const IRBody *body) {
 
 void IRPrinter::print_function(const IRFunction *node) {
   this->print_tabs();
+  if (node->flags & FN_EXTERN) {
+    std::cout << "extern " << node->name() << "\n" << std::endl;
+    return;
+  }
   std::cout << "function " << node->name() << " {" << std::endl;
   this->print_body(node->body());
   std::cout << "}" << std::endl;
@@ -172,7 +177,10 @@ void IRPrinter::print_bin_op(const IRBinOp *node) {
 void IRPrinter::print_ret(const IRRet *node) {
   this->print_tabs();
   std::cout << "ret ";
-  this->print_node(node->get());
+  IRNode *val = node->get();
+  if (val) {
+    this->print_node(val);
+  }
   std::cout << std::endl;
 }
 
@@ -191,7 +199,7 @@ void IRPrinter::print_lit(const IRLiteral *node) {
   std::cout << node->get();
 }
 
-void IRPrinter::print_ldecl(const IRLocalDecl *node) {
+void IRPrinter::print_ldecl(const IRVariableDecl *node) {
   this->print_tabs();
   std::cout << "alloc [" << node->local()->datatype()->memSize() << "] loc" << node->local()->offset() << std::endl;
   if (node->value()) {

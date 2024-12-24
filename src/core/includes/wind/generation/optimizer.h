@@ -19,7 +19,7 @@ private:
   IRNode *OptimizeNode(IRNode *node);
   IRNode *OptimizeBinOp(IRBinOp *node);
   IRNode *OptimizeExpr(IRNode *node);
-  IRNode *OptimizeLDecl(IRLocalDecl *local_decl);
+  IRNode *OptimizeLDecl(IRVariableDecl *local_decl);
   IRNode *OptimizeFnCall(IRFnCall *fn_call);
   IRNode *OptimizeFunction(IRFunction *fn);
   IRNode *OptimizeBranching(IRBranching *branch);

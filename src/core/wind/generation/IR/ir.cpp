@@ -144,9 +144,10 @@ IRBinOp::Operation IRstr2op(std::string str) {
     return IRBinOp::GREATER;
   } else if (str == "&&") {
     return IRBinOp::LOGAND;
-  }
-  else if (str == "%") {
+  } else if (str == "%") {
     return IRBinOp::MOD;
+  } else if (str == "<=") {
+    return IRBinOp::LESSEQ;
   }
   else {
     throw std::runtime_error("Invalid operation");
@@ -163,11 +164,11 @@ const std::string& IRStringLiteral::get() const {
   return value;
 }
 
-IRLocalDecl::IRLocalDecl(IRLocalRef* local_ref, IRNode* value) : local_ref(local_ref), v_value(value) {}
-IRLocalRef* IRLocalDecl::local() const {
+IRVariableDecl::IRVariableDecl(IRLocalRef* local_ref, IRNode* value) : local_ref(local_ref), v_value(value) {}
+IRLocalRef* IRVariableDecl::local() const {
   return local_ref;
 }
-IRNode* IRLocalDecl::value() const {
+IRNode* IRVariableDecl::value() const {
   return this->v_value;
 }
 

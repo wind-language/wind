@@ -118,6 +118,7 @@ static Token::Type TOK_OP_LIST[]={
   Token::Type::EQ,
   Token::Type::LESS,
   Token::Type::GREATER,
+  Token::Type::LESSEQ,
   Token::Type::LOGAND
 };
 
@@ -254,6 +255,7 @@ int getOpPrecedence(Token *tok) {
     case Token::Type::EQ:
     case Token::Type::LESS:
     case Token::Type::GREATER:
+    case Token::Type::LESSEQ:
       return 2;
 
     // TODO: More
@@ -294,11 +296,13 @@ Return *WindParser::parseRet() {
   ASTNode *ret_expr=nullptr;
   if (stream->current()->type != Token::Type::SEMICOLON) {
     ret_expr = this->parseExprSemi();
+  } else {
+    this->expect(Token::Type::SEMICOLON, ";");
   }
   return new Return(std::unique_ptr<ASTNode>(ret_expr));
 }
 
-LocalDecl *WindParser::parseVarDecl() {
+VariableDecl *WindParser::parseVarDecl(bool global) {
   this->expect(Token::Type::IDENTIFIER, "var");
   std::string name = this->expect(Token::Type::IDENTIFIER, "variable name")->value;
   this->expect(Token::Type::COLON, ":");
@@ -306,11 +310,11 @@ LocalDecl *WindParser::parseVarDecl() {
   if (this->stream->current()->type == Token::Type::ASSIGN) {
     this->expect(Token::Type::ASSIGN, "=");
     ASTNode *expr = this->parseExprSemi();
-    return new LocalDecl(name, type, std::unique_ptr<ASTNode>(expr));
+    return new VariableDecl(name, type, std::unique_ptr<ASTNode>(expr), global);
   }
   else {
     this->expect(Token::Type::SEMICOLON, ";");
-    return new LocalDecl(name, type, nullptr);
+    return new VariableDecl(name, type, nullptr, global);
   }
 }
 
@@ -495,6 +499,9 @@ ASTNode *WindParser::DiscriminateTop() {
   if (this->isKeyword(stream->current(), "func")) {
     return this->parseFn();
   }
+  else if (this->isKeyword(stream->current(), "var")) {
+    return this->parseVarDecl(true);
+  }
   else if (this->stream->current()->type == Token::Type::AT) {
     return this->parseMacro();
   }
@@ -512,7 +519,7 @@ ASTNode *WindParser::DiscriminateBody() {
     return this->parseRet();
   }
   else if (this->isKeyword(stream->current(), "var")) {
-    return this->parseVarDecl();
+    return this->parseVarDecl(false);
   }
   else if (this->isKeyword(stream->current(), "asm")) {
     return this->parseInlAsm();

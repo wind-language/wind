@@ -187,6 +187,7 @@ public:
     EQ,
     LESS,
     GREATER,
+    LESSEQ,
     ASSIGN,
     MOD,
     LOGAND
@@ -225,12 +226,12 @@ public:
   NodeType type() const override { return NodeType::STRING; }
 };
 
-class IRLocalDecl : public IRNode {
+class IRVariableDecl : public IRNode {
   IRLocalRef *local_ref;
   IRNode *v_value;
 
 public:
-  IRLocalDecl(IRLocalRef* local_ref, IRNode* value);
+  IRVariableDecl(IRLocalRef* local_ref, IRNode* value);
   IRLocalRef *local() const;
   IRNode *value() const;
   NodeType type() const override { return NodeType::LOCAL_DECL; }

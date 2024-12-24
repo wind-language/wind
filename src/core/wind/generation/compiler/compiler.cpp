@@ -55,7 +55,11 @@ void* WindCompiler::visit(const StringLiteral &node) {
 }
 
 void* WindCompiler::visit(const Return &node) {
-  IRNode *val = (IRNode*)node.get()->accept(*this);
+  const ASTNode *aval = node.get();
+  if (aval == nullptr) {
+    return new IRRet(nullptr);
+  }
+  IRNode *val = (IRNode*)aval->accept(*this);
   IRRet *ret = new IRRet(std::unique_ptr<IRNode>(val));
   return ret;
 }
@@ -129,17 +133,17 @@ DataType *WindCompiler::ResolveDataType(const std::string &type) {
   throw std::runtime_error("Invalid type " +type);
 }
 
-void *WindCompiler::visit(const LocalDecl &node) {
+void *WindCompiler::visit(const VariableDecl &node) {
   assert(this->current_fn != nullptr);
   if (node.getValue()) {
     IRNode *val = (IRNode*)node.getValue()->accept(*this);
     IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType()));
-    return new IRLocalDecl(
+    return new IRVariableDecl(
       local,
       val
     );
   }
-  return new IRLocalDecl(
+  return new IRVariableDecl(
     this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType())),
     nullptr
   );

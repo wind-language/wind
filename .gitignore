@@ -20,3 +20,6 @@ testing/features/suite/lib/*
 
 # dev benchmarks
 testing/benchmarks/build/
+
+# Runtime obj
+src/runtime/*.o

@@ -38,7 +38,10 @@ void *ASTPrinter::visit(const Return &node) {
   std::cout << "return\n";
   this->tabs++;
   this->print_tabs();
-  node.get()->accept(*this);
+  const ASTNode *val = node.get();
+  if (val) {
+    val->accept(*this);
+  }
   this->tabs--;
   return nullptr;
 }
@@ -59,7 +62,7 @@ void *ASTPrinter::visit(const Function &node) {
   return nullptr;
 }
 
-void *ASTPrinter::visit(const LocalDecl &node) {
+void *ASTPrinter::visit(const VariableDecl &node) {
   this->print_tabs();
   std::cout << "decl [" << node.getType() << "] " << node.getName();
   if (node.getValue()) {

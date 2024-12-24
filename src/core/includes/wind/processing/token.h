@@ -1,5 +1,5 @@
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <stdint.h>
 
 #ifndef TOKEN_H
@@ -38,7 +38,8 @@ public:
     LOGAND, // &&
     EQ,
     LESS,
-    GREATER
+    GREATER,
+    LESSEQ
   };
   
   std::string value;
@@ -56,10 +57,11 @@ public:
   ) : value(value), type(type), name(name), range(range), srcId(srcId) {}
 };
 
-std::unordered_map<std::string, Token::Type> const SymbolTable = {
+std::vector<std::pair<std::string, Token::Type>> const SymbolTable = {
   // double char symbols
   {"==", Token::Type::EQ},
   {"&&", Token::Type::LOGAND},
+  {"<=", Token::Type::LESSEQ},
   
   {"+", Token::Type::PLUS},
   {"-", Token::Type::MINUS},

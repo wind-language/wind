@@ -74,6 +74,12 @@ WindEmitter::WindEmitter(IRBody *program) : program(program) {
   jmp_map[IRBinOp::Operation::LESS][1] = [this](asmjit::Label label) {
     this->assembler->jge(label);
   };
+  jmp_map[IRBinOp::Operation::LESSEQ][0] = [this](asmjit::Label label) {
+    this->assembler->jle(label);
+  };
+  jmp_map[IRBinOp::Operation::LESSEQ][1] = [this](asmjit::Label label) {
+    this->assembler->jg(label);
+  };
 }
 
 WindEmitter::~WindEmitter() {}
@@ -263,6 +269,7 @@ asmjit::x86::Gp WindEmitter::emitLRef(IRLocalAddrRef *local, asmjit::x86::Gp des
 }
 
 asmjit::x86::Gp WindEmitter::emitExpr(IRNode *node, asmjit::x86::Gp dest, bool isJmp) {
+  if (!node) { return dest; }
   switch (node->type()) {
 
     case IRNode::NodeType::LITERAL : {
@@ -447,7 +454,7 @@ void WindEmitter::emitNode(IRNode *node) {
       break;
     }
     case IRNode::NodeType::LOCAL_DECL : {
-      IRLocalDecl *local_decl = node->as<IRLocalDecl>();
+      IRVariableDecl *local_decl = node->as<IRVariableDecl>();
       if (local_decl->value()) {
         this->moveIntoVar(local_decl->local(), local_decl->value());
       }

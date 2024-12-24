@@ -37,14 +37,75 @@ void WindEmitter::OptTabulaRasa() {
 }
 
 std::string WindEmitter::OptCommonRed(std::string asmr) {
-    // Define the regex pattern to detect redundancy
-    std::regex pattern(R"(mov\s+(qword|dword|word|byte)?\s*ptr\s*\[(rbp-[^\]]+)\],\s+([a-z]+)\s*\n\s*mov\s+([a-z]+),\s+(qword|dword|word|byte)?\s*ptr\s*\[\2\])");
+    /*
+    Optimize redundant code in assembly output, like:
+        mov rax, rax
+    and especially:
+        mov qword ptr [rbp-0x8], rax
+        mov rax, qword ptr [rbp-0x8]
+    */
+
+    // you don't have access to the asmjit::x86::Assembler here or to IR
+    // pure string manipulation
+    std::vector<std::string> lines;
+    std::stringstream ss(asmr);
+    std::string line;
     
-    // Use $4 and $3 for replacement based on capture groups
-    std::string replacement = R"(mov [$2], $4)";
+    while (std::getline(ss, line)) {
+        lines.push_back(line);
+    }
+
+    std::vector<std::string> optimized;
     
-    // Perform the replacement
-    std::string opt = std::regex_replace(asmr, pattern, replacement);
+    for (size_t i = 0; i < lines.size(); i++) {
+        bool skip = false;
+        std::string curr = lines[i];
+        
+        if (curr.empty()) continue;
+        
+        if (curr.find("mov") != std::string::npos) {
+            size_t comma = curr.find(',');
+            if (comma != std::string::npos) {
+                std::string dest = curr.substr(curr.find("mov") + 4, comma - (curr.find("mov") + 4));
+                std::string src = curr.substr(comma + 1);
+                // Trim whitespace
+                dest.erase(0, dest.find_first_not_of(" \t"));
+                dest.erase(dest.find_last_not_of(" \t") + 1);
+                src.erase(0, src.find_first_not_of(" \t"));
+                src.erase(src.find_last_not_of(" \t") + 1);
+                if (dest == src) continue;
+            }
+        }
+        
+        if (i < lines.size() - 1) {
+            std::string next = lines[i + 1];
+            if (curr.find("mov") != std::string::npos && next.find("mov") != std::string::npos) {
+                size_t bracket1 = curr.find('[');
+                size_t bracket2 = next.find('[');
+                if (bracket1 != std::string::npos && bracket2 != std::string::npos) {
+                    std::string loc1 = curr.substr(bracket1, curr.find(']') - bracket1 + 1);
+                    std::string loc2 = next.substr(bracket2, next.find(']') - bracket2 + 1);
+                    size_t reg1_start = curr.find_last_of(' ') + 1;
+                    size_t reg2_start = next.find_last_of(' ') + 1;
+                    std::string reg1 = curr.substr(reg1_start);
+                    std::string reg2 = next.substr(reg2_start);
+                    if (loc1 == loc2 && reg1 == reg2) {
+                        skip = false;
+                        i+=2;
+                    }
+                }
+            }
+        }
+        
+        if (!skip) {
+            optimized.push_back(curr);
+        }
+    }
     
-    return opt;
+    std::stringstream result;
+    for (const auto& line : optimized) {
+        result << line << '\n';
+    }
+    
+    return result.str();
 }
