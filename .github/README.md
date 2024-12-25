@@ -106,7 +106,8 @@ wind main.w -o main.o --ej
 
 ## Troubleshooting
 
-> [!WARNING] > `ld: cannot find wind_runtime.o: No such file or directory`
+> [!WARNING]
+> `ld: cannot find wind_runtime.o: No such file or directory`
 
 ---
 
