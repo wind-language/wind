@@ -45,7 +45,7 @@ func main(): int {
     loop[i<T] {
         scanf("%d %d", &N, &M);
         var max: long = occulta(N,M);
-        printf("%ld\n", max);
+        printf("%lld\n", max);
         i=i+1;
     }
     return 0;

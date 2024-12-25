@@ -17,6 +17,8 @@ const std::unordered_set<IRBinOp::Operation> UselessZeroTable = {
 const std::unordered_set<IRBinOp::Operation> NoOrderTable = {
   IRBinOp::Operation::ADD,
   IRBinOp::Operation::MUL,
+  IRBinOp::Operation::EQ,
+  IRBinOp::Operation::AND
 };
 
 WindOptimizer::WindOptimizer(IRBody *program) : program(program), emission(new IRBody({})) {
@@ -44,6 +46,20 @@ IRLiteral *WindOptimizer::OptimizeConstFold(IRBinOp *node) {
       return new IRLiteral(left << right);
     case IRBinOp::Operation::SHR:
       return new IRLiteral(left >> right);
+    case IRBinOp::Operation::AND:
+      return new IRLiteral(left & right);
+    case IRBinOp::Operation::EQ:
+      return new IRLiteral(left == right);
+    case IRBinOp::Operation::LESS:
+      return new IRLiteral(left < right);
+    case IRBinOp::Operation::GREATER:
+      return new IRLiteral(left > right);
+    case IRBinOp::Operation::LESSEQ:
+      return new IRLiteral(left <= right);
+    case IRBinOp::Operation::ASSIGN:
+      return new IRLiteral(right);
+    case IRBinOp::Operation::MOD:
+      return new IRLiteral(left % right);
     /* case IRBinOp::Operation::MOD:
       return new IRLiteral(left % right);
     case IRBinOp::Operation::AND:
@@ -125,10 +141,10 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
   }
   else if (
     NoOrderTable.find(op) != NoOrderTable.end() &&
-    opt_left->is<IRLiteral>() &&
-    !opt_right->is<IRLiteral>()
+    !opt_left->is<IRBinOp>() &&
+    opt_right->is<IRBinOp>()
   ) {
-    // Swap the order of the operands to make the right one the constant
+    // Swap the order of the operands to make the right one the non-binop
     return this->OptimizeBinOp(
       new IRBinOp(std::unique_ptr<IRNode>(opt_right), std::unique_ptr<IRNode>(opt_left), op)
     );

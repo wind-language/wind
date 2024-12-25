@@ -2,6 +2,8 @@ import subprocess,time,os,sys
 
 WIND_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "build", "wind")
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "build/")
+if (not os.path.exists(OUTPUT_PATH)):
+    os.makedirs(OUTPUT_PATH)
 CASES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cases/")
 
 WIND_FLAGS = []
@@ -89,5 +91,5 @@ class WBench:
             pathx = os.path.join(path, file)
             WBench.process_casetype(pathx, input)
 
-INPUT = "213312121"
-WBench.run_case("sum_even", INPUT)
+INPUT = "3\n2 68\n3 1000\n4 32"
+WBench.run_case("cabala", INPUT)
