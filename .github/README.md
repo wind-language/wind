@@ -16,32 +16,66 @@
 _The programming language that you (don't actually) need._ &nbsp; <sub>(WIP)</sub> &nbsp;
 Modernized C with a touch of Rust and a sprinkle of Go.
 
+
+<details>
+  <summary>
+    This code:
+  </summary>
+
 ```rs
-@extern func malloc(size: int) : long;
-@extern func puts(str: long) : int;
-@extern func printf(str: long, ...) : int;
-
-func add(a: int, b: int) : short {
-  return a + b;
-}
-
-func main() : int {
-  printf("Sum: %s\n", add(1, 2));
-  return 0;
+func occrec(N: int, last: long, M: long, i: int): long {
+    branch[
+        N==i: return 0;
+    ]
+    var maxRes: long=-1;
+    var digit: int=3;
+    loop[digit<=9] {
+        branch[
+            digit == (last%10): {}
+            else : {
+                var newLast: long = (last*10)+digit;
+                var modc: long = newLast%M;
+                branch [
+                    modc > maxRes: {
+                        maxRes = modc;
+                    }
+                ]
+                var modr: long = occrec(N, newLast, M, i+1);
+                branch[
+                    modr > maxRes: {
+                        maxRes = modr;
+                    }
+                ]
+            }
+        ]
+        digit=digit+3;
+    }
+    return maxRes;
 }
 ```
+<sub>
 
-This code runs **67% faster than C++** and **44% faster than Rust** (`println`).
+**Problem from Training Olinfo: _[ois_cabala](https://training.olinfo.it/task/ois_cabala/)_**
 
-This code compiles **46% faster than C++** and **120% faster than Rust**
+</sub>
 
-<p align="right">
-<sub>(Preview)</sub>
-</p>
+</details>
+
+Runs **~2.5x times** faster than **C++**
+
+Compiles **3x times** faster than **C++**
 
 </td>
 </tr>
 </table>
+<div align="center">
+  <h3>Try benchmarking it yourself!</h3>
+</div>
+
+```sh
+cd testing/benchmarks/
+python run_bench.py cabala
+```
 
 ## Command line Table
 
@@ -57,8 +91,6 @@ This code compiles **46% faster than C++** and **120% faster than Rust**
 <h3 align="center">
 Example
 </h3>
-
-Run [runtime compilation](#troubleshooting) before running the following commands.
 
 ```sh
 wind <file> -o <output>
@@ -81,7 +113,7 @@ wind main.w -o main.o --ej
 <details>
 <summary> Why is this happening? </summary>
 
-[❗] Wind has a runtime utility that is required to jump to main function and run stack checks. Just compile it before linking executables.
+[❗] Wind has a runtime utility that is required to jump to main function and run stack checks. Just compile it if it hasn't been done by cmake.
 
 </details>
 

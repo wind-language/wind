@@ -71,10 +71,11 @@ class WBench:
         return compile_time, run_time, output
 
     def process_casetype(casetype, input):
+        if (casetype.endswith(".txt")): return
         print("-"*50)
         file = os.path.basename(casetype)
         if casetype.endswith(".w"):
-            print("Running WIND benchmark: "+file)
+            print("Running WIND benchmark: "+file)  
         elif casetype.endswith(".cpp"):
             print("Running C++ benchmark: "+file)
         else:
@@ -91,5 +92,16 @@ class WBench:
             pathx = os.path.join(path, file)
             WBench.process_casetype(pathx, input)
 
-INPUT = "3\n2 68\n3 1000\n4 32"
-WBench.run_case("cabala", INPUT)
+if (len(sys.argv) < 2) :
+    print("Usage: python run_bench.py <case>")
+    sys.exit(1)
+case = sys.argv[1]
+if (not os.path.exists(CASES_PATH+case)):
+    print("Case not found")
+    sys.exit(1)
+if (not os.path.exists(CASES_PATH+case+"/input.txt")):
+    print("Input file not found")
+    sys.exit(1)
+with open(CASES_PATH+case+"/input.txt", "r") as f:
+    INPUT = f.read()
+    WBench.run_case("cabala", INPUT)
