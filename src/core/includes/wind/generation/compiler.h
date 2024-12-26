@@ -20,6 +20,7 @@ private:
   IRFunction *current_fn;
   std::vector<std::string> fn_names;
   std::map<std::string, DataType*> userdef_types_map;
+  std::map<std::string, IRGlobRef*> global_table;
 
   void compile();
   DataType *ResolveDataType(const std::string &type);
@@ -34,6 +35,7 @@ private:
   void *visit(const Function &node) override;
   void *visit(const ArgDecl &node) override;
   void *visit(const VariableDecl &node) override;
+  void *visit(const GlobalDecl &node) override;
   void *visit(const FnCall &node) override;
   void *visit(const InlineAsm &node) override;
   void *visit(const StringLiteral &node) override;

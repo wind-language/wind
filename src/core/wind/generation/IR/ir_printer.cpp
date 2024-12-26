@@ -80,9 +80,21 @@ void IRPrinter::print_node(const IRNode *node) {
       );
       break;
     }
+    case IRNode::NodeType::GLOBAL_REF : {
+      this->print_gref(
+        node->as<IRGlobRef>()
+      );
+      break;
+    }
     case IRNode::NodeType::BODY : {
       this->print_body(
         node->as<IRBody>()
+      );
+      break;
+    }
+    case IRNode::NodeType::GLOBAL_DECL : {
+      this->print_gdecl(
+        node->as<IRGlobalDecl>()
       );
       break;
     }
@@ -195,6 +207,10 @@ void IRPrinter::print_laddr(const IRLocalAddrRef *node) {
   }
 }
 
+void IRPrinter::print_gref(const IRGlobRef *node) {
+  std::cout << "glb " << node->getName();
+}
+
 void IRPrinter::print_lit(const IRLiteral *node) {
   std::cout << node->get();
 }
@@ -208,6 +224,16 @@ void IRPrinter::print_ldecl(const IRVariableDecl *node) {
     this->print_node(node->value());
     std::cout << " -> loc" << node->local()->offset() << std::endl;
   }
+}
+
+void IRPrinter::print_gdecl(const IRGlobalDecl *node) {
+  this->print_tabs();
+  std::cout << "global " << node->global()->getName() << " [" << node->global()->getType()->memSize() << "]";
+  if (node->value()) {
+    std::cout << " = ";
+    this->print_node(node->value());
+  }
+  std::cout << std::endl;
 }
 
 void IRPrinter::print_argdecl(const IRArgDecl *node) {

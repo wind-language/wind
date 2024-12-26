@@ -1,4 +1,3 @@
-#include <asmjit/asmjit.h>
 #ifndef IR_H
 #define IR_H
 
@@ -14,12 +13,14 @@ public:
   enum class NodeType {
     RET,
     LOCAL_REF,
+    GLOBAL_REF,
     BODY,
     FUNCTION,
     BIN_OP,
     LITERAL,
     STRING,
     LOCAL_DECL,
+    GLOBAL_DECL,
     ARG_DECL,
     FUNCTION_CALL,
     REGISTER,
@@ -237,6 +238,28 @@ public:
   NodeType type() const override { return NodeType::LOCAL_DECL; }
 };
 
+class IRGlobRef : public IRNode {
+  std::string name;
+  DataType *g_type;
+
+public:
+  IRGlobRef(std::string name, DataType *type);
+  const std::string& getName() const;
+  DataType *getType() const;
+  NodeType type() const override { return NodeType::GLOBAL_REF; }
+};
+
+class IRGlobalDecl : public IRNode {
+  IRGlobRef *glob_ref;
+  IRNode *g_value;
+
+public:
+  IRGlobalDecl(IRGlobRef* glob_ref, IRNode* value);
+  IRGlobRef *global() const;
+  IRNode *value() const;
+  NodeType type() const override { return NodeType::GLOBAL_DECL; }
+};
+
 class IRArgDecl : public IRNode {
   IRLocalRef *local_ref;
 
@@ -259,14 +282,6 @@ public:
   NodeType type() const override { return NodeType::FUNCTION_CALL; }
 };
 
-class IRRegister : public IRNode {
-  asmjit::x86::Gp v_reg;
-
-public:
-  explicit IRRegister(asmjit::x86::Gp r);
-  asmjit::x86::Gp reg() const;
-  NodeType type() const override { return NodeType::REGISTER; }
-};
 
 class IRInlineAsm : public IRNode {
   std::string asm_code;

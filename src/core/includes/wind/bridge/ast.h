@@ -125,10 +125,25 @@ class VariableDecl : public ASTNode {
   std::string name;
   std::string type; // Will resolve on IR generation
   std::unique_ptr<ASTNode> value;
-  bool is_global = false;
 
 public:
-  VariableDecl(std::string n, std::string t, std::unique_ptr<ASTNode> v = nullptr, bool global = false);
+  VariableDecl(std::string n, std::string t, std::unique_ptr<ASTNode> v = nullptr);
+
+  void *accept(ASTVisitor &visitor) const override;
+
+  // Getters
+  const std::string& getName() const;
+  const std::string& getType() const;
+  ASTNode *getValue() const;
+};
+
+class GlobalDecl : public ASTNode {
+  std::string name;
+  std::string type; // Will resolve on IR generation
+  std::unique_ptr<ASTNode> value;
+
+public:
+  GlobalDecl(std::string n, std::string t, std::unique_ptr<ASTNode> v = nullptr);
 
   void *accept(ASTVisitor &visitor) const override;
 
@@ -237,6 +252,7 @@ public:
   virtual void *visit(const Function &node) = 0;
   virtual void *visit(const ArgDecl &node) = 0;
   virtual void *visit(const VariableDecl &node) = 0;
+  virtual void *visit(const GlobalDecl &node) = 0;
   virtual void *visit(const FnCall &node) = 0;
   virtual void *visit(const InlineAsm &node) = 0;
   virtual void *visit(const StringLiteral &node) = 0;

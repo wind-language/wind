@@ -22,7 +22,8 @@ private:
   std::string typeSignature(Token::Type while_);
   Function *parseFn();
   Return *parseRet();
-  VariableDecl *parseVarDecl(bool global=false);
+  VariableDecl *parseVarDecl();
+  GlobalDecl *parseGlobDecl();
   InlineAsm *parseInlAsm();
   Branching *parseBranch();
   Looping *parseLoop();

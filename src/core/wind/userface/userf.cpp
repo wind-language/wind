@@ -7,8 +7,6 @@
 #include <wind/generation/compiler.h>
 #include <wind/generation/optimizer.h>
 #include <wind/generation/ir_printer.h>
-#include <wind/generation/backend.h>
-#include <wind/generation/ld.h>
 #include <wind/isc/isc.h>
 
 #include <filesystem>
@@ -33,6 +31,11 @@ WindUserInterface::WindUserInterface(int argc, char **argv) {
   this->argv = argv;
   for (int i = 1; i < argc; i++) {
     parseArgument(std::string(argv[i]), i);
+  }
+}
+WindUserInterface::~WindUserInterface() {
+  for (std::string obj : this->objects) {
+    std::filesystem::remove(obj);
   }
 }
 
@@ -88,7 +91,7 @@ void WindUserInterface::emitObject(std::string path) {
     std::cout << "\n\n";
   }
 
-  WindEmitter *backend = new WindEmitter(optimized);
+  /* WindEmitter *backend = new WindEmitter(optimized);
   backend->process();
   std::string output = "";
   if (this->flags & EMIT_OBJECT && this->files.size()==1 && this->output != "") {
@@ -100,14 +103,14 @@ void WindUserInterface::emitObject(std::string path) {
     std::cout << "[" << path << "] ASM:" << std::endl;
     std::cout << backend->logger->content().data() << std::endl;
   }
-  this->objects.push_back(output);
+  this->objects.push_back(output); */
 
   delete ir;
-  delete opt;
-  delete backend;
+  //delete opt;
+  //delete backend;
 }
 
-void WindUserInterface::ldDefFlags(WindLdInterface *ld) {
+/* void WindUserInterface::ldDefFlags(WindLdInterface *ld) {
   ld->addFlag("-m elf_x86_64");
 }
 
@@ -116,7 +119,7 @@ void WindUserInterface::ldExecFlags(WindLdInterface *ld) {
   ld->addFlag("-lc");
   std::string runtime_lib = std::string(WIND_RUNTIME_PATH) + "/wind_runtime.o";
   ld->addFile(runtime_lib);
-}
+} */
 
 void WindUserInterface::processFiles() {
   if (files.size() == 0) {
@@ -127,7 +130,7 @@ void WindUserInterface::processFiles() {
     this->emitObject(file);
   }
 
-  WindLdInterface *ld = new WindLdInterface(this->output);
+  /* WindLdInterface *ld = new WindLdInterface(this->output);
   ldDefFlags(ld);
   if (this->flags & EMIT_OBJECT) {
     if (this->files.size()==1 && this->output != "") {
@@ -149,5 +152,5 @@ void WindUserInterface::processFiles() {
     std::filesystem::remove(outtmp);
   }
 
-  delete ld;
+  delete ld; */
 }

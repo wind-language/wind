@@ -31,9 +31,14 @@ void* WindCompiler::visit(const BinaryExpr &node) {
 void* WindCompiler::visit(const VariableRef &node) {
   assert(this->current_fn != nullptr);
   IRLocalRef *local = this->current_fn->GetLocal(node.getName());
-  assert(local != nullptr);
-  this->current_fn->occupyOffset(local->offset());
-  return local;
+  if (local != nullptr) {
+    this->current_fn->occupyOffset(local->offset());
+    return local;
+  }
+  if (this->global_table.find(node.getName()) != this->global_table.end()) {
+    return this->global_table[node.getName()];
+  }
+  throw std::runtime_error("Variable " + node.getName() + " not found");
 }
 
 void *WindCompiler::visit(const VarAddressing &node) {
@@ -91,6 +96,7 @@ void* WindCompiler::visit(const Function &node) {
   fn->flags = node.flags;
   IRBody *body = (IRBody*)node.getBody()->accept(*this);
   fn->SetBody(std::unique_ptr<IRBody>(body));
+  this->current_fn = nullptr;
   return fn;
 }
 
@@ -147,6 +153,19 @@ void *WindCompiler::visit(const VariableDecl &node) {
     this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType())),
     nullptr
   );
+}
+
+void *WindCompiler::visit(const GlobalDecl &node) {
+  IRNode *val = nullptr;
+  if (node.getValue()) {
+    val = (IRNode*)node.getValue()->accept(*this);
+    if (!val->is<IRLiteral>() && !val->is<IRStringLiteral>()) {
+      throw std::runtime_error("Global declaration must have a literal value");
+    }
+  }
+  IRGlobRef *glob = new IRGlobRef(node.getName(), this->ResolveDataType(node.getType()));
+  this->global_table[node.getName()] = glob;
+  return new IRGlobalDecl(glob, val);
 }
 
 void *WindCompiler::visit(const ArgDecl &node) {

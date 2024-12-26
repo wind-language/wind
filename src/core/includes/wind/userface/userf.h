@@ -1,7 +1,6 @@
 #include <string>
 #include <stdint.h>
 #include <vector>
-#include <wind/generation/ld.h>
 
 #ifndef USER_INTERFACE_H
 #define USER_INTERFACE_H
@@ -23,8 +22,8 @@ public:
 
 private:
   void parseArgument(std::string arg, int &i);
-  void ldDefFlags(WindLdInterface *ld);
-  void ldExecFlags(WindLdInterface *ld);
+  /* void ldDefFlags(WindLdInterface *ld);
+  void ldExecFlags(WindLdInterface *ld); */
 
   std::vector<std::string> files;
   std::string output;

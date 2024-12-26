@@ -14,6 +14,7 @@ public:
     void *visit(const Function &node) override;
     void *visit(const ArgDecl &node) override;
     void *visit(const VariableDecl &node) override;
+    void *visit(const GlobalDecl &node) override;
     void *visit(const FnCall &node) override;
     void *visit(const InlineAsm &node) override;
     void *visit(const StringLiteral &node) override;

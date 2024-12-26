@@ -344,6 +344,8 @@ void WindOptimizer::optimize() {
       *this->emission += std::unique_ptr<IRNode>(fn_copy);
       this->current_fn = fn_copy;
       this->OptimizeBody(fn->body(), fn_copy);
+    } else {
+      *this->emission += std::unique_ptr<IRNode>(this->OptimizeNode(node.get()));
     }
   }
 }

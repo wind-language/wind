@@ -172,6 +172,25 @@ IRNode* IRVariableDecl::value() const {
   return this->v_value;
 }
 
+IRGlobRef::IRGlobRef(std::string name, DataType *type) : name(name), g_type(type) {}
+const std::string& IRGlobRef::getName() const {
+  return name;
+}
+DataType* IRGlobRef::getType() const {
+  return g_type;
+}
+
+
+IRGlobalDecl::IRGlobalDecl(IRGlobRef* glob_ref, IRNode* value) : glob_ref(glob_ref), g_value(value) {}
+IRGlobRef* IRGlobalDecl::global() const {
+  return glob_ref;
+}
+IRNode* IRGlobalDecl::value() const {
+  return g_value;
+}
+
+
+
 IRArgDecl::IRArgDecl(IRLocalRef* local_ref) : local_ref(local_ref) {}
 IRLocalRef* IRArgDecl::local() const {
   return local_ref;
@@ -191,11 +210,6 @@ void IRFnCall::replaceArg(int index, std::unique_ptr<IRNode> arg) {
 
 void IRFnCall::push_arg(std::unique_ptr<IRNode> arg) {
   fn_args.push_back(std::move(arg));
-}
-
-IRRegister::IRRegister(asmjit::x86::Gp reg) : v_reg(reg) {}
-asmjit::x86::Gp IRRegister::reg() const {
-  return v_reg;
 }
 
 IRInlineAsm::IRInlineAsm(std::string code) : asm_code(code) {}

@@ -302,7 +302,7 @@ Return *WindParser::parseRet() {
   return new Return(std::unique_ptr<ASTNode>(ret_expr));
 }
 
-VariableDecl *WindParser::parseVarDecl(bool global) {
+VariableDecl *WindParser::parseVarDecl() {
   this->expect(Token::Type::IDENTIFIER, "var");
   std::string name = this->expect(Token::Type::IDENTIFIER, "variable name")->value;
   this->expect(Token::Type::COLON, ":");
@@ -310,11 +310,11 @@ VariableDecl *WindParser::parseVarDecl(bool global) {
   if (this->stream->current()->type == Token::Type::ASSIGN) {
     this->expect(Token::Type::ASSIGN, "=");
     ASTNode *expr = this->parseExprSemi();
-    return new VariableDecl(name, type, std::unique_ptr<ASTNode>(expr), global);
+    return new VariableDecl(name, type, std::unique_ptr<ASTNode>(expr));
   }
   else {
     this->expect(Token::Type::SEMICOLON, ";");
-    return new VariableDecl(name, type, nullptr, global);
+    return new VariableDecl(name, type, nullptr);
   }
 }
 
@@ -495,12 +495,28 @@ Looping *WindParser::parseLoop() {
 }
 
 
+GlobalDecl *WindParser::parseGlobDecl() {
+  this->expect(Token::Type::IDENTIFIER, "global");
+  std::string name = this->expect(Token::Type::IDENTIFIER, "variable name")->value;
+  this->expect(Token::Type::COLON, ":");
+  std::string type = this->typeSignature(Token::Type::IDENTIFIER);
+  if (this->stream->current()->type == Token::Type::ASSIGN) {
+    this->expect(Token::Type::ASSIGN, "=");
+    ASTNode *expr = this->parseExprSemi();
+    return new GlobalDecl(name, type, std::unique_ptr<ASTNode>(expr));
+  }
+  else {
+    this->expect(Token::Type::SEMICOLON, ";");
+    return new GlobalDecl(name, type, nullptr);
+  }
+}
+
 ASTNode *WindParser::DiscriminateTop() {
   if (this->isKeyword(stream->current(), "func")) {
     return this->parseFn();
   }
-  else if (this->isKeyword(stream->current(), "var")) {
-    return this->parseVarDecl(true);
+  else if (this->isKeyword(stream->current(), "global")) {
+    return this->parseGlobDecl();
   }
   else if (this->stream->current()->type == Token::Type::AT) {
     return this->parseMacro();
@@ -519,7 +535,7 @@ ASTNode *WindParser::DiscriminateBody() {
     return this->parseRet();
   }
   else if (this->isKeyword(stream->current(), "var")) {
-    return this->parseVarDecl(false);
+    return this->parseVarDecl();
   }
   else if (this->isKeyword(stream->current(), "asm")) {
     return this->parseInlAsm();

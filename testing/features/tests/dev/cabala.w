@@ -2,6 +2,7 @@
   "#libc.w"
 ]
 
+global maxRes:long=-1;
 func occrec(N: int, last: long, M: long, i: int): long {
     branch[
         N==i: return 0;
@@ -33,7 +34,7 @@ func occrec(N: int, last: long, M: long, i: int): long {
 }
 
 func occulta(N: int, M: int): long {
-    return occrec(N,0,M,0);
+    return occrec(N,0,M,maxRes);
 }
 
 func main(): int {
