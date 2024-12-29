@@ -66,12 +66,16 @@ public:
     // Section management
     uint8_t NewSection(std::string name) { return content.NewSection(name); }
     void BindSection(uint8_t id) { content.BindSection(id); }
-    void WriteHdr(std::string content) { this->content.WriteHdr(content); }
+    void WriteHdr(std::string content) { this->content.WriteHdr(content+"\n"); }
 
     // Label management
     uint8_t NewLabel(std::string name) { return content.NewLabel(name); }
     void BindLabel(uint8_t id) { content.BindLabel(id); }
     void Write(std::string content) { this->content.WriteLabel(content + "\n"); }
+
+    void Global(std::string name) { this->WriteHdr(".global " + name); }
+    void Extern(std::string name) { this->WriteHdr(".extern " + name); }
+    void Align(uint8_t size) { this->Write(".align " + std::to_string(size)); }
 
     virtual std::string ResolveReg(Reg &reg) { return ""; }
     virtual std::string ResolveMem(Mem &mem) { return ""; }
@@ -95,6 +99,14 @@ public:
     Mem ptr(std::string label, int64_t offset, uint16_t size) { return Mem(label, offset, size); }
     Mem ptr(Reg base, Reg index, uint16_t size) { return Mem(base, index, size); }
     Mem ptr(std::string label, Reg index, int64_t offset, uint16_t size) { return Mem(label, index, offset, size); }
+
+    // Data
+    void String(std::string content) { this->Write(".string \"" + content + "\""); }
+    void Byte(long value) { this->Write(".byte " + std::to_string(value)); }
+    void Word(long value) { this->Write(".word " + std::to_string(value)); }
+    void Dword(long value) { this->Write(".dword " + std::to_string(value)); }
+    void Qword(long value) { this->Write(".qword " + std::to_string(value)); }
+    void Reserve(long size) { this->Write(".space " + std::to_string(size)); }
 
     // Emission
     std::string Emit();

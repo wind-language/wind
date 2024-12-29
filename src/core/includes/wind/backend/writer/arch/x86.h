@@ -92,28 +92,39 @@ namespace x86 {
 
 // Declaration macros
 
-#define A_IRR_INSTRD(name) void name(Reg dst, Reg src); // IRR stands for "Instruction Register-Register"
-#define A_IRM_INSTRD(name) void name(Reg dst, Mem src); // IRM stands for "Instruction Register-Memory"
-#define A_IMR_INSTRD(name) void name(Mem dst, Reg src); // IMR stands for "Instruction Memory-Register"
-#define A_IRI_INSTRD(name) void name(Reg dst, int64_t imm); // IRI stands for "Instruction Register-Immediate"
-#define A_IMI_INSTRD(name) void name(Mem dst, int64_t imm); // IMI stands for "Instruction Memory-Immediate"
-#define A_FIVE_INSTRD(name) A_IRR_INSTRD(name) A_IRM_INSTRD(name) A_IMR_INSTRD(name) A_IRI_INSTRD(name) A_IMI_INSTRD(name) // FIVE for (IRR IRM IMR IRI IMI)
+#define A_IRR_INSTR(name) void name(Reg dst, Reg src) { this->Write(#name, dst, src); } // IRR stands for "Instruction Register-Register"
+#define A_IRM_INSTR(name) void name(Reg dst, Mem src) { this->Write(#name, dst, src); } // IRM stands for "Instruction Register-Memory"
+#define A_IMR_INSTR(name) void name(Mem dst, Reg src) { this->Write(#name, dst, src); } // IMR stands for "Instruction Memory-Register"
+#define A_IRI_INSTR(name) void name(Reg dst, int64_t imm) { this->Write(#name, dst, imm); } // IRI stands for "Instruction Register-Immediate"
+#define A_IMI_INSTR(name) void name(Mem dst, int64_t imm) { this->Write(#name, dst, imm); } // IMI stands for "Instruction Memory-Immediate"
+#define A_IIR_INSTR(name) void name(int64_t imm, Reg src) { this->Write(#name, imm, src); } // IIR stands for "Instruction Immediate-Register"
+#define A_IIM_INSTR(name) void name(int64_t imm, Mem src) { this->Write(#name, imm, src); } // IIM stands for "Instruction Immediate-Memory"
+#define A_FIVE_INSTR(name) \
+    A_IRR_INSTR(name) \
+    A_IRM_INSTR(name) \
+    A_IMR_INSTR(name) \
+    A_IRI_INSTR(name) \
+    A_IMI_INSTR(name) // FIVE for (IRR IRM IMR)
 
-#define B_N_INSTRD(name) void name(); // N stands for "No"
-#define B_IR_INSTRD(name) void name(Reg dst); // IR stands for "Instruction Register"
-#define B_IM_INSTRD(name) void name(Mem dst); // IM stands for "Instruction Memory"
-#define B_IL_INSTRD(name) void name(std::string label); // IL stands for "Instruction Label"
-#define B_TRIPLE_INSTRD(name) B_IR_INSTRD(name) B_IM_INSTRD(name) B_IL_INSTRD(name) // TRIPLE for (IR IM IL)
+#define B_N_INSTR(name) void name() { this->Write(#name); } // N stands for "No"
+#define B_IR_INSTR(name) void name(Reg dst) { this->Write(#name, dst); } // IR stands for "Instruction Register"
+#define B_IM_INSTR(name) void name(Mem dst) { this->Write(#name, dst); } // IM stands for "Instruction Memory"
+#define B_IL_INSTR(name) void name(std::string label) { this->Write(#name, label); } // IL stands for "Instruction Label"
+#define B_TRIPLE_INSTR(name) \
+    B_IR_INSTR(name) \
+    B_IM_INSTR(name) \
+    B_IL_INSTR(name) // TRIPLE for (IR IM IL)
 
-#define C_IRR_INSTRD(name) void name(Reg dst, Reg src, Reg src2); // IRR stands for "Instruction Register-Register"
-#define C_IRM_INSTRD(name) void name(Reg dst, Mem src, Reg src2); // IRM stands for "Instruction Register-Memory"
-#define C_IMR_INSTRD(name) void name(Mem dst, Reg src, Reg src2); // IMR stands for "Instruction Memory-Register"
-#define C_IRI_INSTRD(name) void name(Reg dst, int64_t imm, Reg src); // IRI stands for "Instruction Register-Immediate"
-#define C_IMI_INSTRD(name) void name(Mem dst, int64_t imm, Reg src); // IMI stands for "Instruction Memory-Immediate"
-#define C_IIR_INSTRD(name) void name(Reg dst, Reg src, int64_t imm); // IIR stands for "Instruction Immediate-Register"
-#define C_IIM_INSTRD(name) void name(Reg dst, Mem src, int64_t imm); // IIM stands for "Instruction Immediate-Memory"
-#define C_SEVEN_INSTRD(name) C_IRR_INSTRD(name) C_IRM_INSTRD(name) C_IMR_INSTRD(name) C_IRI_INSTRD(name) C_IMI_INSTRD(name) C_IIR_INSTRD(name) C_IIM_INSTRD(name) // SEVEN for (IRR IRM IMR IRI IMI IIR IIM)
 
+#define C_SEVEN_INSTR(name) \
+    A_IRR_INSTR(name) \
+    A_IRM_INSTR(name) \
+    A_IMR_INSTR(name) \
+    A_IRI_INSTR(name) \
+    A_IMI_INSTR(name) \
+    A_IIR_INSTR(name) \
+    A_IIM_INSTR(name) // SEVEN for (IRR IRM IMR IRI IMI IIR IIM)
+    
 // ----------------------------
 
 
@@ -127,18 +138,25 @@ private:
     std::string ResolveWord(uint16_t size) override;
 
 public:
-    Ax86_64();
+    Ax86_64() {}
     
-    A_FIVE_INSTRD(mov)
-    A_FIVE_INSTRD(add)
-    A_FIVE_INSTRD(sub)
+    A_FIVE_INSTR(mov)
+    A_FIVE_INSTR(add)
+    A_FIVE_INSTR(sub)
+    A_FIVE_INSTR(shr)
+    A_FIVE_INSTR(shl)
+    A_FIVE_INSTR(and_)
+    A_FIVE_INSTR(or_)
+    A_FIVE_INSTR(xor_)
 
-    B_TRIPLE_INSTRD(jmp)
-    B_TRIPLE_INSTRD(push)
-    B_TRIPLE_INSTRD(pop)
-    B_N_INSTRD(ret)
+    B_TRIPLE_INSTR(jmp)
+    B_TRIPLE_INSTR(push)
+    B_TRIPLE_INSTR(pop)
 
-    C_SEVEN_INSTRD(cmp)
+    B_N_INSTR(leave)
+    B_N_INSTR(ret)
+
+    C_SEVEN_INSTR(cmp)
 };
 
 #endif

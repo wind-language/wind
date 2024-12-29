@@ -1,15 +1,24 @@
 #include <wind/backend/writer/writer.h>
 #include <iostream>
+#include <cmath>
 
-const std::string GP_REG_MAP[64] = {
-    "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh",
-    "r8b", "r9b", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b",
-    "ax", "cx", "dx", "bx", "sp", "bp", "si", "di",
-    "r8w", "r9w", "r10w", "r11w", "r12w", "r13w", "r14w", "r15w",
-    "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi",
-    "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d",
-    "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
-    "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
+const std::string GP_REG_MAP[16][4] = {
+    {"al", "ax", "eax", "rax"},
+    {"bl", "bx", "ebx", "rbx"},
+    {"cl", "cx", "ecx", "rcx"},
+    {"dl", "dx", "edx", "rdx"},
+    {"ah", "sp", "esp", "rsp"},
+    {"ch", "bp", "ebp", "rbp"},
+    {"dh", "si", "esi", "rsi"},
+    {"bh", "di", "edi", "rdi"},
+    {"r8b", "r8w", "r8d", "r8"},
+    {"r9b", "r9w", "r9d", "r9"},
+    {"r10b", "r10w", "r10d", "r10"},
+    {"r11b", "r11w", "r11d", "r11"},
+    {"r12b", "r12w", "r12d", "r12"},
+    {"r13b", "r13w", "r13d", "r13"},
+    {"r14b", "r14w", "r14d", "r14"},
+    {"r15b", "r15w", "r15d", "r15"}
 };
 
 const std::string SEG_REG_MAP[8] = {
@@ -17,9 +26,7 @@ const std::string SEG_REG_MAP[8] = {
 };
 
 std::string Ax86_64::ResolveGpr(Reg &reg) {
-    return GP_REG_MAP[
-        reg.id + 16*__builtin_ctz(reg.size)
-    ];
+    return GP_REG_MAP[reg.id][__builtin_ctz(reg.size)];
 }
 
 std::string Ax86_64::ResolveSeg(Reg &reg) {

@@ -1,3 +1,8 @@
+/**
+ * @file userf.cpp
+ * @brief Implementation of the WindUserInterface class.
+ */
+
 #include <wind/userface/userf.h>
 
 #include <wind/processing/lexer.h>
@@ -8,6 +13,7 @@
 #include <wind/generation/optimizer.h>
 #include <wind/generation/ir_printer.h>
 #include <wind/isc/isc.h>
+#include <wind/backend/x86_64/backend.h>
 
 #include <filesystem>
 #include <iostream>
@@ -26,6 +32,11 @@ const char HELP[] = "Usage: wind [options] [files]\n"
                     "  -ss"
                     "  -h   Display this help message\n";
 
+/**
+ * @brief Constructor for WindUserInterface.
+ * @param argc Number of command-line arguments.
+ * @param argv Array of command-line arguments.
+ */
 WindUserInterface::WindUserInterface(int argc, char **argv) {
   this->flags = 0;
   this->argv = argv;
@@ -33,12 +44,21 @@ WindUserInterface::WindUserInterface(int argc, char **argv) {
     parseArgument(std::string(argv[i]), i);
   }
 }
+
+/**
+ * @brief Destructor for WindUserInterface.
+ */
 WindUserInterface::~WindUserInterface() {
   for (std::string obj : this->objects) {
     std::filesystem::remove(obj);
   }
 }
 
+/**
+ * @brief Parses a command-line argument.
+ * @param arg The argument to parse.
+ * @param i The index of the argument.
+ */
 void WindUserInterface::parseArgument(std::string arg, int &i) {
   if (arg == "-ej") {
     this->flags |= EMIT_OBJECT;
@@ -64,6 +84,10 @@ void WindUserInterface::parseArgument(std::string arg, int &i) {
   }
 }
 
+/**
+ * @brief Emits an object file from the given path.
+ * @param path The path to the source file.
+ */
 void WindUserInterface::emitObject(std::string path) {
   global_isc->tabulaRasa();
   WindLexer *lexer = TokenizeFile(path.c_str());
@@ -91,6 +115,8 @@ void WindUserInterface::emitObject(std::string path) {
     std::cout << "\n\n";
   }
 
+
+
   /* WindEmitter *backend = new WindEmitter(optimized);
   backend->process();
   std::string output = "";
@@ -105,22 +131,21 @@ void WindUserInterface::emitObject(std::string path) {
   }
   this->objects.push_back(output); */
 
+  WindEmitter *backend = new WindEmitter(optimized);
+  backend->Process();
+  if (this->flags & SHOW_ASM) {
+    std::cout << "[" << path << "] ASM:" << std::endl;
+    std::cout << backend->GetAsm() << std::endl;
+  }
+
   delete ir;
-  //delete opt;
-  //delete backend;
+  delete opt;
+  delete backend;
 }
 
-/* void WindUserInterface::ldDefFlags(WindLdInterface *ld) {
-  ld->addFlag("-m elf_x86_64");
-}
-
-void WindUserInterface::ldExecFlags(WindLdInterface *ld) {
-  ld->addFlag("-dynamic-linker /lib64/ld-linux-x86-64.so.2");
-  ld->addFlag("-lc");
-  std::string runtime_lib = std::string(WIND_RUNTIME_PATH) + "/wind_runtime.o";
-  ld->addFile(runtime_lib);
-} */
-
+/**
+ * @brief Processes the input files.
+ */
 void WindUserInterface::processFiles() {
   if (files.size() == 0) {
     std::cerr << "No input file provided\n";

@@ -17,10 +17,11 @@ set(SRC_FILES src/main/proc.cpp)
 
 add_executable(wind ${SRC_FILES})
 target_link_libraries(wind windlib)
+target_compile_options(wind PRIVATE -g)
 
-add_custom_command(
-    TARGET wind POST_BUILD
-    COMMAND ${CMAKE_BINARY_DIR}/wind ${WIND_RUNTIME_PATH}/stack.w ${WIND_RUNTIME_PATH}/start.w -ej -o ${WIND_RUNTIME_PATH}/wind_runtime.o
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    COMMENT "Compiling runtime utilities"
-)
+#add_custom_command(
+#    TARGET wind POST_BUILD
+#    COMMAND ${CMAKE_BINARY_DIR}/wind ${WIND_RUNTIME_PATH}/stack.w ${WIND_RUNTIME_PATH}/start.w -ej -o ${WIND_RUNTIME_PATH}/wind_runtime.o
+#    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+#    COMMENT "Compiling runtime utilities"
+#)

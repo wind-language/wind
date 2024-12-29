@@ -1,3 +1,8 @@
+/**
+ * @file lexer.cpp
+ * @brief Implementation of the lexer for the Wind compiler.
+ */
+
 #include <string>
 #include <memory>
 #include <fstream>
@@ -6,6 +11,10 @@
 #include <wind/isc/isc.h>
 #include <iostream>
 
+/**
+ * @brief Constructor for CharStream.
+ * @param data The input data to tokenize.
+ */
 CharStream::CharStream(std::string data) {
   this->buffer = std::make_unique<char[]>(data.size());
   this->size = data.size() - 1; // No NULL terminator
@@ -13,10 +22,18 @@ CharStream::CharStream(std::string data) {
   this->pos = std::make_pair(1,1);
 }
 
+/**
+ * @brief Gets the current character in the stream.
+ * @return The current character.
+ */
 char CharStream::current() const {
   return this->buffer[this->index];
 }
 
+/**
+ * @brief Advances the stream by the given offset.
+ * @param offset The number of characters to advance.
+ */
 void CharStream::advance(u_int16_t offset) {
   if (this->index + offset >= (this->size)) {
     this->index+=offset;
@@ -31,6 +48,11 @@ void CharStream::advance(u_int16_t offset) {
   }
 }
 
+/**
+ * @brief Peeks at the character at the given offset.
+ * @param offset The offset to peek at.
+ * @return The character at the given offset.
+ */
 char CharStream::peek(u_int16_t offset) const {
   if (this->index + offset >= (this->size)) {
     return '\0';
@@ -38,24 +60,46 @@ char CharStream::peek(u_int16_t offset) const {
   return this->buffer[this->index + offset];
 }
 
+/**
+ * @brief Resets the stream to the beginning.
+ */
 void CharStream::reset() {
   this->index = 0;
 }
 
+/**
+ * @brief Checks if the stream has reached the end.
+ * @return True if the stream has ended, false otherwise.
+ */
 bool CharStream::end() const {
   return this->index >= (this->size);
 }
 
+/**
+ * @brief Gets the current position in the stream.
+ * @return The current position.
+ */
 TokenPos CharStream::position() const {
   return this->pos;
 }
 
+/**
+ * @brief Constructor for TokenStream.
+ */
 TokenStream::TokenStream() {}
 
+/**
+ * @brief Pushes a token onto the stream.
+ * @param token The token to push.
+ */
 void TokenStream::push(Token *token) {
   this->tokens.push_back(token);
 }
 
+/**
+ * @brief Pops a token from the stream.
+ * @return The popped token.
+ */
 Token *TokenStream::pop() {
   if (this->index >= this->tokens.size()) {
     this->index++;
@@ -66,6 +110,10 @@ Token *TokenStream::pop() {
   return token;
 }
 
+/**
+ * @brief Gets the last token in the stream.
+ * @return The last token.
+ */
 Token *TokenStream::last() const {
   if (this->tokens.size() == 0) {
     return nullptr;
@@ -73,10 +121,17 @@ Token *TokenStream::last() const {
   return this->tokens[this->tokens.size() - 1];
 }
 
+/**
+ * @brief Resets the token stream to the beginning.
+ */
 void TokenStream::reset() {
   this->index = 0;
 }
 
+/**
+ * @brief Gets the current token in the stream.
+ * @return The current token.
+ */
 Token *TokenStream::current() const {
   if (this->index >= this->tokens.size()) {
     return nullptr;
@@ -84,10 +139,18 @@ Token *TokenStream::current() const {
   return this->tokens[this->index];
 }
 
+/**
+ * @brief Advances the token stream by one token.
+ */
 void TokenStream::advance() {
   this->index++;
 }
 
+/**
+ * @brief Peeks at the token at the given offset.
+ * @param offset The offset to peek at.
+ * @return The token at the given offset.
+ */
 Token *TokenStream::peek(u_int16_t offset) const {
   if (this->index + offset >= this->tokens.size()) {
     return nullptr;
@@ -95,20 +158,37 @@ Token *TokenStream::peek(u_int16_t offset) const {
   return this->tokens[this->index + offset];
 }
 
+/**
+ * @brief Checks if the token stream has reached the end.
+ * @return True if the stream has ended, false otherwise.
+ */
 bool TokenStream::end() const {
   return this->index >= this->tokens.size();
 }
 
+/**
+ * @brief Gets the vector of tokens in the stream.
+ * @return The vector of tokens.
+ */
 std::vector<Token*> TokenStream::getVec() const {
   return this->tokens;
 }
 
+/**
+ * @brief Joins another token stream into this one.
+ * @param stream The token stream to join.
+ */
 void TokenStream::join(TokenStream *stream) {
   for (Token *token : stream->getVec()) {
     this->push(token);
   }
 }
 
+/**
+ * @brief Joins another token stream into this one after a given index.
+ * @param stream The token stream to join.
+ * @param index The index after which to join the stream.
+ */
 void TokenStream::joinAfterindex(TokenStream *stream, u_int16_t index) {
   std::vector<Token*> new_tokens;
   for (u_int16_t i = 0; i < index; i++) {
@@ -123,7 +203,11 @@ void TokenStream::joinAfterindex(TokenStream *stream, u_int16_t index) {
   this->tokens = new_tokens;
 }
 
-
+/**
+ * @brief Tokenizes a file.
+ * @param filename The name of the file to tokenize.
+ * @return The lexer for the file.
+ */
 WindLexer *TokenizeFile(const char *filename) {
   std::ifstream file(filename);
   if (!file.is_open()) {
@@ -143,11 +227,18 @@ WindLexer *TokenizeFile(const char *filename) {
   return lex;
 }
 
-
+/**
+ * @brief Constructor for WindLexer.
+ * @param data The input data to tokenize.
+ */
 WindLexer::WindLexer(std::string data) : stream(data), reporter(new LexerReport()), tokens(new TokenStream()), source_back(data) {
   srcId = global_isc->getNewSrcId();
 }
 
+/**
+ * @brief Matches a symbol in the input stream.
+ * @return The matched symbol.
+ */
 SymbolMatch WindLexer::MatchSymbol() {
   for (const auto &symbol : SymbolTable) {
     std::string strsym = symbol.first;
@@ -168,6 +259,10 @@ SymbolMatch WindLexer::MatchSymbol() {
   return nullptr;
 }
 
+/**
+ * @brief Lexes a hexadecimal number.
+ * @return The token for the hexadecimal number.
+ */
 Token *WindLexer::LexHexadecimal() {
   std::string value;
   TokenPos start = this->stream.position();
@@ -180,6 +275,10 @@ Token *WindLexer::LexHexadecimal() {
   return new Token(value, Token::Type::INTEGER, "Integer", std::make_pair(start, end), this->srcId);
 }
 
+/**
+ * @brief Lexes an identifier.
+ * @return The token for the identifier.
+ */
 Token *WindLexer::LexIdentifier() {
   std::string value;
   TokenPos start = this->stream.position();
@@ -193,6 +292,11 @@ Token *WindLexer::LexIdentifier() {
   return new Token(value, Token::Type::IDENTIFIER, "Identifier", std::make_pair(start, end), this->srcId);
 }
 
+/**
+ * @brief Lexes a symbol.
+ * @param symbol The symbol to lex.
+ * @return The token for the symbol.
+ */
 Token *WindLexer::LexSymbol(const SymbolMatch& symbol) {
   std::string value = symbol->first;
   TokenPos start = this->stream.position();
@@ -203,6 +307,10 @@ Token *WindLexer::LexSymbol(const SymbolMatch& symbol) {
   return new Token(value, symbol->second, symbol->first, std::make_pair(start, end), this->srcId);
 }
 
+/**
+ * @brief Lexes a string.
+ * @return The token for the string.
+ */
 Token *WindLexer::LexString() {
   std::string value;
   TokenPos start = this->stream.position();
@@ -217,6 +325,10 @@ Token *WindLexer::LexString() {
   return new Token(value, Token::Type::STRING, "String", std::make_pair(start, end), this->srcId);
 }
 
+/**
+ * @brief Lexes a character.
+ * @return The token for the character.
+ */
 Token *WindLexer::LexChar() {
   std::string value;
   TokenPos start = this->stream.position();
@@ -232,6 +344,10 @@ Token *WindLexer::LexChar() {
   return new Token(strnum, Token::Type::INTEGER, "Char", std::make_pair(start, end), this->srcId);
 }
 
+/**
+ * @brief Discriminates the next token in the input stream.
+ * @return The next token.
+ */
 Token *WindLexer::Discriminate() {
   SymbolMatch is_symbol = this->MatchSymbol();
   if ( LexUtils::digit(this->stream.current()) ) {
@@ -270,6 +386,10 @@ Token *WindLexer::Discriminate() {
   }
 }
 
+/**
+ * @brief Tokenizes the input stream.
+ * @return The token stream.
+ */
 TokenStream *WindLexer::tokenize() {
   while (!this->stream.end()) {
     Token *token = this->Discriminate();
@@ -279,10 +399,18 @@ TokenStream *WindLexer::tokenize() {
   return this->tokens;
 }
 
+/**
+ * @brief Gets the token stream.
+ * @return The token stream.
+ */
 TokenStream *WindLexer::get() {
   return this->tokens;
 }
 
+/**
+ * @brief Gets the source code.
+ * @return The source code.
+ */
 std::string WindLexer::source() const {
   return this->source_back;
 }

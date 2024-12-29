@@ -1,3 +1,8 @@
+/**
+ * @file compiler.cpp
+ * @brief Implementation of the WindCompiler class.
+ */
+
 #include <wind/generation/IR.h>
 #include <wind/bridge/ast.h>
 #include <wind/generation/compiler.h>
@@ -7,19 +12,39 @@
 
 #include <assert.h>
 
+/**
+ * @brief Constructor for WindCompiler.
+ * @param program The AST body of the program.
+ */
 WindCompiler::WindCompiler(Body *program) : program(program), emission(new IRBody({})) {
   this->compile();
 }
+
+/**
+ * @brief Destructor for WindCompiler.
+ */
 WindCompiler::~WindCompiler() {}
 
+/**
+ * @brief Gets the IR body after compilation.
+ * @return The compiled IR body.
+ */
 IRBody *WindCompiler::get() {
   return emission;
 }
 
+/**
+ * @brief Compiles the AST into IR.
+ */
 void WindCompiler::compile() {
   this->emission = (IRBody*)this->program->accept(*this);
 }
 
+/**
+ * @brief Visits a binary expression node.
+ * @param node The binary expression node.
+ * @return The compiled IR node.
+ */
 void* WindCompiler::visit(const BinaryExpr &node) {
   IRNode *left = (IRNode*)node.getLeft()->accept(*this);
   IRNode *right = (IRNode*)node.getRight()->accept(*this);
@@ -28,6 +53,11 @@ void* WindCompiler::visit(const BinaryExpr &node) {
   return binop;
 }
 
+/**
+ * @brief Visits a variable reference node.
+ * @param node The variable reference node.
+ * @return The compiled IR node.
+ */
 void* WindCompiler::visit(const VariableRef &node) {
   assert(this->current_fn != nullptr);
   IRLocalRef *local = this->current_fn->GetLocal(node.getName());
@@ -41,6 +71,11 @@ void* WindCompiler::visit(const VariableRef &node) {
   throw std::runtime_error("Variable " + node.getName() + " not found");
 }
 
+/**
+ * @brief Visits a variable addressing node.
+ * @param node The variable addressing node.
+ * @return The compiled IR node.
+ */
 void *WindCompiler::visit(const VarAddressing &node) {
   assert(this->current_fn != nullptr);
   IRLocalRef *local = this->current_fn->GetLocal(node.getName());
@@ -49,16 +84,31 @@ void *WindCompiler::visit(const VarAddressing &node) {
   return new IRLocalAddrRef(local->offset(), local->datatype(), node.getIndex());
 }
 
+/**
+ * @brief Visits a literal node.
+ * @param node The literal node.
+ * @return The compiled IR node.
+ */
 void* WindCompiler::visit(const Literal &node) {
   IRLiteral *lit = new IRLiteral(node.get());
   return lit;
 }
 
+/**
+ * @brief Visits a string literal node.
+ * @param node The string literal node.
+ * @return The compiled IR node.
+ */
 void* WindCompiler::visit(const StringLiteral &node) {
   IRStringLiteral *str = new IRStringLiteral(node.getValue());
   return str;
 }
 
+/**
+ * @brief Visits a return statement node.
+ * @param node The return statement node.
+ * @return The compiled IR node.
+ */
 void* WindCompiler::visit(const Return &node) {
   const ASTNode *aval = node.get();
   if (aval == nullptr) {
@@ -69,6 +119,11 @@ void* WindCompiler::visit(const Return &node) {
   return ret;
 }
 
+/**
+ * @brief Visits a body node.
+ * @param node The body node.
+ * @return The compiled IR node.
+ */
 void* WindCompiler::visit(const Body &node) {
   IRBody *body = new IRBody({});
   for (const auto &child : node.get()) {
@@ -80,6 +135,11 @@ void* WindCompiler::visit(const Body &node) {
   return body;
 }
 
+/**
+ * @brief Visits a function node.
+ * @param node The function node.
+ * @return The compiled IR node.
+ */
 void* WindCompiler::visit(const Function &node) {
   IRFunction *fn = new IRFunction(node.getName(), {}, std::unique_ptr<IRBody>(new IRBody({})));
   if (std::find(this->fn_names.begin(), this->fn_names.end(), node.getName()) != this->fn_names.end()) {
@@ -100,6 +160,11 @@ void* WindCompiler::visit(const Function &node) {
   return fn;
 }
 
+/**
+ * @brief Resolves a data type from its string representation.
+ * @param type The string representation of the data type.
+ * @return The resolved data type.
+ */
 DataType *WindCompiler::ResolveDataType(const std::string &type) {
   if (type == "byte") {
     return new DataType(DataType::Sizes::BYTE);
@@ -139,6 +204,11 @@ DataType *WindCompiler::ResolveDataType(const std::string &type) {
   throw std::runtime_error("Invalid type " +type);
 }
 
+/**
+ * @brief Visits a variable declaration node.
+ * @param node The variable declaration node.
+ * @return The compiled IR node.
+ */
 void *WindCompiler::visit(const VariableDecl &node) {
   assert(this->current_fn != nullptr);
   if (node.getValue()) {
@@ -155,6 +225,11 @@ void *WindCompiler::visit(const VariableDecl &node) {
   );
 }
 
+/**
+ * @brief Visits a global declaration node.
+ * @param node The global declaration node.
+ * @return The compiled IR node.
+ */
 void *WindCompiler::visit(const GlobalDecl &node) {
   IRNode *val = nullptr;
   if (node.getValue()) {
@@ -168,12 +243,22 @@ void *WindCompiler::visit(const GlobalDecl &node) {
   return new IRGlobalDecl(glob, val);
 }
 
+/**
+ * @brief Visits an argument declaration node.
+ * @param node The argument declaration node.
+ * @return The compiled IR node.
+ */
 void *WindCompiler::visit(const ArgDecl &node) {
   assert(this->current_fn != nullptr);
   IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType()));
   return new IRArgDecl(local);
 }
 
+/**
+ * @brief Visits a function call node.
+ * @param node The function call node.
+ * @return The compiled IR node.
+ */
 void* WindCompiler::visit(const FnCall &node) {
   this->current_fn->call_sub = true;
   IRFnCall *call = new IRFnCall(node.getName(), {});
@@ -183,17 +268,32 @@ void* WindCompiler::visit(const FnCall &node) {
   return call;
 }
 
+/**
+ * @brief Visits an inline assembly node.
+ * @param node The inline assembly node.
+ * @return The compiled IR node.
+ */
 void *WindCompiler::visit(const InlineAsm &node) {
   IRInlineAsm *asm_node = new IRInlineAsm(node.getCode());
   return asm_node;
 }
 
+/**
+ * @brief Visits a type declaration node.
+ * @param node The type declaration node.
+ * @return The compiled IR node.
+ */
 void *WindCompiler::visit(const TypeDecl &node) {
   DataType *type = this->ResolveDataType(node.getType());
   this->userdef_types_map[node.getName()] = type;
   return nullptr;
 }
 
+/**
+ * @brief Visits a branching node.
+ * @param node The branching node.
+ * @return The compiled IR node.
+ */
 void *WindCompiler::visit(const Branching &node) {
   std::vector<IRBranch> branches;
   IRBody *else_branch = nullptr;
@@ -212,6 +312,11 @@ void *WindCompiler::visit(const Branching &node) {
   return brir;
 }
 
+/**
+ * @brief Visits a looping node.
+ * @param node The looping node.
+ * @return The compiled IR node.
+ */
 void *WindCompiler::visit(const Looping &node) {
   IRNode *cond = (IRNode*)node.getCondition()->accept(*this);
   IRBody *body = (IRBody*)node.getBody()->accept(*this);

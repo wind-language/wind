@@ -92,13 +92,12 @@ class DataType {
 
 
 class IRRet : public IRNode {
-
+  std::unique_ptr<IRNode> value;
 public:
   explicit IRRet(std::unique_ptr<IRNode> v);
   IRNode* get() const;
   void set(std::unique_ptr<IRNode> v);
   NodeType type() const override { return NodeType::RET; }
-  std::unique_ptr<IRNode> value;
 };
 
 class IRLocalRef : public IRNode {

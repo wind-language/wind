@@ -1,0 +1,63 @@
+/**
+ * @file backend.cpp
+ * @brief Implementation of the WindEmitter class for x86_64 backend.
+ */
+
+#include <wind/generation/IR.h>
+#include <wind/backend/writer/writer.h>
+#include <wind/backend/x86_64/backend.h>
+#include <wind/bridge/opt_flags.h>
+#include <stdexcept>
+
+Reg WindEmitter::CastReg(Reg reg, uint8_t size) {
+    if (reg.size == size) return reg;
+    if (size == 1) {
+        return {reg.id, 1, reg.type};
+    } else if (size == 2) {
+        return {reg.id, 2, reg.type};
+    } else if (size == 4) {
+        return {reg.id, 4, reg.type};
+    } else if (size == 8) {
+        return {reg.id, 8, reg.type};
+    } else {
+        throw std::runtime_error("Invalid register size");
+    }
+}
+
+void WindEmitter::ProcessTop(IRNode *node) {
+    switch (node->type()) {
+        case IRNode::NodeType::GLOBAL_DECL:
+            this->ProcessGlobalDecl(node->as<IRGlobalDecl>());
+            break;
+        case IRNode::NodeType::FUNCTION:
+            this->ProcessFunction(node->as<IRFunction>());
+            break;
+        default:
+            throw std::runtime_error("Invalid top-level node type(" + std::to_string((uint8_t)node->type()) + "): Report to mantainer!");
+    }
+}
+
+void WindEmitter::ProcessStatement(IRNode *node) {
+    switch (node->type()) {
+        case IRNode::NodeType::RET:
+            this->EmitReturn(node->as<IRRet>());
+            break;
+        case IRNode::NodeType::LOCAL_DECL:
+            this->EmitLocDecl(node->as<IRVariableDecl>());
+            break;
+        default:
+            throw std::runtime_error("Invalid statement type (" + std::to_string((uint8_t)node->type()) + "): Report to mantainer!");
+    }
+}
+
+/**
+ * @brief Processes the IR program.
+ */
+void WindEmitter::Process() {
+    this->dataSection = this->writer->NewSection(".data");
+    this->rodataSection = this->writer->NewSection(".rodata");
+    this->textSection = this->writer->NewSection(".text");
+    for (auto &block : program->get()) {
+        this->ProcessTop(block.get());
+    }
+}
