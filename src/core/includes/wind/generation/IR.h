@@ -271,13 +271,15 @@ public:
 class IRFnCall : public IRNode {
   std::string fn_name;
   std::vector<std::unique_ptr<IRNode>> fn_args;
+  IRFunction *ref;
 
 public:
-  IRFnCall(std::string name, std::vector<std::unique_ptr<IRNode>> args);
+  IRFnCall(std::string name, std::vector<std::unique_ptr<IRNode>> args, IRFunction *ref);
   const std::string& name() const;
   const std::vector<std::unique_ptr<IRNode>>& args() const;
   void push_arg(std::unique_ptr<IRNode> arg);
   void replaceArg(int index, std::unique_ptr<IRNode> arg);
+  IRFunction *getRef() const;
   NodeType type() const override { return NodeType::FUNCTION_CALL; }
 };
 

@@ -70,7 +70,7 @@ std::string Ax86_64::ResolveMem(Mem &mem) {
     }
     switch (mem.offset_type) {
         case Mem::IMM:
-            res += (mem.offset < 0 ? "-" : "+") + std::to_string(std::abs(mem.offset));
+            if(mem.offset!=0){ res += (mem.offset < 0 ? "-" : "+") + std::to_string(std::abs(mem.offset)); }
             break;
         case Mem::REG:
             res += " + " + ResolveReg(mem.index);

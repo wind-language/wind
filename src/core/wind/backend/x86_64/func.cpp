@@ -44,25 +44,90 @@ void WindEmitter::EmitFnEpilogue() {
     this->current_fn = nullptr;
 }
 
+const Reg SYSVABI_CNV[8] = {
+    x86::Gp::rdi, x86::Gp::rsi, x86::Gp::rdx, x86::Gp::rcx, 
+    x86::Gp::r8, x86::Gp::r9, x86::Gp::r10, x86::Gp::r11
+};
+
 void WindEmitter::ProcessFunction(IRFunction *func) {
     this->writer->BindSection(this->textSection);
     if (func->flags & FN_EXTERN) {
         this->writer->Extern(func->name());
         return;
     }
-    else if (func->name() == "main") {
-        this->writer->Global("main");
+    else if (func->flags & FN_PUBLIC || func->name() == "main") {
+        this->writer->Global(func->name());
     }
     this->writer->BindLabel(this->writer->NewLabel(func->name()));
     this->EmitFnPrologue(func);
 
+
+    this->regalloc.PostCall(); // trick to free all registers
     IRNode *last = nullptr;
+    int arg_i=0;
     for (auto &stmt : func->body()->get()) {
         last = stmt.get();
-        this->ProcessStatement(last);
+
+        if (last->type() == IRNode::NodeType::ARG_DECL) {
+            IRArgDecl *arg = last->as<IRArgDecl>();
+            if (arg_i<=8) {
+                this->regalloc.SetVar(SYSVABI_CNV[arg_i], arg->local()->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
+                if (!func->ignore_stack_abi) {
+                    this->writer->mov(
+                        this->writer->ptr(
+                            x86::Gp::rbp,
+                            arg->local()->offset(),
+                            arg->local()->datatype()->moveSize()
+                        ),
+                        CastReg(SYSVABI_CNV[arg_i], arg->local()->datatype()->moveSize())
+                    );
+                }
+            } else {
+                this->writer->pop(x86::Gp::rax);
+                this->writer->mov(
+                    this->writer->ptr(
+                        x86::Gp::rbp,
+                        arg->local()->offset(),
+                        arg->local()->datatype()->moveSize()
+                    ),
+                    CastReg(x86::Gp::rax, arg->local()->datatype()->moveSize())
+                );
+            }
+            arg_i++;
+        }
+
+        else { this->ProcessStatement(last); }
     }
 
     if (!last || last->type() != IRNode::NodeType::RET) {
         this->EmitFnEpilogue();
+    }
+}
+
+void WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
+
+    int arg_i = call->args().size()-1;
+    for (;arg_i>=0;arg_i--) {
+        if (arg_i>=call->getRef()->ArgNum() && !(call->getRef()->flags & FN_VARIADIC)) {
+            throw std::runtime_error("Too many arguments");
+        }
+        if (arg_i<=8) {
+            this->EmitExpr(call->args()[arg_i].get(), SYSVABI_CNV[arg_i]);
+            this->regalloc.SetVar(SYSVABI_CNV[arg_i], 0, RegisterAllocator::RegValue::Lifetime::FN_CALL);
+        } else {
+            Reg arg = this->regalloc.Allocate(8, false);
+            this->EmitExpr(call->args()[arg_i].get(), arg);
+            this->writer->push(arg);
+            this->regalloc.Free(arg);
+        }
+    }
+
+    if (call->getRef()->flags & FN_VARIADIC) {
+        this->writer->xor_(x86::Gp::rax, x86::Gp::rax);
+    }
+    this->regalloc.PostCall();
+    this->writer->call(call->name());
+    if (dst.id != 0) {
+        this->writer->mov(dst, this->CastReg(x86::Gp::rax, dst.size));
     }
 }

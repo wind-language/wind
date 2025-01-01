@@ -55,9 +55,9 @@ void WindWriter::Content::WriteLabel(std::string content) { sections[cs_id].labe
  * @return The emitted content.
  */
 std::string WindWriter::Emit() {
-    std::string output = "";
+    std::string output = ".intel_syntax noprefix\n";
     for (Section &section : content.sections) {
-        output += ".section " + section.name + ":\n";
+        output += ".section " + section.name + "\n";
         output += section.header;
         for (Label &label : section.labels) {
             output += label.name + ":\n";

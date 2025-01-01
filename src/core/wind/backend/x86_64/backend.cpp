@@ -7,7 +7,10 @@
 #include <wind/backend/writer/writer.h>
 #include <wind/backend/x86_64/backend.h>
 #include <wind/bridge/opt_flags.h>
+#include <wind/processing/utils.h>
+#include <wind/backend/interface/gas.h>
 #include <stdexcept>
+#include <fstream>
 
 Reg WindEmitter::CastReg(Reg reg, uint8_t size) {
     if (reg.size == size) return reg;
@@ -37,6 +40,10 @@ void WindEmitter::ProcessTop(IRNode *node) {
     }
 }
 
+void WindEmitter::EmitInAsm(IRInlineAsm *asmn) {
+    this->writer->Write(asmn->code());
+}
+
 void WindEmitter::ProcessStatement(IRNode *node) {
     switch (node->type()) {
         case IRNode::NodeType::RET:
@@ -45,8 +52,11 @@ void WindEmitter::ProcessStatement(IRNode *node) {
         case IRNode::NodeType::LOCAL_DECL:
             this->EmitLocDecl(node->as<IRVariableDecl>());
             break;
+        case IRNode::NodeType::IN_ASM:
+            this->EmitInAsm(node->as<IRInlineAsm>());
+            break;
         default:
-            throw std::runtime_error("Invalid statement type (" + std::to_string((uint8_t)node->type()) + "): Report to mantainer!");
+            this->EmitExpr(node, Reg({0, 8, Reg::GPR}));
     }
 }
 
@@ -60,4 +70,24 @@ void WindEmitter::Process() {
     for (auto &block : program->get()) {
         this->ProcessTop(block.get());
     }
+    this->writer->BindSection(this->rodataSection);
+    for (int i=0;i<this->rostr_i;i++) {
+        this->writer->BindLabel(this->writer->NewLabel(".ros"+std::to_string(i)));
+        this->writer->String(rostrs[i]);
+    }
+}
+
+
+std::string WindEmitter::emitObj(std::string outpath) {
+  std::string outemit = this->GetAsm();
+  std::string path = generateRandomFilePath("", ".S");
+  std::ofstream file(path);
+  if (file.is_open()) {
+    file << outemit;
+    file.close();
+  }
+  WindGasInterface *gas = new WindGasInterface(path, outpath);
+  gas->addFlag("-O3");
+  std::string ret = gas->assemble();
+  return ret;
 }

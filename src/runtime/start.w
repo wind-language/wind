@@ -4,7 +4,7 @@
 @pure[stack logue stchk] func __WDcanary_gen() : void {
   asm {
     rdtsc;
-    mov %rdi, %fs:0x40;
+    mov qword ptr fs:[0x40], rdi;
   }
 }
 

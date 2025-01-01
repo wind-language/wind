@@ -12,6 +12,12 @@ private:
 
     // ----
 
+    uint16_t rostr_i=0; // rodata string index
+    uint16_t ljl_i=0;   // logical jump label index
+    std::vector<std::string> rostrs;
+
+    // ----
+
     uint8_t textSection;
     uint8_t dataSection;
     uint8_t rodataSection;
@@ -42,10 +48,11 @@ private:
         bool Request(Reg reg); // Request a specific register
         void SetVar(Reg reg, uint16_t stack_offset, RegValue::Lifetime lifetime); // Set a local to a register
         void Free(Reg reg); // Free a register
-        void PostCall(); // Mark all registers as dirty where lifetime is FN_CALL
-        void PostExpression(); // Mark all registers as dirty where lifetime is EXPRESSION
-        void PostLoop(); // Mark all registers as dirty where lifetime is LOOP
-        Reg *FindLocalVar(uint16_t stack_offset); // Find if a local is in a register
+        void PostCall();
+        void PostExpression();
+        void PostLoop();
+        Reg *FindLocalVar(uint16_t stack_offset, uint16_t size); // Find if a local is in a register
+        void AllocRepr();
     } regalloc;
 
 public:
@@ -53,6 +60,7 @@ public:
     ~WindEmitter() { delete writer; }
     void Process();
     std::string GetAsm() { return writer->Emit(); }
+    std::string emitObj(std::string outpath="");
 
 private:
     void EmitFnPrologue(IRFunction *fn);
@@ -63,6 +71,9 @@ private:
 
     void EmitReturn(IRRet *ret);
     void EmitLocDecl(IRVariableDecl *decl);
+    void EmitInAsm(IRInlineAsm *asmn);
+
+    void EmitFnCall(IRFnCall *call, Reg dst);
 
     void EmitValue(IRNode *value, Reg dst);
     void EmitBinOp(IRBinOp *binop, Reg dst);
@@ -70,6 +81,8 @@ private:
     void EmitLocRef(IRLocalRef *ref, Reg dst);
     void EmitGlobRef(IRGlobRef *ref, Reg dst);
     void EmitIntoLoc(IRLocalRef *ref, IRNode *value);
+    void EmitString(IRStringLiteral *str, Reg dst);
+    void EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst);
 
     void ProcessStatement(IRNode *node);
     void ProcessTop(IRNode *node);

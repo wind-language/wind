@@ -141,15 +141,15 @@ public:
     Ax86_64() {}
     
     A_FIVE_INSTR(mov)
+    A_FIVE_INSTR(lea)
     A_FIVE_INSTR(add)
     A_FIVE_INSTR(sub)
     A_FIVE_INSTR(shr)
     A_FIVE_INSTR(shl)
-    A_FIVE_INSTR(and_)
-    A_FIVE_INSTR(or_)
-    A_FIVE_INSTR(xor_)
+    A_FIVE_INSTR(imul)
 
     B_TRIPLE_INSTR(jmp)
+    B_TRIPLE_INSTR(call)
     B_TRIPLE_INSTR(push)
     B_TRIPLE_INSTR(pop)
 
@@ -157,6 +157,28 @@ public:
     B_N_INSTR(ret)
 
     C_SEVEN_INSTR(cmp)
+
+
+
+
+    inline void and_(Reg dst, Reg src) { this->Write("and", dst, src); }
+    inline void and_(Reg dst, int32_t imm) { this->Write("and", dst, imm); }
+    inline void and_(Mem mem, Reg src) { this->Write("and", mem, src); }
+    inline void and_(Mem mem, int32_t imm) { this->Write("and", mem, imm); }
+    inline void and_(Reg dst, Mem mem) { this->Write("and", dst, mem); }
+
+    inline void or_(Reg dst, Reg src) { this->Write("or", dst, src); }
+    inline void or_(Reg dst, int32_t imm) { this->Write("or", dst, imm); }
+    inline void or_(Mem mem, Reg src) { this->Write("or", mem, src); }
+    inline void or_(Mem mem, int32_t imm) { this->Write("or", mem, imm); }
+    inline void or_(Reg dst, Mem mem) { this->Write("or", dst, mem); }
+
+    inline void xor_(Reg dst, Reg src) { this->Write("xor", dst, src); }
+    inline void xor_(Reg dst, int32_t imm) { this->Write("xor", dst, imm); }
+    inline void xor_(Mem mem, Reg src) { this->Write("xor", mem, src); }
+    inline void xor_(Mem mem, int32_t imm) { this->Write("xor", mem, imm); }
+    inline void xor_(Reg dst, Mem mem) { this->Write("xor", dst, mem); }
+
 };
 
 #endif

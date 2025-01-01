@@ -14,6 +14,7 @@
 #include <wind/generation/ir_printer.h>
 #include <wind/isc/isc.h>
 #include <wind/backend/x86_64/backend.h>
+#include <wind/backend/interface/ld.h>
 
 #include <filesystem>
 #include <iostream>
@@ -115,10 +116,8 @@ void WindUserInterface::emitObject(std::string path) {
     std::cout << "\n\n";
   }
 
-
-
-  /* WindEmitter *backend = new WindEmitter(optimized);
-  backend->process();
+  WindEmitter *backend = new WindEmitter(optimized);
+  backend->Process();
   std::string output = "";
   if (this->flags & EMIT_OBJECT && this->files.size()==1 && this->output != "") {
     output = backend->emitObj(this->output);
@@ -127,25 +126,30 @@ void WindUserInterface::emitObject(std::string path) {
   }
   if (this->flags & SHOW_ASM) {
     std::cout << "[" << path << "] ASM:" << std::endl;
-    std::cout << backend->logger->content().data() << std::endl;
-  }
-  this->objects.push_back(output); */
-
-  WindEmitter *backend = new WindEmitter(optimized);
-  backend->Process();
-  if (this->flags & SHOW_ASM) {
-    std::cout << "[" << path << "] ASM:" << std::endl;
     std::cout << backend->GetAsm() << std::endl;
   }
-
+  this->objects.push_back(output);
+  
   delete ir;
   delete opt;
   delete backend;
 }
 
+void WindUserInterface::ldDefFlags(WindLdInterface *ld) {
+  ld->addFlag("-m elf_x86_64");
+}
+
+void WindUserInterface::ldExecFlags(WindLdInterface *ld) {
+  ld->addFlag("-dynamic-linker /lib64/ld-linux-x86-64.so.2");
+  ld->addFlag("-lc");
+  std::string runtime_lib = std::string(WIND_RUNTIME_PATH) + "/wind_runtime.o";
+  ld->addFile(runtime_lib);
+}
+
 /**
  * @brief Processes the input files.
  */
+
 void WindUserInterface::processFiles() {
   if (files.size() == 0) {
     std::cerr << "No input file provided\n";
@@ -155,7 +159,7 @@ void WindUserInterface::processFiles() {
     this->emitObject(file);
   }
 
-  /* WindLdInterface *ld = new WindLdInterface(this->output);
+  WindLdInterface *ld = new WindLdInterface(this->output);
   ldDefFlags(ld);
   if (this->flags & EMIT_OBJECT) {
     if (this->files.size()==1 && this->output != "") {
@@ -177,5 +181,5 @@ void WindUserInterface::processFiles() {
     std::filesystem::remove(outtmp);
   }
 
-  delete ld; */
+  delete ld;
 }

@@ -103,9 +103,9 @@ public:
     // Data
     void String(std::string content) { this->Write(".string \"" + content + "\""); }
     void Byte(long value) { this->Write(".byte " + std::to_string(value)); }
-    void Word(long value) { this->Write(".word " + std::to_string(value)); }
-    void Dword(long value) { this->Write(".dword " + std::to_string(value)); }
-    void Qword(long value) { this->Write(".qword " + std::to_string(value)); }
+    void Word(long value) { this->Write(".short " + std::to_string(value)); }
+    void Dword(long value) { this->Write(".long " + std::to_string(value)); }
+    void Qword(long value) { this->Write(".quad " + std::to_string(value)); }
     void Reserve(long size) { this->Write(".space " + std::to_string(size)); }
 
     // Emission

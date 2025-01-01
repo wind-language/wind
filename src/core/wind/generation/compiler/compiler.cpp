@@ -9,6 +9,7 @@
 #include <wind/common/debug.h>
 #include <wind/processing/utils.h>
 #include <algorithm>
+#include <regex>
 
 #include <assert.h>
 
@@ -79,7 +80,9 @@ void* WindCompiler::visit(const VariableRef &node) {
 void *WindCompiler::visit(const VarAddressing &node) {
   assert(this->current_fn != nullptr);
   IRLocalRef *local = this->current_fn->GetLocal(node.getName());
-  assert(local != nullptr);
+  if (local == nullptr) {
+    throw std::runtime_error("Variable " + node.getName() + " not found");
+  }
   this->current_fn->occupyOffset(local->offset());
   return new IRLocalAddrRef(local->offset(), local->datatype(), node.getIndex());
 }
@@ -153,6 +156,7 @@ void* WindCompiler::visit(const Function &node) {
   }
   fn->copyArgTypes(arg_types);
   this->current_fn = fn;
+  this->fn_table[node.getName()] = fn;
   fn->flags = node.flags;
   IRBody *body = (IRBody*)node.getBody()->accept(*this);
   fn->SetBody(std::unique_ptr<IRBody>(body));
@@ -261,11 +265,33 @@ void *WindCompiler::visit(const ArgDecl &node) {
  */
 void* WindCompiler::visit(const FnCall &node) {
   this->current_fn->call_sub = true;
-  IRFnCall *call = new IRFnCall(node.getName(), {});
+
+  auto fnit = this->fn_table.find(node.getName());
+  if (fnit == this->fn_table.end()) {
+    throw std::runtime_error("Function " + node.getName() + " not found");
+  }
+
+  IRFnCall *call = new IRFnCall(node.getName(), {}, fnit->second);
   for (const auto &arg : node.getArgs()) {
     call->push_arg(std::unique_ptr<IRNode>((IRNode*)arg->accept(*this)));
   }
   return call;
+}
+
+
+std::string wordstr(int size) {
+  switch (size) {
+    case 1:
+      return "byte";
+    case 2:
+      return "word";
+    case 4:
+      return "dword";
+    case 8:
+      return "qword";
+    default:
+      return "qword";
+  }
 }
 
 /**
@@ -274,7 +300,25 @@ void* WindCompiler::visit(const FnCall &node) {
  * @return The compiled IR node.
  */
 void *WindCompiler::visit(const InlineAsm &node) {
-  IRInlineAsm *asm_node = new IRInlineAsm(node.getCode());
+  std::string code = node.getCode();
+  std::regex localRefPattern(R"(\?\w+)");
+  std::smatch match;
+  while (std::regex_search(code, match, localRefPattern)) {
+    std::string localRef = match.str().substr(1);
+    IRLocalRef *local = this->current_fn->GetLocal(localRef);
+    if (local) {
+      std::string ref = wordstr(local->datatype()->moveSize()) + " ptr [rbp-" + std::to_string(local->offset()) + "]";
+      code = std::regex_replace(code, localRefPattern, ref);
+    } else {
+      auto globit = this->global_table.find(localRef);
+      if (globit == this->global_table.end()) {
+        throw std::runtime_error("variable " + localRef + " not found");
+      }
+      std::string ref = wordstr(globit->second->getType()->moveSize()) + " ptr [" + globit->first + "]";
+      code = std::regex_replace(code, localRefPattern, ref);
+    }
+  }
+  IRInlineAsm *asm_node = new IRInlineAsm(code);
   return asm_node;
 }
 

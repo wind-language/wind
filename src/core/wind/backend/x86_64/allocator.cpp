@@ -64,10 +64,9 @@ void WindEmitter::RegisterAllocator::SetVar(Reg reg, uint16_t offset, RegValue::
  * @brief Frees registers after a function call.
  */
 void WindEmitter::RegisterAllocator::PostCall() {
+    // Every register is compromised after a function call
     for (uint8_t i = 0; i < 16; i++) {
-        if (regs[i].lifetime == RegValue::FN_CALL) {
-            this->Free((Reg){i, 8, Reg::GPR});
-        }
+        this->Free((Reg){i, 8, Reg::GPR});
     }
 }
 
@@ -98,10 +97,10 @@ void WindEmitter::RegisterAllocator::PostLoop() {
  * @param offset The stack offset of the variable.
  * @return The register containing the variable, or nullptr if not found.
  */
-Reg *WindEmitter::RegisterAllocator::FindLocalVar(uint16_t offset) {
+Reg *WindEmitter::RegisterAllocator::FindLocalVar(uint16_t offset, uint16_t size) {
     for (uint8_t i = 0; i < 16; i++) {
         if (regs[i].isDirty && regs[i].stack_offset == offset) {
-            Reg freg = Reg({i, 8, Reg::GPR});
+            Reg freg = Reg({i, (uint8_t)size, Reg::GPR});
             return new Reg(freg);
         }
     }
@@ -120,6 +119,41 @@ bool WindEmitter::RegisterAllocator::Request(Reg reg) {
     else if (regs[reg.id].isDirty) {
         return false;
     }
-    this->SetDirty(reg);
     return true;
+}
+
+
+const std::string GP_REG_MAP[16][4] = {
+    {"al", "ax", "eax", "rax"},
+    {"bl", "bx", "ebx", "rbx"},
+    {"cl", "cx", "ecx", "rcx"},
+    {"dl", "dx", "edx", "rdx"},
+    {"ah", "sp", "esp", "rsp"},
+    {"ch", "bp", "ebp", "rbp"},
+    {"dh", "si", "esi", "rsi"},
+    {"bh", "di", "edi", "rdi"},
+    {"r8b", "r8w", "r8d", "r08"},
+    {"r9b", "r9w", "r9d", "r09"},
+    {"r10b", "r10w", "r10d", "r10"},
+    {"r11b", "r11w", "r11d", "r11"},
+    {"r12b", "r12w", "r12d", "r12"},
+    {"r13b", "r13w", "r13d", "r13"},
+    {"r14b", "r14w", "r14d", "r14"},
+    {"r15b", "r15w", "r15d", "r15"}
+};
+const std::string LIFETIME_MAP[4] = {
+    "EXPR",
+    "FN_CALL",
+    "LOOP",
+    "UNTIL_ALLOC"
+};
+
+void WindEmitter::RegisterAllocator::AllocRepr() {
+    for (uint8_t i=0;i<16;i++) {
+        Reg reg = {i, 8, Reg::GPR};
+        std::cerr <<
+            "[" << GP_REG_MAP[reg.id][__builtin_ctz(reg.size)] << "] " <<
+            (regs[i].isDirty ? "DIRTY" : "CLEAN") <<
+            " (" << regs[i].stack_offset << ") " << LIFETIME_MAP[regs[i].lifetime] << std::endl;
+    }
 }

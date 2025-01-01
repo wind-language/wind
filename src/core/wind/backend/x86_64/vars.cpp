@@ -6,6 +6,7 @@
 
 void WindEmitter::ProcessGlobalDecl(IRGlobalDecl *decl) {
     this->writer->BindSection(this->dataSection);
+    this->writer->Global(decl->global()->getName());
     this->writer->BindLabel(this->writer->NewLabel(decl->global()->getName()));
     this->writer->Align(decl->global()->getType()->memSize());
     IRNode *value = decl->value();
@@ -62,4 +63,5 @@ void WindEmitter::EmitGlobRef(IRGlobRef *ref, Reg dst) {
             ref->getType()->moveSize()
         )
     );
+    this->regalloc.SetVar(dst, 0, RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
 }

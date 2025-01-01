@@ -441,7 +441,7 @@ IRLocalRef* IRArgDecl::local() const {
  * @param name The name of the function.
  * @param args The arguments.
  */
-IRFnCall::IRFnCall(std::string name, std::vector<std::unique_ptr<IRNode>> args) : fn_name(name), fn_args(std::move(args)) {}
+IRFnCall::IRFnCall(std::string name, std::vector<std::unique_ptr<IRNode>> args, IRFunction *ref) : fn_name(name), fn_args(std::move(args)), ref(ref) {}
 
 /**
  * @brief Gets the name of the function.
@@ -457,6 +457,14 @@ const std::string& IRFnCall::name() const {
  */
 const std::vector<std::unique_ptr<IRNode>>& IRFnCall::args() const {
   return fn_args;
+}
+
+/**
+ * @brief Gets the function reference.
+ * @return The function reference.
+ */
+IRFunction *IRFnCall::getRef() const {
+  return ref;
 }
 
 /**
