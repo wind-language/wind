@@ -12,7 +12,9 @@ const std::unordered_map<IRBinOp::Operation, std::string> BOpTTable = {
   {IRBinOp::Operation::DIV, "div"},
   {IRBinOp::Operation::SHL, "shl"},
   {IRBinOp::Operation::SHR, "shr"},
-  {IRBinOp::Operation::ASSIGN, "ass"},
+  {IRBinOp::Operation::AND, "and"},
+  {IRBinOp::Operation::L_ASSIGN, "ass"},
+  {IRBinOp::Operation::G_ASSIGN, "ass"},
   {IRBinOp::Operation::EQ, "eq"},
   {IRBinOp::Operation::LESS, "le"},
   {IRBinOp::Operation::LESSEQ, "leq"},
@@ -45,13 +47,13 @@ void IRPrinter::print_node(const IRNode *node) {
     }
     case IRNode::NodeType::BIN_OP : {
       const IRBinOp *bop = node->as<IRBinOp>();
-      if (bop->operation() == IRBinOp::Operation::ASSIGN) {
+      if (bop->operation() == IRBinOp::Operation::L_ASSIGN) {
         this->print_tabs();
       }
       this->print_bin_op(
         bop
       );
-      if (bop->operation() == IRBinOp::Operation::ASSIGN) {
+      if (bop->operation() == IRBinOp::Operation::L_ASSIGN) {
         std::cout << std::endl;
       }
       break;

@@ -128,9 +128,38 @@ void WindEmitter::EmitValue(IRNode *value, Reg dst) {
         return; \
     }
 
+#define L_ASSIGN_OP() \
+    this->writer->mov( \
+        this->writer->ptr( \
+            x86::Gp::rbp, \
+            -binop->left()->as<IRLocalRef>()->offset(), \
+            binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
+        ), \
+        tmp \
+    ); \
+
+#define G_ASSIGN_OP() \
+    this->writer->mov( \
+        this->writer->ptr( \
+            binop->left()->as<IRGlobRef>()->getName(), \
+            0, \
+            binop->left()->as<IRGlobRef>()->getType()->moveSize() \
+        ), \
+        tmp \
+    ); \
+    
 void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst) {
-    this->EmitExpr((IRNode*)binop->left(), dst);
-    this->regalloc.SetDirty(dst);
+    uint8_t tmp_size = dst.size;
+    if (binop->operation() == IRBinOp::Operation::L_ASSIGN) {
+        this->regalloc.SetVar(dst, binop->left()->as<IRLocalRef>()->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
+        tmp_size = binop->left()->as<IRLocalRef>()->datatype()->moveSize();
+    } else if (binop->operation() == IRBinOp::Operation::G_ASSIGN) {
+        tmp_size = binop->left()->as<IRGlobRef>()->getType()->moveSize();
+    }
+    else {
+        this->EmitExpr((IRNode*)binop->left(), dst);
+        this->regalloc.SetDirty(dst);
+    }
 
     switch (binop->right()->type()) {
         case IRNode::NodeType::LITERAL: {
@@ -140,6 +169,7 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst) {
                 LITERAL_OP(IRBinOp::SHL, shl)
                 LITERAL_OP(IRBinOp::SHR, shr)
                 LITERAL_OP(IRBinOp::MUL, imul)
+                LITERAL_OP(IRBinOp::AND, and_)
                 default: {}
             }
         }
@@ -151,6 +181,7 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst) {
                     OPT_LOCAL_OP(IRBinOp::SHL, shl)
                     OPT_LOCAL_OP(IRBinOp::SHR, shr)
                     OPT_LOCAL_OP(IRBinOp::MUL, imul)
+                    OPT_LOCAL_OP(IRBinOp::AND, and_)
                     default: {}
                 }
         }
@@ -161,13 +192,14 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst) {
                 GLOBAL_OP(IRBinOp::SHL, shl)
                 GLOBAL_OP(IRBinOp::SHR, shr)
                 GLOBAL_OP(IRBinOp::MUL, imul)
+                GLOBAL_OP(IRBinOp::AND, and_)
                 default: {}
             }
         }
         default: {}
     }
 
-    Reg tmp = this->regalloc.Allocate(dst.size, false);
+    Reg tmp = this->regalloc.Allocate(tmp_size, false);
     this->EmitExpr((IRNode*)binop->right(), tmp);
     this->regalloc.SetDirty(tmp);
 
@@ -186,6 +218,15 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst) {
             break;
         case IRBinOp::MUL:
             this->writer->imul(dst, tmp);
+            break;
+        case IRBinOp::AND:
+            this->writer->and_(dst, tmp);
+            break;
+        case IRBinOp::L_ASSIGN:
+            L_ASSIGN_OP()
+            break;
+        case IRBinOp::G_ASSIGN:
+            G_ASSIGN_OP()
             break;
         default:
             throw std::runtime_error("Unsupported binop (" + std::to_string((uint8_t)binop->operation()) + "): Report to mantainer!");

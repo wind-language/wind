@@ -56,7 +56,7 @@ void WindEmitter::EmitIntoLoc(IRLocalRef *ref, IRNode *value) {
 
 void WindEmitter::EmitGlobRef(IRGlobRef *ref, Reg dst) {
     this->writer->mov(
-        dst,
+        this->CastReg(dst, ref->getType()->moveSize()),
         this->writer->ptr(
             ref->getName(),
             0,

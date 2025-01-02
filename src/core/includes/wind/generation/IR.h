@@ -188,7 +188,8 @@ public:
     LESS,
     GREATER,
     LESSEQ,
-    ASSIGN,
+    L_ASSIGN,
+    G_ASSIGN,
     MOD,
     LOGAND
   };

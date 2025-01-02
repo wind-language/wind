@@ -49,7 +49,19 @@ void WindCompiler::compile() {
 void* WindCompiler::visit(const BinaryExpr &node) {
   IRNode *left = (IRNode*)node.getLeft()->accept(*this);
   IRNode *right = (IRNode*)node.getRight()->accept(*this);
-  IRBinOp::Operation op = IRstr2op(node.getOperator());
+  IRBinOp::Operation op;
+  if (node.getOperator() == "=") {
+    // Assign operation
+    if (left->type() == IRNode::NodeType::LOCAL_REF) {
+      op = IRBinOp::Operation::L_ASSIGN;
+    } 
+    else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
+      op = IRBinOp::Operation::G_ASSIGN;
+    }
+    else {
+      throw std::runtime_error("Left operand of assignment must be a variable reference (also not a pointer)");
+    }
+  } else { op = IRstr2op(node.getOperator()); }
   IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(left), std::unique_ptr<IRNode>(right), op);
   return binop;
 }

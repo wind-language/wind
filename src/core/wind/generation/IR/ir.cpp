@@ -305,8 +305,6 @@ IRBinOp::Operation IRstr2op(std::string str) {
     return IRBinOp::SHL;
   } else if (str == ">>") {
     return IRBinOp::SHR;
-  } else if (str == "=") {
-    return IRBinOp::ASSIGN;
   } else if (str == "==") {
     return IRBinOp::EQ;
   } else if (str == "<") {

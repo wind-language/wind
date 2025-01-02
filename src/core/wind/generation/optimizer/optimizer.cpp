@@ -56,7 +56,8 @@ IRLiteral *WindOptimizer::OptimizeConstFold(IRBinOp *node) {
       return new IRLiteral(left > right);
     case IRBinOp::Operation::LESSEQ:
       return new IRLiteral(left <= right);
-    case IRBinOp::Operation::ASSIGN:
+    case IRBinOp::Operation::L_ASSIGN:
+    case IRBinOp::Operation::G_ASSIGN:
       return new IRLiteral(right);
     case IRBinOp::Operation::MOD:
       return new IRLiteral(left % right);
@@ -319,6 +320,9 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   }
   else if (node->is<IRLooping>()) {
     return this->OptimizeLooping(node->as<IRLooping>());
+  }
+  else if (node->is<IRBinOp>()) {
+    return this->OptimizeBinOp(node->as<IRBinOp>());
   }
   /* else if (node->is<IRFnCall>()) {
     return this->OptimizeFnCall(node->as<IRFnCall>());
