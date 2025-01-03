@@ -21,7 +21,7 @@ target_compile_options(wind PRIVATE -g)
 
 add_custom_command(
     TARGET wind POST_BUILD
-    COMMAND ${CMAKE_BINARY_DIR}/wind ${WIND_RUNTIME_PATH}/stack.w ${WIND_RUNTIME_PATH}/start.w -ej -o ${WIND_RUNTIME_PATH}/wind_runtime.o
+    COMMAND ${CMAKE_BINARY_DIR}/wind ${WIND_RUNTIME_PATH}/stack.w ${WIND_RUNTIME_PATH}/handler.w ${WIND_RUNTIME_PATH}/start.w -ej -o ${WIND_RUNTIME_PATH}/wind_runtime.o
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     COMMENT "Compiling runtime utilities"
 )

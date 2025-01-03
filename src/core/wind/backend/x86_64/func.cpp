@@ -59,10 +59,23 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
         this->writer->Global(func->name());
     }
     this->writer->BindLabel(this->writer->NewLabel(func->name()));
+    
+    this->rostrs.push_back(
+        func->name()
+    );
+    this->writer->mov( // Load function info in r15 [ : HANDLER : ]
+        x86::Gp::r15,
+        this->writer->ptr(
+            ".ros"+std::to_string(this->rostr_i++),
+            0,
+            8
+        )
+    );
+
     this->EmitFnPrologue(func);
 
 
-    this->regalloc.PostCall(); // trick to free all registers
+    this->regalloc.FreeAllRegs();
     IRNode *last = nullptr;
     int arg_i=0;
     for (auto &stmt : func->body()->get()) {
@@ -105,7 +118,6 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
 }
 
 void WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
-
     int arg_i = call->args().size()-1;
     for (;arg_i>=0;arg_i--) {
         if (arg_i>=call->getRef()->ArgNum() && !(call->getRef()->flags & FN_VARIADIC)) {
@@ -125,7 +137,7 @@ void WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
     if (call->getRef()->flags & FN_VARIADIC) {
         this->writer->xor_(x86::Gp::rax, x86::Gp::rax);
     }
-    this->regalloc.PostCall();
+    this->regalloc.FreeAllRegs();
     this->writer->call(call->name());
     if (dst.id != 0) {
         this->writer->mov(dst, this->CastReg(x86::Gp::rax, dst.size));

@@ -1,5 +1,6 @@
 #include <wind/generation/IR.h>
 #include <wind/backend/writer/writer.h>
+#include <functional>
 #include <map>
 
 #ifndef x86_64_BACKEND_H
@@ -38,7 +39,8 @@ private:
                 LOOP,
                 UNTIL_ALLOC
             } lifetime;
-            uint16_t stack_offset;
+            uint16_t stack_offset; // holding local stack offset
+            std::string label;     // holding label address
         };
         RegValue regs[16]; // 16 GP registers
         RegisterAllocator() {}
@@ -47,16 +49,27 @@ private:
         Reg Allocate(uint8_t size, bool setDirty=true); // Find a free register
         bool Request(Reg reg); // Request a specific register
         void SetVar(Reg reg, uint16_t stack_offset, RegValue::Lifetime lifetime); // Set a local to a register
+        void SetLabel(Reg reg, std::string label, RegValue::Lifetime lifetime); // Set a label to a register
         void Free(Reg reg); // Free a register
-        void PostCall();
+        void FreeAllRegs();
         void PostExpression();
         void PostLoop();
         Reg *FindLocalVar(uint16_t stack_offset, uint16_t size); // Find if a local is in a register
+        Reg *FindLabel(std::string label, uint16_t size); // Find if a label is in a register
         void AllocRepr();
     } regalloc;
 
 public:
-    WindEmitter(IRBody *program): program(program), writer(new Ax86_64()) {}
+    WindEmitter(IRBody *program): program(program), writer(new Ax86_64()) {
+        jmp_map[IRBinOp::Operation::EQ][0] = [this](uint8_t label) { this->writer->je(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::EQ][1] = [this](uint8_t label) { this->writer->jne(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::GREATER][0] = [this](uint8_t label) { this->writer->jg(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::GREATER][1] = [this](uint8_t label) { this->writer->jle(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::LESS][0] = [this](uint8_t label) { this->writer->jl(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::LESS][1] = [this](uint8_t label) { this->writer->jge(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::LESSEQ][0] = [this](uint8_t label) { this->writer->jle(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::LESSEQ][1] = [this](uint8_t label) { this->writer->jg(this->writer->LabelById(label)); };
+    }
     ~WindEmitter() { delete writer; }
     void Process();
     std::string GetAsm() { return writer->Emit(); }
@@ -69,15 +82,18 @@ private:
     void ProcessFunction(IRFunction *func);
     void ProcessGlobalDecl(IRGlobalDecl *decl);
 
+    void EmitCJump(IRNode *node, uint8_t label, bool invert);
+
     void EmitReturn(IRRet *ret);
     void EmitLocDecl(IRVariableDecl *decl);
     void EmitInAsm(IRInlineAsm *asmn);
+    void EmitLoop(IRLooping *loop);
 
     void EmitFnCall(IRFnCall *call, Reg dst);
 
     void EmitValue(IRNode *value, Reg dst);
-    void EmitBinOp(IRBinOp *binop, Reg dst);
-    void EmitExpr(IRNode *expr, Reg dst);
+    void EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp);
+    void EmitExpr(IRNode *expr, Reg dst, bool isJmp=false);
     void EmitLocRef(IRLocalRef *ref, Reg dst);
     void EmitGlobRef(IRGlobRef *ref, Reg dst);
     void EmitIntoLoc(IRLocalRef *ref, IRNode *value);
@@ -88,6 +104,10 @@ private:
     void ProcessTop(IRNode *node);
 
     Reg CastReg(Reg reg, uint8_t size);
+    void TryCast(Reg dst, Reg proc);
+
+    typedef std::function<void(uint8_t)> writer_jmp_generic;
+    std::map<IRBinOp::Operation, writer_jmp_generic[2]> jmp_map;
 };
 
 #endif

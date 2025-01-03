@@ -184,10 +184,10 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
     else if (opt_right->as<IRLiteral>()->get() == 1) {
       return new IRLiteral(0);
     }
-    else if (opt_right->as<IRLiteral>()->get() == 2) {
+    else if (opt_right->as<IRLiteral>()->get() % 2 == 0) {
       return new IRBinOp(
         std::unique_ptr<IRNode>(opt_left),
-        std::unique_ptr<IRNode>(new IRLiteral(1)),
+        std::unique_ptr<IRNode>(new IRLiteral(opt_right->as<IRLiteral>()->get() - 1)),
         IRBinOp::Operation::AND
       );
     }

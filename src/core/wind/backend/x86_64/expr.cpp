@@ -5,25 +5,6 @@
 #include <stdexcept>
 #include <iostream>
 
-void WindEmitter::EmitLocRef(IRLocalRef *ref, Reg dst) {
-    Reg *freg = this->regalloc.FindLocalVar(ref->offset(), ref->datatype()->moveSize());
-    if (freg) {
-        if (freg->id != dst.id) {
-            this->writer->mov(dst, *freg);
-        }
-        return;
-    }
-    this->writer->mov(
-        dst,
-        this->writer->ptr(
-            x86::Gp::rbp,
-            -ref->offset(),
-            ref->datatype()->moveSize()
-        )
-    );
-    this->regalloc.SetVar(dst, ref->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
-}
-
 void WindEmitter::EmitString(IRStringLiteral *str, Reg dst) {
     this->rostrs.push_back(str->get());
     this->writer->lea(
@@ -93,13 +74,19 @@ void WindEmitter::EmitValue(IRNode *value, Reg dst) {
     }
 }
 
+void WindEmitter::TryCast(Reg dst, Reg proc) {
+    if (dst.size > proc.size) {
+        this->writer->movzx(dst, proc);
+    }
+}
+
 #define LITERAL_OP(type, op) \
     case type: { \
         this->writer->op(dst, binop->right()->as<IRLiteral>()->get()); \
         return; \
     }
 
-#define LOCAL_OP_RAW(type, op) \
+#define LOCAL_OP_RAW(op) \
     this->writer->op(dst, this->writer->ptr( \
         x86::Gp::rbp, \
         -binop->right()->as<IRLocalRef>()->offset(), \
@@ -113,19 +100,28 @@ void WindEmitter::EmitValue(IRNode *value, Reg dst) {
             this->writer->op(dst, *freg); \
             return; \
         } else { \
-            LOCAL_OP_RAW(type, op) \
+            LOCAL_OP_RAW(op) \
             return; \
         } \
     }
 
+#define GLOB_OP_RAW(op) \
+    this->writer->op(dst, this->writer->ptr( \
+        binop->right()->as<IRGlobRef>()->getName(), \
+        0, \
+        binop->right()->as<IRGlobRef>()->getType()->moveSize() \
+    )); \
+    return;
+
 #define GLOBAL_OP(type, op) \
     case type: { \
-        this->writer->op(dst, this->writer->ptr( \
-            binop->right()->as<IRGlobRef>()->getName(), \
-            0, \
-            binop->right()->as<IRGlobRef>()->getType()->moveSize() \
-        )); \
-        return; \
+        if (freg) { \
+            this->writer->op(dst, *freg); \
+            return; \
+        } else { \
+            GLOB_OP_RAW(op) \
+            return; \
+        } \
     }
 
 #define L_ASSIGN_OP() \
@@ -147,11 +143,58 @@ void WindEmitter::EmitValue(IRNode *value, Reg dst) {
         ), \
         tmp \
     ); \
-    
-void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst) {
+
+#define LIT_CMP_OP(type, op) \
+    case type: { \
+        this->writer->cmp(dst, binop->right()->as<IRLiteral>()->get()); \
+        if (!isJmp) { \
+            this->writer->op(this->CastReg(dst, 1)); \
+            this->TryCast(dst, x86::Gp::al); \
+        } \
+        return; \
+    }
+
+#define LOC_CMP_OP(type, op) \
+    case type: { \
+        if (freg) { \
+            this->writer->cmp(dst, *freg); \
+            return; \
+        } else { \
+            LOCAL_OP_RAW(cmp) \
+            return; \
+        } \
+        if (!isJmp) { \
+            this->writer->op(this->CastReg(dst, 1)); \
+            this->TryCast(dst, x86::Gp::al); \
+        } \
+        return; \
+    }
+
+#define GLB_CMP_OP(type, op) \
+    case type: { \
+        this->writer->cmp(dst, this->writer->ptr( \
+            binop->right()->as<IRGlobRef>()->getName(), \
+            0, \
+            binop->right()->as<IRGlobRef>()->getType()->moveSize() \
+        )); \
+        if (!isJmp) { \
+            this->writer->op(this->CastReg(dst, 1)); \
+            this->TryCast(dst, x86::Gp::al); \
+        } \
+        return; \
+    }
+
+#define EL_CMP_OP(op) \
+    this->writer->cmp(dst, tmp); \
+    if (!isJmp) { \
+        this->writer->op(this->CastReg(dst, 1)); \
+        this->TryCast(dst, x86::Gp::al); \
+    } \
+
+
+void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
     uint8_t tmp_size = dst.size;
     if (binop->operation() == IRBinOp::Operation::L_ASSIGN) {
-        this->regalloc.SetVar(dst, binop->left()->as<IRLocalRef>()->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
         tmp_size = binop->left()->as<IRLocalRef>()->datatype()->moveSize();
     } else if (binop->operation() == IRBinOp::Operation::G_ASSIGN) {
         tmp_size = binop->left()->as<IRGlobRef>()->getType()->moveSize();
@@ -170,22 +213,33 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst) {
                 LITERAL_OP(IRBinOp::SHR, shr)
                 LITERAL_OP(IRBinOp::MUL, imul)
                 LITERAL_OP(IRBinOp::AND, and_)
+                LIT_CMP_OP(IRBinOp::EQ, sete)
+                LIT_CMP_OP(IRBinOp::LESS, setl)
+                LIT_CMP_OP(IRBinOp::GREATER, setg)
+                LIT_CMP_OP(IRBinOp::LESSEQ, setle)
                 default: {}
             }
         }
         case IRNode::NodeType::LOCAL_REF: {
             Reg *freg = this->regalloc.FindLocalVar(binop->right()->as<IRLocalRef>()->offset(), binop->right()->as<IRLocalRef>()->datatype()->moveSize());
-                switch (binop->operation()) {
-                    OPT_LOCAL_OP(IRBinOp::ADD, add)
-                    OPT_LOCAL_OP(IRBinOp::SUB, sub)
-                    OPT_LOCAL_OP(IRBinOp::SHL, shl)
-                    OPT_LOCAL_OP(IRBinOp::SHR, shr)
-                    OPT_LOCAL_OP(IRBinOp::MUL, imul)
-                    OPT_LOCAL_OP(IRBinOp::AND, and_)
-                    default: {}
-                }
+            dst = this->CastReg(dst, binop->right()->as<IRLocalRef>()->datatype()->moveSize());
+            switch (binop->operation()) {
+                OPT_LOCAL_OP(IRBinOp::ADD, add)
+                OPT_LOCAL_OP(IRBinOp::SUB, sub)
+                OPT_LOCAL_OP(IRBinOp::SHL, shl)
+                OPT_LOCAL_OP(IRBinOp::SHR, shr)
+                OPT_LOCAL_OP(IRBinOp::MUL, imul)
+                OPT_LOCAL_OP(IRBinOp::AND, and_)
+                LOC_CMP_OP(IRBinOp::EQ, sete)
+                LOC_CMP_OP(IRBinOp::LESS, setl)
+                LOC_CMP_OP(IRBinOp::GREATER, setg)
+                LOC_CMP_OP(IRBinOp::LESSEQ, setle)
+                default: {}
+            }
         }
         case IRNode::NodeType::GLOBAL_REF: {
+            Reg *freg = this->regalloc.FindLabel(binop->right()->as<IRGlobRef>()->getName(), binop->right()->as<IRGlobRef>()->getType()->moveSize());
+            dst = this->CastReg(dst, binop->right()->as<IRGlobRef>()->getType()->moveSize());
             switch (binop->operation()) {
                 GLOBAL_OP(IRBinOp::ADD, add)
                 GLOBAL_OP(IRBinOp::SUB, sub)
@@ -193,6 +247,10 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst) {
                 GLOBAL_OP(IRBinOp::SHR, shr)
                 GLOBAL_OP(IRBinOp::MUL, imul)
                 GLOBAL_OP(IRBinOp::AND, and_)
+                GLB_CMP_OP(IRBinOp::EQ, sete)
+                GLB_CMP_OP(IRBinOp::LESS, setl)
+                GLB_CMP_OP(IRBinOp::GREATER, setg)
+                GLB_CMP_OP(IRBinOp::LESSEQ, setle)
                 default: {}
             }
         }
@@ -228,23 +286,42 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst) {
         case IRBinOp::G_ASSIGN:
             G_ASSIGN_OP()
             break;
+        case IRBinOp::EQ:
+            EL_CMP_OP(sete)
+            break;
+        case IRBinOp::LESS:
+            EL_CMP_OP(setl)
+            break;
+        case IRBinOp::GREATER:
+            EL_CMP_OP(setg)
+            break;
+        case IRBinOp::LESSEQ:
+            EL_CMP_OP(setle)
+            break;
         default:
             throw std::runtime_error("Unsupported binop (" + std::to_string((uint8_t)binop->operation()) + "): Report to mantainer!");
     }
 
     this->regalloc.Free(tmp);
+    if (binop->operation() == IRBinOp::Operation::L_ASSIGN) {
+        this->regalloc.SetVar(dst, binop->left()->as<IRLocalRef>()->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
+    } else if (binop->operation() == IRBinOp::Operation::G_ASSIGN) {
+        this->regalloc.SetLabel(dst, binop->left()->as<IRGlobRef>()->getName(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
+    }
 }
 
-void WindEmitter::EmitExpr(IRNode *value, Reg dst) {
+void WindEmitter::EmitExpr(IRNode *value, Reg dst, bool isJmp) {
     if (!this->regalloc.Request(dst)) {
         std::cerr << this->GetAsm() << std::endl;
         this->regalloc.AllocRepr();
         throw std::runtime_error("Register allocation failed");
     }
 
+    bool jmpProcessed=false;
     switch (value->type()) {
         case IRNode::NodeType::BIN_OP: {
-            this->EmitBinOp(value->as<IRBinOp>(), dst);
+            this->EmitBinOp(value->as<IRBinOp>(), dst, false);
+            jmpProcessed=true;
             break;
         }
         case IRNode::NodeType::FUNCTION_CALL: {

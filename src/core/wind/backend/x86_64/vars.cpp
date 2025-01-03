@@ -55,6 +55,16 @@ void WindEmitter::EmitIntoLoc(IRLocalRef *ref, IRNode *value) {
 }
 
 void WindEmitter::EmitGlobRef(IRGlobRef *ref, Reg dst) {
+    Reg *freg = this->regalloc.FindLabel(ref->getName(), ref->getType()->moveSize());
+    if (freg) {
+        if (freg->id != dst.id) {
+            this->writer->mov(
+                this->CastReg(dst, ref->getType()->moveSize()),
+                *freg
+            );
+        }
+        return;
+    }
     this->writer->mov(
         this->CastReg(dst, ref->getType()->moveSize()),
         this->writer->ptr(
@@ -63,5 +73,27 @@ void WindEmitter::EmitGlobRef(IRGlobRef *ref, Reg dst) {
             ref->getType()->moveSize()
         )
     );
-    this->regalloc.SetVar(dst, 0, RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
+    this->regalloc.SetLabel(dst, ref->getName(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
+}
+
+void WindEmitter::EmitLocRef(IRLocalRef *ref, Reg dst) {
+    Reg *freg = this->regalloc.FindLocalVar(ref->offset(), ref->datatype()->moveSize());
+    if (freg) {
+        if (freg->id != dst.id) {
+            this->writer->mov(
+                this->CastReg(dst, ref->datatype()->moveSize()),
+                *freg
+            );
+        }
+        return;
+    }
+    this->writer->mov(
+        this->CastReg(dst, ref->datatype()->moveSize()),
+        this->writer->ptr(
+            x86::Gp::rbp,
+            -ref->offset(),
+            ref->datatype()->moveSize()
+        )
+    );
+    this->regalloc.SetVar(dst, ref->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
 }

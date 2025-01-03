@@ -55,6 +55,10 @@ void WindEmitter::ProcessStatement(IRNode *node) {
         case IRNode::NodeType::IN_ASM:
             this->EmitInAsm(node->as<IRInlineAsm>());
             break;
+        case IRNode::NodeType::LOOP: {
+            this->EmitLoop(node->as<IRLooping>());
+            break;
+        }
         default:
             this->EmitExpr(node, Reg({0, 8, Reg::GPR}));
     }

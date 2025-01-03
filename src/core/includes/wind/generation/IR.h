@@ -23,7 +23,6 @@ public:
     GLOBAL_DECL,
     ARG_DECL,
     FUNCTION_CALL,
-    REGISTER,
     IN_ASM,
     LADDR_REF,
     BRANCH,
@@ -54,6 +53,7 @@ class DataType {
     DataType *array;
     uint16_t type_size;
     uint16_t capacity;
+
   public:
     DataType(uint16_t size) : type_size(size), capacity(1), array(nullptr) {}
     DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr) {}

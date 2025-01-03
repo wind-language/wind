@@ -460,7 +460,6 @@ Branching *WindParser::parseBranch() {
   Branching *branch = new Branching();
   this->expect(Token::Type::LBRACKET, "[");
   while (!this->until(Token::Type::RBRACKET)) {
-
     // else
     if (this->isKeyword(stream->current(), "else")) {
       this->expect(Token::Type::IDENTIFIER, "else");
@@ -478,7 +477,6 @@ Branching *WindParser::parseBranch() {
         std::unique_ptr<Body>(this->parseBranchBody())
       );
     }
-
   }
   this->expect(Token::Type::RBRACKET, "]");
   return branch;

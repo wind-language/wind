@@ -14,6 +14,7 @@ public:
   WindCompiler(Body *program);
   virtual ~WindCompiler();
   IRBody *get();
+
 private:
   Body *program;
   IRBody *emission;

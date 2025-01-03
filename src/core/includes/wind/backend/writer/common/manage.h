@@ -60,6 +60,8 @@ class WindWriter {
         uint8_t NewLabel(std::string name);
         void BindLabel(uint8_t id);
         void WriteLabel(std::string content);
+
+        std::string LabelById(uint8_t id) { return sections[cs_id].labels[id].name; }
     } content;
 
 public:
@@ -72,6 +74,7 @@ public:
     uint8_t NewLabel(std::string name) { return content.NewLabel(name); }
     void BindLabel(uint8_t id) { content.BindLabel(id); }
     void Write(std::string content) { this->content.WriteLabel(content + "\n"); }
+    std::string LabelById(uint8_t id) { return content.LabelById(id); }
 
     void Global(std::string name) { this->WriteHdr(".global " + name); }
     void Extern(std::string name) { this->WriteHdr(".extern " + name); }

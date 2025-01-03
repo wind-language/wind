@@ -17,6 +17,7 @@ void WindEmitter::RegisterAllocator::SetDirty(Reg reg) {
     regs[reg.id].isDirty = true;
     regs[reg.id].lifetime = RegValue::EXPRESSION;
     regs[reg.id].stack_offset = 0;
+    regs[reg.id].label = "";
 }
 
 
@@ -28,6 +29,7 @@ void WindEmitter::RegisterAllocator::Free(Reg reg) {
     regs[reg.id].isDirty = false;
     regs[reg.id].lifetime = RegValue::EXPRESSION;
     regs[reg.id].stack_offset = 0;
+    regs[reg.id].label = "";
 }
 
 /**
@@ -58,12 +60,20 @@ void WindEmitter::RegisterAllocator::SetVar(Reg reg, uint16_t offset, RegValue::
     regs[reg.id].stack_offset = offset;
     regs[reg.id].lifetime = lifetime;
     regs[reg.id].isDirty = true;
+    regs[reg.id].label = "";
+}
+
+void WindEmitter::RegisterAllocator::SetLabel(Reg reg, std::string label, RegValue::Lifetime lifetime) {
+    regs[reg.id].label = label;
+    regs[reg.id].lifetime = lifetime;
+    regs[reg.id].isDirty = true;
+    regs[reg.id].stack_offset = 0;
 }
 
 /**
  * @brief Frees registers after a function call.
  */
-void WindEmitter::RegisterAllocator::PostCall() {
+void WindEmitter::RegisterAllocator::FreeAllRegs() {
     // Every register is compromised after a function call
     for (uint8_t i = 0; i < 16; i++) {
         this->Free((Reg){i, 8, Reg::GPR});
@@ -100,6 +110,16 @@ void WindEmitter::RegisterAllocator::PostLoop() {
 Reg *WindEmitter::RegisterAllocator::FindLocalVar(uint16_t offset, uint16_t size) {
     for (uint8_t i = 0; i < 16; i++) {
         if (regs[i].isDirty && regs[i].stack_offset == offset) {
+            Reg freg = Reg({i, (uint8_t)size, Reg::GPR});
+            return new Reg(freg);
+        }
+    }
+    return nullptr;
+}
+
+Reg *WindEmitter::RegisterAllocator::FindLabel(std::string label, uint16_t size) {
+    for (uint8_t i = 0; i < 16; i++) {
+        if (regs[i].isDirty && regs[i].label == label) {
             Reg freg = Reg({i, (uint8_t)size, Reg::GPR});
             return new Reg(freg);
         }
@@ -154,6 +174,6 @@ void WindEmitter::RegisterAllocator::AllocRepr() {
         std::cerr <<
             "[" << GP_REG_MAP[reg.id][__builtin_ctz(reg.size)] << "] " <<
             (regs[i].isDirty ? "DIRTY" : "CLEAN") <<
-            " (" << regs[i].stack_offset << ") " << LIFETIME_MAP[regs[i].lifetime] << std::endl;
+            " (" << regs[i].stack_offset << ") (" << regs[i].label << ") " << LIFETIME_MAP[regs[i].lifetime] << std::endl;
     }
 }

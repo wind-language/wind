@@ -148,15 +148,44 @@ public:
     A_FIVE_INSTR(shl)
     A_FIVE_INSTR(imul)
 
+    A_FIVE_INSTR(movzx)
+
     B_TRIPLE_INSTR(jmp)
     B_TRIPLE_INSTR(call)
     B_TRIPLE_INSTR(push)
     B_TRIPLE_INSTR(pop)
+    B_TRIPLE_INSTR(je)
+    B_TRIPLE_INSTR(jne)
+    B_TRIPLE_INSTR(jg)
+    B_TRIPLE_INSTR(jge)
+    B_TRIPLE_INSTR(jl)
+    B_TRIPLE_INSTR(jle)
+    B_TRIPLE_INSTR(ja)
+    B_TRIPLE_INSTR(jae)
+    B_TRIPLE_INSTR(jb)
+    B_TRIPLE_INSTR(jbe)
+    B_TRIPLE_INSTR(jo)
+    B_TRIPLE_INSTR(jno)
+    B_TRIPLE_INSTR(js)
+    B_TRIPLE_INSTR(jns)
+    B_TRIPLE_INSTR(jp)
+    B_TRIPLE_INSTR(jnp)
+    B_TRIPLE_INSTR(sete)
+    B_TRIPLE_INSTR(setne)
+    B_TRIPLE_INSTR(setg)
+    B_TRIPLE_INSTR(setge)
+    B_TRIPLE_INSTR(setl)
+    B_TRIPLE_INSTR(setle)
+    B_TRIPLE_INSTR(seta)
+    B_TRIPLE_INSTR(setae)
+    B_TRIPLE_INSTR(setb)
+    B_TRIPLE_INSTR(setbe)
 
     B_N_INSTR(leave)
     B_N_INSTR(ret)
 
     C_SEVEN_INSTR(cmp)
+    C_SEVEN_INSTR(test)
 
 
 
@@ -178,7 +207,6 @@ public:
     inline void xor_(Mem mem, Reg src) { this->Write("xor", mem, src); }
     inline void xor_(Mem mem, int32_t imm) { this->Write("xor", mem, imm); }
     inline void xor_(Reg dst, Mem mem) { this->Write("xor", dst, mem); }
-
 };
 
 #endif

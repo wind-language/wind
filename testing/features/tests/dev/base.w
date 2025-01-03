@@ -2,11 +2,15 @@
     "#libc.w"
 ]
 
-global test: int = 1;
+global gb_i: int = 1;
 
 func main(): int {
     var t2:int = 5;
-    test = t2%2;
-    printf("Hi %d\n", test);
+    gb_i = (t2%2)>1;
+    printf("Hi %d\n", gb_i);
+    loop [gb_i < t2] {
+        printf("Hello %d\n", gb_i);
+        gb_i = gb_i + 1;
+    }
     return 0;
 }
