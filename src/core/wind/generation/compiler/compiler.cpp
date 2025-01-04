@@ -157,6 +157,7 @@ void* WindCompiler::visit(const Body &node) {
  */
 void* WindCompiler::visit(const Function &node) {
   IRFunction *fn = new IRFunction(node.getName(), {}, std::unique_ptr<IRBody>(new IRBody({})));
+  fn->metadata = node.metadata;
   if (std::find(this->fn_names.begin(), this->fn_names.end(), node.getName()) != this->fn_names.end()) {
     throw std::runtime_error("Function " + node.getName() + " already defined");
   }

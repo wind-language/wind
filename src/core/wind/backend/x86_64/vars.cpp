@@ -87,13 +87,24 @@ void WindEmitter::EmitLocRef(IRLocalRef *ref, Reg dst) {
         }
         return;
     }
-    this->writer->mov(
-        this->CastReg(dst, ref->datatype()->moveSize()),
-        this->writer->ptr(
-            x86::Gp::rbp,
-            -ref->offset(),
-            ref->datatype()->moveSize()
-        )
-    );
+    if (ref->datatype()->isArray()) {
+        this->writer->lea(
+            this->CastReg(dst, ref->datatype()->moveSize()),
+            this->writer->ptr(
+                x86::Gp::rbp,
+                -(ref->offset()),
+                ref->datatype()->moveSize()
+            )
+        );
+    } else {
+        this->writer->mov(
+            this->CastReg(dst, ref->datatype()->moveSize()),
+            this->writer->ptr(
+                x86::Gp::rbp,
+                -ref->offset(),
+                ref->datatype()->moveSize()
+            )
+        );
+    }
     this->regalloc.SetVar(dst, ref->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
 }

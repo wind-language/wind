@@ -53,7 +53,7 @@ class WBench:
         assert(os.path.exists(path))
         start_time = time.time()
         res = subprocess.run(
-            [path],
+            ["stdbuf", "-oL", path],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             input=input,
@@ -68,7 +68,7 @@ class WBench:
         if compile_err:
             print("Compilation error: "+compile_err)
         run_time, run_out, run_err = WBench.run(OUTPUT_PATH+output, input)
-        return compile_time, run_time, output
+        return compile_time, run_time, output, run_out, run_err
 
     def process_casetype(casetype, input):
         if (casetype.endswith(".txt")): return
@@ -80,10 +80,12 @@ class WBench:
             print("Running C++ benchmark: "+file)
         else:
             raise Exception("Invalid file type")
-        compile_time, run_time, output = WBench.run_bench(casetype, input)
+        compile_time, run_time, output, stdout, stderr = WBench.run_bench(casetype, input)
         print("Compile time: "+hrtd(compile_time))
         print("Run time: "+hrtd(run_time))
-        print("Output: "+output)
+        print("Output file: "+output)
+        print("stdout: " +stdout)
+        print("stderr: " +stderr)
         print("-"*50)
 
     def run_case(case, input: str=""):
@@ -104,4 +106,4 @@ if (not os.path.exists(CASES_PATH+case+"/input.txt")):
     sys.exit(1)
 with open(CASES_PATH+case+"/input.txt", "r") as f:
     INPUT = f.read()
-    WBench.run_case("cabala", INPUT)
+    WBench.run_case(case, INPUT)

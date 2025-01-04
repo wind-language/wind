@@ -108,6 +108,7 @@ class Function : public ASTNode {
 
 public:
   Function(std::string name, std::string type, std::unique_ptr<Body> b);
+  std::string metadata="";
 
   void *accept(ASTVisitor &visitor) const override;
 

@@ -140,6 +140,7 @@ public:
 class IRFunction : public IRNode {
 public:
   std::string fn_name;
+  std::string metadata;
   std::vector<std::unique_ptr<IRLocalRef>> fn_locals;
   std::unique_ptr<IRBody> fn_body;
   std::unordered_map<std::string, IRLocalRef*> local_table;
@@ -150,6 +151,7 @@ public:
   bool call_sub = false;
   DataType *return_type;
   bool ignore_stack_abi=false;
+  bool canary_needed=false;
 
 public:
   explicit IRFunction(std::string name, std::vector<std::unique_ptr<IRLocalRef>> locals, std::unique_ptr<IRBody> body);

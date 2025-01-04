@@ -4,9 +4,9 @@
 
 const std::string GP_REG_MAP[16][4] = {
     {"al", "ax", "eax", "rax"},
-    {"bl", "bx", "ebx", "rbx"},
     {"cl", "cx", "ecx", "rcx"},
     {"dl", "dx", "edx", "rdx"},
+    {"bl", "bx", "ebx", "rbx"},
     {"ah", "sp", "esp", "rsp"},
     {"ch", "bp", "ebp", "rbp"},
     {"dh", "si", "esi", "rsi"},
@@ -58,6 +58,9 @@ std::string Ax86_64::ResolveWord(uint16_t size) {
 }
 
 std::string Ax86_64::ResolveMem(Mem &mem) {
+    if (mem.base_type == Mem::BASE && mem.base.type == Reg::SEG) {
+        return ResolveSeg(mem.base)+":"+std::to_string(mem.offset);
+    }
     std::string res = this->ResolveWord(mem.size) + " ptr [";
     switch (mem.base_type) {
         case Mem::BASE:

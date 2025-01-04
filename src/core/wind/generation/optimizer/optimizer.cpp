@@ -216,6 +216,10 @@ IRNode *WindOptimizer::OptimizeLDecl(IRVariableDecl *local_decl) {
   if (local_decl->value()) {
     opt_value = this->OptimizeExpr(local_decl->value());
   }
+  if (local_decl->local()->datatype()->isArray()) {
+    // whenever an array is declared, a canary is needed to prevent buffer overflows
+    this->current_fn->canary_needed = true;
+  }
   IRVariableDecl *opt_local_decl = new IRVariableDecl(
     local_decl->local(),
     opt_value

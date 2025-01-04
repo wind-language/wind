@@ -28,14 +28,56 @@ void WindEmitter::EmitFnPrologue(IRFunction *fn) {
     else {
         this->writer->push(x86::Gp::rbp);
         this->writer->mov(x86::Gp::rbp, x86::Gp::rsp);
-        unsigned stack_size = NearPow2(fn->stack_size + (fn->isCallSub() ? 8 : 0));
+        unsigned stack_size = NearPow2(fn->stack_size + (fn->isCallSub() ? 16 : 0));
         this->writer->sub(x86::Gp::rsp,
             align16(stack_size)
+        );
+    }
+    if (!(fn->flags & PURE_STCHK) && this->current_fn->canary_needed) {
+        this->writer->rdtscp();
+        this->writer->shl(x86::Gp::rdx, 32);
+        this->writer->or_(x86::Gp::rdx, x86::Gp::rax);
+        this->writer->mov(
+            x86::Gp::rax,
+            this->writer->ptr(
+                x86::Seg::fs,
+                0x40,
+                8
+            )
+        );
+        this->writer->mov(
+            this->writer->ptr(
+                x86::Gp::rbp,
+                -8,
+                8
+            ),
+            x86::Gp::rax
         );
     }
 }
 
 void WindEmitter::EmitFnEpilogue() {
+    if (!(this->current_fn->flags & PURE_STCHK) && this->current_fn->canary_needed) {
+        this->writer->mov(
+            x86::Gp::rdx,
+            this->writer->ptr(
+                x86::Gp::rbp,
+                -8,
+                8
+            )
+        );
+        this->writer->sub(
+            x86::Gp::rdx,
+            this->writer->ptr(
+                x86::Seg::fs,
+                0x40,
+                8
+            )
+        );
+        this->writer->jne(
+            "." + this->current_fn->name() + "_stackfail"
+        );
+    }
     if ( this->current_fn->flags & PURE_LOGUE || (!this->current_fn->stack_size && !this->current_fn->isCallSub()) ) {}
     else {
         this->writer->leave();
@@ -58,20 +100,25 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
     else if (func->flags & FN_PUBLIC || func->name() == "main") {
         this->writer->Global(func->name());
     }
-    this->writer->BindLabel(this->writer->NewLabel(func->name()));
+    uint8_t fn_label =this->writer->NewLabel(func->name());
+    this->writer->BindLabel(fn_label);
     
-    this->rostrs.push_back(
-        func->name()
-    );
-    this->writer->mov( // Load function info in r15 [ : HANDLER : ]
-        x86::Gp::r15,
-        this->writer->ptr(
-            ".ros"+std::to_string(this->rostr_i++),
-            0,
-            8
-        )
-    );
-
+    uint8_t metadata_ros_i=0;
+    if (!(func->flags & PURE_STCHK)) {
+        this->rostrs.push_back(
+            func->name() + "(...) [" + func->metadata + "]"
+        );
+        metadata_ros_i = this->rostr_i++;
+        this->writer->lea( // Load function info in r15 [ : HANDLER : ]
+            x86::Gp::r15,
+            this->writer->ptr(
+                ".ros"+std::to_string(metadata_ros_i),
+                0,
+                8
+            )
+        );
+    }
+    
     this->EmitFnPrologue(func);
 
 
@@ -115,6 +162,22 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
     if (!last || last->type() != IRNode::NodeType::RET) {
         this->EmitFnEpilogue();
     }
+    if (!(func->flags & PURE_STCHK)) {
+        this->writer->BindLabel(
+            this->writer->NewLabel("." + func->name() + "_stackfail")
+        );
+        this->writer->lea( // Load function info in r15 [ : HANDLER : ]
+            x86::Gp::r15,
+            this->writer->ptr(
+                ".ros"+std::to_string(metadata_ros_i),
+                0,
+                8
+            )
+        );
+        this->writer->jmp(
+            "__WD_canary_fail"
+        );
+    }
 }
 
 void WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
@@ -138,7 +201,27 @@ void WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
         this->writer->xor_(x86::Gp::rax, x86::Gp::rax);
     }
     this->regalloc.FreeAllRegs();
+    if (!(this->current_fn->flags & PURE_STCHK)) {
+        this->writer->mov(
+            this->writer->ptr(
+                x86::Gp::rbp,
+                -16,
+                8
+            ),
+            x86::Gp::r15
+        );
+    }
     this->writer->call(call->name());
+    if (!(this->current_fn->flags & PURE_STCHK)) {
+        this->writer->mov(
+            x86::Gp::r15,
+            this->writer->ptr(
+                x86::Gp::rbp,
+                -16,
+                8
+            )
+        );
+    }
     if (dst.id != 0) {
         this->writer->mov(dst, this->CastReg(x86::Gp::rax, dst.size));
     }

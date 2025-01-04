@@ -224,6 +224,8 @@ IRFunction *IRFunction::clone() {
   new_fn->arg_types = arg_types;
   new_fn->return_type = return_type;
   new_fn->ignore_stack_abi = ignore_stack_abi;
+  new_fn->metadata = metadata;
+  new_fn->canary_needed = canary_needed;
   return new_fn;
 }
 
@@ -234,7 +236,7 @@ IRFunction *IRFunction::clone() {
  * @return The new local variable.
  */
 IRLocalRef *IRFunction::NewLocal(std::string name, DataType *type) {
-  uint16_t offset = stack_size+0x08; // left for canary
+  uint16_t offset = stack_size+0x10; // left for canary
   offset += type->memSize();
   stack_size += type->memSize();
   local_table.insert({name, new IRLocalRef(offset, type)});

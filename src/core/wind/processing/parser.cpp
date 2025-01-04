@@ -66,7 +66,7 @@ std::string WindParser::typeSignature(Token::Type while_) {
 
 
 Function *WindParser::parseFn() {
-  this->expect(Token::Type::IDENTIFIER, "func");
+  Token *fn_ref_tok = this->expect(Token::Type::IDENTIFIER, "func");
   std::string name = this->expect(Token::Type::IDENTIFIER, "function name")->value;
   Body *fn_body = new Body({});
   std::vector<std::string> arg_types;
@@ -102,6 +102,7 @@ Function *WindParser::parseFn() {
     this->expect(Token::Type::SEMICOLON, ";");
   }
   Function *fn = new Function(name, ret_type, std::unique_ptr<Body>(fn_body));
+  fn->metadata = std::filesystem::path(global_isc->getPath(fn_ref_tok->srcId)).filename().string();
   fn->copyArgTypes(arg_types);
   fn->flags = this->flag_holder;
   this->flag_holder = 0;
@@ -337,7 +338,8 @@ FnFlags macroIntoFlag(std::string name) {
 void WindParser::pathWork(std::string relative, Token *token_ref) {
   std::string path;
   if (relative[0] != '#') {
-    std::string folder = std::filesystem::path(this->file_path).parent_path().string();
+    std::string this_path = global_isc->getPath(token_ref->srcId);
+    std::string folder = std::filesystem::path(this_path).parent_path().string();
     path = std::filesystem::path(folder).append(relative).string();
   } else {
     path = std::filesystem::path(WIND_STD_PATH).append(relative.substr(1)).string();
