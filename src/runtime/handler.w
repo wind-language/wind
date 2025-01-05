@@ -30,3 +30,12 @@
   printf("Mul overflow encountered in function '%s'\n");
   abort();
 }
+
+@pub @pure[stchk] func __WDH_div_overflow() : void {
+  puts("*** [ div overflow ] ***");
+  asm {
+    mov rsi, r15;
+  }
+  printf("Div overflow encountered in function '%s'\n");
+  abort();
+}

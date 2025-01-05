@@ -87,18 +87,19 @@ private:
     void EmitReturn(IRRet *ret);
     void EmitLocDecl(IRVariableDecl *decl);
     void EmitInAsm(IRInlineAsm *asmn);
+    void EmitBranch(IRBranching *branch);
     void EmitLoop(IRLooping *loop);
 
-    void EmitFnCall(IRFnCall *call, Reg dst);
+    Reg EmitFnCall(IRFnCall *call, Reg dst);
 
-    void EmitValue(IRNode *value, Reg dst);
-    void EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp);
-    void EmitExpr(IRNode *expr, Reg dst, bool isJmp=false);
-    void EmitLocRef(IRLocalRef *ref, Reg dst);
-    void EmitGlobRef(IRGlobRef *ref, Reg dst);
+    Reg EmitValue(IRNode *value, Reg dst);
+    Reg EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp);
+    Reg EmitExpr(IRNode *expr, Reg dst, bool isJmp=false);
+    Reg EmitLocRef(IRLocalRef *ref, Reg dst);
+    Reg EmitGlobRef(IRGlobRef *ref, Reg dst);
     void EmitIntoLoc(IRLocalRef *ref, IRNode *value);
-    void EmitString(IRStringLiteral *str, Reg dst);
-    void EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst);
+    Reg EmitString(IRStringLiteral *str, Reg dst);
+    Reg EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst);
 
     void ProcessStatement(IRNode *node);
     void ProcessTop(IRNode *node);

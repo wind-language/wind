@@ -162,7 +162,7 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
     if (!last || last->type() != IRNode::NodeType::RET) {
         this->EmitFnEpilogue();
     }
-    if (!(func->flags & PURE_STCHK)) {
+    if (!(func->flags & PURE_STCHK) && func->canary_needed) {
         this->writer->BindLabel(
             this->writer->NewLabel("." + func->name() + "_stackfail")
         );
@@ -180,8 +180,9 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
     }
 }
 
-void WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
+Reg WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
     int arg_i = call->args().size()-1;
+    dst.size = call->getRef()->return_type->moveSize();
     for (;arg_i>=0;arg_i--) {
         if (arg_i>=call->getRef()->ArgNum() && !(call->getRef()->flags & FN_VARIADIC)) {
             throw std::runtime_error("Too many arguments");
@@ -225,4 +226,5 @@ void WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
     if (dst.id != 0) {
         this->writer->mov(dst, this->CastReg(x86::Gp::rax, dst.size));
     }
+    return dst;
 }

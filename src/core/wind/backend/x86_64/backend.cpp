@@ -36,7 +36,7 @@ void WindEmitter::ProcessTop(IRNode *node) {
             this->ProcessFunction(node->as<IRFunction>());
             break;
         default:
-            throw std::runtime_error("Invalid top-level node type(" + std::to_string((uint8_t)node->type()) + "): Report to mantainer!");
+            throw std::runtime_error("Invalid top-level node type(" + std::to_string((uint8_t)node->type()) + "): Report to maintainer!");
     }
 }
 
@@ -55,10 +55,12 @@ void WindEmitter::ProcessStatement(IRNode *node) {
         case IRNode::NodeType::IN_ASM:
             this->EmitInAsm(node->as<IRInlineAsm>());
             break;
-        case IRNode::NodeType::LOOP: {
+        case IRNode::NodeType::LOOP:
             this->EmitLoop(node->as<IRLooping>());
             break;
-        }
+        case IRNode::NodeType::BRANCH: 
+            this->EmitBranch(node->as<IRBranching>());
+            break;
         default:
             this->EmitExpr(node, Reg({0, 8, Reg::GPR}));
     }

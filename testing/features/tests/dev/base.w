@@ -8,9 +8,9 @@ func main(): int {
     var t2:short = 5;
     gb_i = (t2%2)>1;
     printf("Hi %d\n", gb_i);
-    loop [gb_i < t2] {
-        printf("Hello %d\n", gb_i);
-        gb_i = gb_i + 1;
-    }
+    branch [
+        t2>2: printf(">2\n");
+        else: printf("<=2\n");
+    ]
     return 0;
 }

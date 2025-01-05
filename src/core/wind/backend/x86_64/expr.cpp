@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <iostream>
 
-void WindEmitter::EmitString(IRStringLiteral *str, Reg dst) {
+Reg WindEmitter::EmitString(IRStringLiteral *str, Reg dst) {
     this->rostrs.push_back(str->get());
     this->writer->lea(
         dst,
@@ -15,9 +15,10 @@ void WindEmitter::EmitString(IRStringLiteral *str, Reg dst) {
             8
         )
     );
+    return {dst.id, 8, Reg::GPR};
 }
 
-void WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
+Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
     if (ref->isIndexed()) {
         if (!ref->datatype()->isArray()) {
             throw std::runtime_error("Cannot index non-array");
@@ -44,34 +45,32 @@ void WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
             )
         );
     }
+    return {dst.id, 8, Reg::GPR};
 }
 
-void WindEmitter::EmitValue(IRNode *value, Reg dst) {
+Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
     switch (value->type()) {
         case IRNode::NodeType::LITERAL: {
             this->writer->mov(dst, value->as<IRLiteral>()->get());
             break;
         }
         case IRNode::NodeType::LOCAL_REF: {
-            this->EmitLocRef(value->as<IRLocalRef>(), dst);
-            break;
+            return this->EmitLocRef(value->as<IRLocalRef>(), dst);
         }
         case IRNode::NodeType::GLOBAL_REF: {
-            this->EmitGlobRef(value->as<IRGlobRef>(), dst);
-            break;
+            return this->EmitGlobRef(value->as<IRGlobRef>(), dst);
         }
         case IRNode::NodeType::STRING: {
-            this->EmitString(value->as<IRStringLiteral>(), dst);
-            break;
+            return this->EmitString(value->as<IRStringLiteral>(), dst);
         }
         case IRNode::NodeType::LADDR_REF: {
-            this->EmitLocAddrRef(value->as<IRLocalAddrRef>(), dst);
-            break;
+            return this->EmitLocAddrRef(value->as<IRLocalAddrRef>(), dst);
         }
         default: {
-            throw std::runtime_error("Unknown value type(" + std::to_string((uint8_t)value->type()) + "): Report to mantainer!");
+            throw std::runtime_error("Unknown value type(" + std::to_string((uint8_t)value->type()) + "): Report to maintainer!");
         }
     }
+    return dst;
 }
 
 void WindEmitter::TryCast(Reg dst, Reg proc) {
@@ -83,7 +82,7 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
 #define LITERAL_OP(type, op) \
     case type: { \
         this->writer->op(dst, binop->right()->as<IRLiteral>()->get()); \
-        return; \
+        return dst; \
     }
 
 #define LOCAL_OP_RAW(op) \
@@ -92,16 +91,15 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
         -binop->right()->as<IRLocalRef>()->offset(), \
         binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
     )); \
-    return;
+    return {dst.id, (uint8_t)binop->right()->as<IRLocalRef>()->datatype()->moveSize(), Reg::GPR};
 
 #define OPT_LOCAL_OP(type, op) \
     case type: { \
         if (freg) { \
             this->writer->op(dst, *freg); \
-            return; \
+            return dst; \
         } else { \
             LOCAL_OP_RAW(op) \
-            return; \
         } \
     }
 
@@ -111,16 +109,15 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
         0, \
         binop->right()->as<IRGlobRef>()->getType()->moveSize() \
     )); \
-    return;
+    return {dst.id, (uint8_t)binop->right()->as<IRGlobRef>()->getType()->moveSize(), Reg::GPR};
 
 #define GLOBAL_OP(type, op) \
     case type: { \
         if (freg) { \
             this->writer->op(dst, *freg); \
-            return; \
+            return dst; \
         } else { \
             GLOB_OP_RAW(op) \
-            return; \
         } \
     }
 
@@ -147,27 +144,28 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
 #define LIT_CMP_OP(type, op) \
     case type: { \
         this->writer->cmp(dst, binop->right()->as<IRLiteral>()->get()); \
+        dst.size = tmp_size; \
         if (!isJmp) { \
             this->writer->op(this->CastReg(dst, 1)); \
             this->TryCast(dst, x86::Gp::al); \
         } \
-        return; \
+        return dst; \
     }
 
 #define LOC_CMP_OP(type, op) \
     case type: { \
         if (freg) { \
             this->writer->cmp(dst, *freg); \
-            return; \
+            return dst; \
         } else { \
             LOCAL_OP_RAW(cmp) \
-            return; \
         } \
+        dst.size = binop->right()->as<IRLocalRef>()->datatype()->moveSize(); \
         if (!isJmp) { \
             this->writer->op(this->CastReg(dst, 1)); \
             this->TryCast(dst, x86::Gp::al); \
         } \
-        return; \
+        return dst; \
     }
 
 #define GLB_CMP_OP(type, op) \
@@ -177,11 +175,12 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
             0, \
             binop->right()->as<IRGlobRef>()->getType()->moveSize() \
         )); \
+        dst.size = binop->right()->as<IRGlobRef>()->getType()->moveSize(); \
         if (!isJmp) { \
             this->writer->op(this->CastReg(dst, 1)); \
             this->TryCast(dst, x86::Gp::al); \
         } \
-        return; \
+        return dst; \
     }
 
 #define EL_CMP_OP(op) \
@@ -192,7 +191,7 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
     } \
 
 
-void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
+Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
     uint8_t tmp_size = dst.size;
     if (binop->operation() == IRBinOp::Operation::L_ASSIGN) {
         tmp_size = binop->left()->as<IRLocalRef>()->datatype()->moveSize();
@@ -200,7 +199,7 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
         tmp_size = binop->left()->as<IRGlobRef>()->getType()->moveSize();
     }
     else {
-        this->EmitExpr((IRNode*)binop->left(), dst);
+        dst = this->EmitExpr((IRNode*)binop->left(), dst);
         this->regalloc.SetDirty(dst);
     }
 
@@ -219,6 +218,7 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 LIT_CMP_OP(IRBinOp::LESSEQ, setle)
                 default: {}
             }
+            break;
         }
         case IRNode::NodeType::LOCAL_REF: {
             Reg *freg = this->regalloc.FindLocalVar(binop->right()->as<IRLocalRef>()->offset(), binop->right()->as<IRLocalRef>()->datatype()->moveSize());
@@ -236,6 +236,7 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 LOC_CMP_OP(IRBinOp::LESSEQ, setle)
                 default: {}
             }
+            break;
         }
         case IRNode::NodeType::GLOBAL_REF: {
             Reg *freg = this->regalloc.FindLabel(binop->right()->as<IRGlobRef>()->getName(), binop->right()->as<IRGlobRef>()->getType()->moveSize());
@@ -253,12 +254,13 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 GLB_CMP_OP(IRBinOp::LESSEQ, setle)
                 default: {}
             }
+            break;
         }
         default: {}
     }
 
     Reg tmp = this->regalloc.Allocate(tmp_size, false);
-    this->EmitExpr((IRNode*)binop->right(), tmp);
+    tmp = this->EmitExpr((IRNode*)binop->right(), tmp);
     this->regalloc.SetDirty(tmp);
 
     switch (binop->operation()) {
@@ -299,7 +301,7 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             EL_CMP_OP(setle)
             break;
         default:
-            throw std::runtime_error("Unsupported binop (" + std::to_string((uint8_t)binop->operation()) + "): Report to mantainer!");
+            throw std::runtime_error("Unsupported binop (" + std::to_string((uint8_t)binop->operation()) + "): Report to maintainer!");
     }
 
     this->regalloc.Free(tmp);
@@ -308,9 +310,10 @@ void WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
     } else if (binop->operation() == IRBinOp::Operation::G_ASSIGN) {
         this->regalloc.SetLabel(dst, binop->left()->as<IRGlobRef>()->getName(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
     }
+    return dst;
 }
 
-void WindEmitter::EmitExpr(IRNode *value, Reg dst, bool isJmp) {
+Reg WindEmitter::EmitExpr(IRNode *value, Reg dst, bool isJmp) {
     if (!this->regalloc.Request(dst)) {
         std::cerr << this->GetAsm() << std::endl;
         this->regalloc.AllocRepr();
@@ -318,20 +321,22 @@ void WindEmitter::EmitExpr(IRNode *value, Reg dst, bool isJmp) {
     }
 
     bool jmpProcessed=false;
+    Reg res_reg;
     switch (value->type()) {
         case IRNode::NodeType::BIN_OP: {
-            this->EmitBinOp(value->as<IRBinOp>(), dst, false);
+            res_reg = this->EmitBinOp(value->as<IRBinOp>(), dst, isJmp);
             jmpProcessed=true;
             break;
         }
         case IRNode::NodeType::FUNCTION_CALL: {
-            this->EmitFnCall(value->as<IRFnCall>(), dst);
+            res_reg = this->EmitFnCall(value->as<IRFnCall>(), dst);
             break;
         }
         default: {
-            this->EmitValue(value, dst);
+            res_reg = this->EmitValue(value, dst);
         }
     }
 
     this->regalloc.PostExpression();
+    return res_reg;
 }

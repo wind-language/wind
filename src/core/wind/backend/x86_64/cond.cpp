@@ -23,8 +23,8 @@ void WindEmitter::EmitCJump(IRNode *node, uint8_t label, bool invert) {
 }
 
 void WindEmitter::EmitLoop(IRLooping *loop) {
-    uint8_t start = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
     uint8_t end = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
+    uint8_t start = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
     this->writer->BindLabel(start);
     this->regalloc.FreeAllRegs();
     this->EmitCJump(loop->getCondition(), end, true);
@@ -32,5 +32,33 @@ void WindEmitter::EmitLoop(IRLooping *loop) {
         this->ProcessStatement(node.get());
     }
     this->writer->jmp(this->writer->LabelById(start));
+    this->writer->BindLabel(end);
+}
+
+void WindEmitter::EmitBranch(IRBranching *branch) {
+    int N = branch->getBranches().size();
+    uint8_t *labels = new uint8_t[N];
+    for (int i = 0; i < N; i++) {
+        labels[i] = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
+    }
+    uint8_t end = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
+    for (int i = 0; i < N; i++) {
+        this->EmitCJump(branch->getBranches()[i].condition.get(), labels[i], false);
+    }
+    if (branch->getElseBranch() != nullptr) {
+        for (auto &statement : branch->getElseBranch()->get()) {
+            this->ProcessStatement(statement.get());
+        }
+    }
+    this->writer->jmp(this->writer->LabelById(end));
+    for (int i = 0; i < N; i++) {
+        this->writer->BindLabel(labels[i]);
+        IRBody *body = branch->getBranches()[i].body.get()->as<IRBody>();
+        for (auto &statement : body->get()) {
+            this->ProcessStatement(statement.get());
+        }
+        if (i < N-1)
+            this->writer->jmp(this->writer->LabelById(end));
+    }
     this->writer->BindLabel(end);
 }
