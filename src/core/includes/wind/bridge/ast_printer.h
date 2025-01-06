@@ -21,6 +21,8 @@ public:
     void *visit(const TypeDecl &node) override;
     void *visit(const Branching &node) override;
     void *visit(const Looping &node) override;
+    void *visit(const Break &node) override;
+    void *visit(const Continue &node) override;
 
 private:
     void print_tabs();

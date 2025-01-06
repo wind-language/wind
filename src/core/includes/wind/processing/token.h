@@ -39,7 +39,11 @@ public:
     EQ,
     LESS,
     GREATER,
-    LESSEQ
+    LESSEQ,
+    PLUS_ASSIGN,
+    MINUS_ASSIGN,
+    INCREMENT,
+    DECREMENT
   };
   
   std::string value;
@@ -62,6 +66,10 @@ std::vector<std::pair<std::string, Token::Type>> const SymbolTable = {
   {"==", Token::Type::EQ},
   {"&&", Token::Type::LOGAND},
   {"<=", Token::Type::LESSEQ},
+  {"+=", Token::Type::PLUS_ASSIGN},
+  {"-=", Token::Type::MINUS_ASSIGN},
+  {"++", Token::Type::INCREMENT},
+  {"--", Token::Type::DECREMENT},
   
   {"+", Token::Type::PLUS},
   {"-", Token::Type::MINUS},

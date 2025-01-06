@@ -61,6 +61,12 @@ void WindEmitter::ProcessStatement(IRNode *node) {
         case IRNode::NodeType::BRANCH: 
             this->EmitBranch(node->as<IRBranching>());
             break;
+        case IRNode::NodeType::BREAK:
+            this->writer->jmp(this->writer->LabelById(this->c_flow_desc->end));
+            break;
+        case IRNode::NodeType::CONTINUE:
+            this->writer->jmp(this->writer->LabelById(this->c_flow_desc->start));
+            break;
         default:
             this->EmitExpr(node, Reg({0, 8, Reg::GPR}));
     }

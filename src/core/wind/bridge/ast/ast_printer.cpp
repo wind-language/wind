@@ -159,3 +159,15 @@ void *ASTPrinter::visit(const GlobalDecl &node) {
   std::cout << "global " << node.getName() << " [" << node.getType() << "]" << std::endl;
   return nullptr;
 }
+
+void *ASTPrinter::visit(const Break &node) {
+  this->print_tabs();
+  std::cout << "break";
+  return nullptr;
+}
+
+void *ASTPrinter::visit(const Continue &node) {
+  this->print_tabs();
+  std::cout << "continue";
+  return nullptr;
+}

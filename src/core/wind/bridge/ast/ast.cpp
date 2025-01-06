@@ -247,3 +247,13 @@ const Body* Looping::getBody() const {
 const ASTNode* Looping::getCondition() const {
   return condition;
 }
+
+Break::Break() {}
+void *Break::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+
+Continue::Continue() {}
+void *Continue::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}

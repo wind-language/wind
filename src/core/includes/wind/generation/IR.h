@@ -26,7 +26,9 @@ public:
     IN_ASM,
     LADDR_REF,
     BRANCH,
-    LOOP
+    LOOP,
+    BREAK,
+    CONTINUE
   };
 
   virtual ~IRNode() = default;
@@ -193,7 +195,11 @@ public:
     L_ASSIGN,
     G_ASSIGN,
     MOD,
-    LOGAND
+    LOGAND,
+    L_PLUS_ASSIGN,
+    L_MINUS_ASSIGN,
+    G_PLUS_ASSIGN,
+    G_MINUS_ASSIGN,
   };
 
 private:
@@ -323,6 +329,16 @@ public:
   IRBody* getBody() const;
   void setBody(IRBody *body);
   NodeType type() const override { return NodeType::LOOP; }
+};
+
+class IRBreak : public IRNode {
+public:
+  NodeType type() const override { return NodeType::BREAK; }
+};
+
+class IRContinue : public IRNode {
+public:
+  NodeType type() const override { return NodeType::CONTINUE; }
 };
 
 #endif // IR_H

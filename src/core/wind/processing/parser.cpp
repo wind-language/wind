@@ -116,11 +116,15 @@ static Token::Type TOK_OP_LIST[]={
   Token::Type::DIVIDE,
   Token::Type::MODULO,
   Token::Type::ASSIGN,
+  Token::Type::PLUS_ASSIGN,
+  Token::Type::MINUS_ASSIGN,
   Token::Type::EQ,
   Token::Type::LESS,
   Token::Type::GREATER,
   Token::Type::LESSEQ,
-  Token::Type::LOGAND
+  Token::Type::LOGAND,
+  Token::Type::INCREMENT,
+  Token::Type::DECREMENT
 };
 
 bool tokIsOperator(Token *tok) {
@@ -274,7 +278,26 @@ ASTNode *WindParser::parseExprBinOp(ASTNode *left, int precedence) {
       break;
     }
 
-    ASTNode *right = this->parseExprPrimary();
+    ASTNode *right;
+    if (op->type == Token::Type::INCREMENT) {
+      right = new Literal(1);
+      left = new BinaryExpr(
+        std::unique_ptr<ASTNode>(left),
+        std::unique_ptr<ASTNode>(right),
+        "+="
+      );
+      continue;
+    }
+    else if (op->type == Token::Type::DECREMENT) {
+      right = new Literal(1);
+      left = new BinaryExpr(
+        std::unique_ptr<ASTNode>(left),
+        std::unique_ptr<ASTNode>(right),
+        "-="
+      );
+      continue;
+    }
+    right = this->parseExprPrimary();
 
     if (this->stream->current() && tokIsOperator(this->stream->current())) {
       int next_precedence = getOpPrecedence(this->stream->current());
@@ -545,6 +568,16 @@ ASTNode *WindParser::DiscriminateBody() {
   }
   else if (this->isKeyword(stream->current(), "loop")) {
     return this->parseLoop();
+  }
+  else if (this->isKeyword(stream->current(), "break")) {
+    this->expect(Token::Type::IDENTIFIER, "break");
+    this->expect(Token::Type::SEMICOLON, ";");
+    return new Break();
+  }
+  else if (this->isKeyword(stream->current(), "continue")) {
+    this->expect(Token::Type::IDENTIFIER, "continue");
+    this->expect(Token::Type::SEMICOLON, ";");
+    return new Continue();
   }
   else {
     return this->parseExprSemi();

@@ -50,7 +50,29 @@ void* WindCompiler::visit(const BinaryExpr &node) {
   IRNode *left = (IRNode*)node.getLeft()->accept(*this);
   IRNode *right = (IRNode*)node.getRight()->accept(*this);
   IRBinOp::Operation op;
-  if (node.getOperator() == "=") {
+  if (node.getOperator() == "+=") {
+    if (left->type() == IRNode::NodeType::LOCAL_REF) {
+      op = IRBinOp::Operation::L_PLUS_ASSIGN;
+    } 
+    else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
+      op = IRBinOp::Operation::G_PLUS_ASSIGN;
+    }
+    else {
+      throw std::runtime_error("Left operand of += must be a variable reference (also not a pointer)");
+    }
+  }
+  else if (node.getOperator() == "-=") {
+    if (left->type() == IRNode::NodeType::LOCAL_REF) {
+      op = IRBinOp::Operation::L_MINUS_ASSIGN;
+    } 
+    else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
+      op = IRBinOp::Operation::G_MINUS_ASSIGN;
+    }
+    else {
+      throw std::runtime_error("Left operand of -= must be a variable reference (also not a pointer)");
+    }
+  }
+  else if (node.getOperator() == "=") {
     // Assign operation
     if (left->type() == IRNode::NodeType::LOCAL_REF) {
       op = IRBinOp::Operation::L_ASSIGN;
@@ -381,4 +403,22 @@ void *WindCompiler::visit(const Looping &node) {
   loop->setCondition(cond);
   loop->setBody(body);
   return loop;
+}
+
+/**
+ * @brief Visits a break node.
+ * @param node The break node.
+ * @return The compiled IR node.
+ */
+void *WindCompiler::visit(const Break &node) {
+  return new IRBreak();
+}
+
+/**
+ * @brief Visits a continue node.
+ * @param node The continue node.
+ * @return The compiled IR node.
+ */
+void *WindCompiler::visit(const Continue &node) {
+  return new IRContinue();
 }

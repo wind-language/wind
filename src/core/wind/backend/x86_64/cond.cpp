@@ -23,16 +23,19 @@ void WindEmitter::EmitCJump(IRNode *node, uint8_t label, bool invert) {
 }
 
 void WindEmitter::EmitLoop(IRLooping *loop) {
-    uint8_t end = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
     uint8_t start = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
+    uint8_t end = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
     this->writer->BindLabel(start);
     this->regalloc.FreeAllRegs();
     this->EmitCJump(loop->getCondition(), end, true);
+    FlowDesc *old = this->c_flow_desc;
+    this->c_flow_desc = new FlowDesc({start, end});
     for (auto &node : loop->getBody()->get()) {
         this->ProcessStatement(node.get());
     }
     this->writer->jmp(this->writer->LabelById(start));
     this->writer->BindLabel(end);
+    this->c_flow_desc = old;
 }
 
 void WindEmitter::EmitBranch(IRBranching *branch) {

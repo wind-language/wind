@@ -28,6 +28,13 @@ private:
     IRFunction *current_fn;
 
     // ----
+
+    struct FlowDesc {
+        uint8_t start;
+        uint8_t end;
+    } *c_flow_desc = nullptr;
+
+    // ----
     
     class RegisterAllocator {
     public:

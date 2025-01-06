@@ -136,6 +136,16 @@ void IRPrinter::print_node(const IRNode *node) {
       );
       break;
     }
+    case IRNode::NodeType::BREAK : {
+      this->print_tabs();
+      std::cout << "break" << std::endl;
+      break;
+    }
+    case IRNode::NodeType::CONTINUE : {
+      this->print_tabs();
+      std::cout << "continue" << std::endl;
+      break;
+    }
     default : {
       std::cout << "Unknown node type" << std::endl;
       break;

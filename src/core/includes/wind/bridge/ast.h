@@ -241,6 +241,18 @@ public:
   const Body* getBody() const;
 };
 
+class Break : public ASTNode {
+public:
+  Break();
+  void *accept(ASTVisitor &visitor) const;
+};
+
+class Continue : public ASTNode {
+public:
+  Continue();
+  void *accept(ASTVisitor &visitor) const;
+};
+
 
 class ASTVisitor {
 public:
@@ -260,6 +272,8 @@ public:
   virtual void *visit(const TypeDecl &node) = 0;
   virtual void *visit(const Branching &node) = 0;
   virtual void *visit(const Looping &node) = 0;
+  virtual void *visit(const Break &node) = 0;
+  virtual void *visit(const Continue &node) = 0;
 };
 
 #endif // AST_H

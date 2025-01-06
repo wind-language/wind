@@ -51,7 +51,12 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
 Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
     switch (value->type()) {
         case IRNode::NodeType::LITERAL: {
-            this->writer->mov(dst, value->as<IRLiteral>()->get());
+            int64_t val = value->as<IRLiteral>()->get();
+            if (val==0) {
+                this->writer->xor_(dst, dst);
+            } else {
+                this->writer->mov(dst, val);
+            }
             break;
         }
         case IRNode::NodeType::LOCAL_REF: {
@@ -121,24 +126,64 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
         } \
     }
 
-#define L_ASSIGN_OP() \
+#define L_ASSIGN_OP(src) \
     this->writer->mov( \
         this->writer->ptr( \
             x86::Gp::rbp, \
             -binop->left()->as<IRLocalRef>()->offset(), \
             binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
         ), \
-        tmp \
+        src \
     ); \
 
-#define G_ASSIGN_OP() \
+#define G_ASSIGN_OP(src) \
     this->writer->mov( \
         this->writer->ptr( \
             binop->left()->as<IRGlobRef>()->getName(), \
             0, \
             binop->left()->as<IRGlobRef>()->getType()->moveSize() \
         ), \
-        tmp \
+        src \
+    ); \
+
+#define L_PLUS_ASSIGN_OP(src) \
+    this->writer->add( \
+        this->writer->ptr( \
+            x86::Gp::rbp, \
+            -binop->left()->as<IRLocalRef>()->offset(), \
+            binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
+        ), \
+        src \
+    ); \
+
+#define G_PLUS_ASSIGN_OP(src) \
+    this->writer->add( \
+        this->writer->ptr( \
+            binop->left()->as<IRGlobRef>()->getName(), \
+            0, \
+            binop->left()->as<IRGlobRef>()->getType()->moveSize() \
+        ), \
+        src \
+    ); \
+
+#define L_MINUS_ASSIGN_OP(src) \
+    this->writer->sub( \
+        this->writer->ptr( \
+            x86::Gp::rbp, \
+            -binop->left()->as<IRLocalRef>()->offset(), \
+            binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
+        ), \
+        src \
+    ); \
+
+#define G_MINUS_ASSIGN_OP(src) \
+    this->writer->sub( \
+        this->writer->ptr( \
+            binop->left()->as<IRGlobRef>()->getName(), \
+            0, \
+            binop->left()->as<IRGlobRef>()->getType()->moveSize() \
+        ), \
+        src \
     ); \
 
 #define LIT_CMP_OP(type, op) \
@@ -190,12 +235,28 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
         this->TryCast(dst, x86::Gp::al); \
     } \
 
+#define GEN_ASSIGN_LIT(type, op) \
+    case type: { \
+        op(binop->right()->as<IRLiteral>()->get()); \
+        dst.size = binop->left()->as<IRLocalRef>()->datatype()->moveSize(); \
+        this->writer->mov(dst, this->writer->ptr( \
+            x86::Gp::rbp, \
+            -binop->left()->as<IRLocalRef>()->offset(), \
+            binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
+        )); \
+        return dst; \
+    }
+
 
 Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
     uint8_t tmp_size = dst.size;
-    if (binop->operation() == IRBinOp::Operation::L_ASSIGN) {
+    if (binop->operation() == IRBinOp::Operation::L_ASSIGN
+        || binop->operation() == IRBinOp::Operation::L_PLUS_ASSIGN
+        || binop->operation() == IRBinOp::Operation::L_MINUS_ASSIGN) {
         tmp_size = binop->left()->as<IRLocalRef>()->datatype()->moveSize();
-    } else if (binop->operation() == IRBinOp::Operation::G_ASSIGN) {
+    } else if (binop->operation() == IRBinOp::Operation::G_ASSIGN
+        || binop->operation() == IRBinOp::Operation::G_PLUS_ASSIGN
+        || binop->operation() == IRBinOp::Operation::G_MINUS_ASSIGN) {
         tmp_size = binop->left()->as<IRGlobRef>()->getType()->moveSize();
     }
     else {
@@ -216,6 +277,12 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 LIT_CMP_OP(IRBinOp::LESS, setl)
                 LIT_CMP_OP(IRBinOp::GREATER, setg)
                 LIT_CMP_OP(IRBinOp::LESSEQ, setle)
+                GEN_ASSIGN_LIT(IRBinOp::L_ASSIGN, L_ASSIGN_OP)
+                GEN_ASSIGN_LIT(IRBinOp::G_ASSIGN, G_ASSIGN_OP)
+                GEN_ASSIGN_LIT(IRBinOp::L_PLUS_ASSIGN, L_PLUS_ASSIGN_OP)
+                GEN_ASSIGN_LIT(IRBinOp::G_PLUS_ASSIGN, G_PLUS_ASSIGN_OP)
+                GEN_ASSIGN_LIT(IRBinOp::L_MINUS_ASSIGN, L_MINUS_ASSIGN_OP)
+                GEN_ASSIGN_LIT(IRBinOp::G_MINUS_ASSIGN, G_MINUS_ASSIGN_OP)
                 default: {}
             }
             break;
@@ -283,10 +350,22 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             this->writer->and_(dst, tmp);
             break;
         case IRBinOp::L_ASSIGN:
-            L_ASSIGN_OP()
+            L_ASSIGN_OP(tmp)
             break;
         case IRBinOp::G_ASSIGN:
-            G_ASSIGN_OP()
+            G_ASSIGN_OP(tmp)
+            break;
+        case IRBinOp::L_PLUS_ASSIGN:
+            L_PLUS_ASSIGN_OP(tmp)
+            break;
+        case IRBinOp::G_PLUS_ASSIGN:
+            G_PLUS_ASSIGN_OP(tmp)
+            break;
+        case IRBinOp::L_MINUS_ASSIGN:
+            L_MINUS_ASSIGN_OP(tmp)
+            break;
+        case IRBinOp::G_MINUS_ASSIGN:
+            G_MINUS_ASSIGN_OP(tmp)
             break;
         case IRBinOp::EQ:
             EL_CMP_OP(sete)
