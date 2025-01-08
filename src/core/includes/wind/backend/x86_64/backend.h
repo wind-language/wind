@@ -68,14 +68,25 @@ private:
 
 public:
     WindEmitter(IRBody *program): program(program), writer(new Ax86_64()) {
-        jmp_map[IRBinOp::Operation::EQ][0] = [this](uint8_t label) { this->writer->je(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::EQ][1] = [this](uint8_t label) { this->writer->jne(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::GREATER][0] = [this](uint8_t label) { this->writer->jg(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::GREATER][1] = [this](uint8_t label) { this->writer->jle(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::LESS][0] = [this](uint8_t label) { this->writer->jl(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::LESS][1] = [this](uint8_t label) { this->writer->jge(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::LESSEQ][0] = [this](uint8_t label) { this->writer->jle(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::LESSEQ][1] = [this](uint8_t label) { this->writer->jg(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::EQ][0][0] = [this](uint8_t label) { this->writer->je(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::EQ][0][1] = [this](uint8_t label) { this->writer->jne(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::EQ][1][0] = [this](uint8_t label) { this->writer->je(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::EQ][1][1] = [this](uint8_t label) { this->writer->jne(this->writer->LabelById(label)); };
+
+        jmp_map[IRBinOp::Operation::LESS][0][0] = [this](uint8_t label) { this->writer->jb(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::LESS][0][1] = [this](uint8_t label) { this->writer->jnb(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::LESS][1][0] = [this](uint8_t label) { this->writer->jl(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::LESS][1][1] = [this](uint8_t label) { this->writer->jge(this->writer->LabelById(label)); };
+
+        jmp_map[IRBinOp::Operation::GREATER][0][0] = [this](uint8_t label) { this->writer->ja(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::GREATER][0][1] = [this](uint8_t label) { this->writer->jbe(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::GREATER][1][0] = [this](uint8_t label) { this->writer->jg(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::GREATER][1][1] = [this](uint8_t label) { this->writer->jle(this->writer->LabelById(label)); };
+
+        jmp_map[IRBinOp::Operation::LESSEQ][0][0] = [this](uint8_t label) { this->writer->jbe(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::LESSEQ][0][1] = [this](uint8_t label) { this->writer->ja(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::LESSEQ][1][0] = [this](uint8_t label) { this->writer->jle(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::LESSEQ][1][1] = [this](uint8_t label) { this->writer->jg(this->writer->LabelById(label)); };
     }
     ~WindEmitter() { delete writer; }
     void Process();
@@ -115,7 +126,7 @@ private:
     void TryCast(Reg dst, Reg proc);
 
     typedef std::function<void(uint8_t)> writer_jmp_generic;
-    std::map<IRBinOp::Operation, writer_jmp_generic[2]> jmp_map;
+    std::map<IRBinOp::Operation, writer_jmp_generic[2][2]> jmp_map;
 };
 
 #endif

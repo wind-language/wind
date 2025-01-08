@@ -92,24 +92,34 @@ namespace x86 {
 
 // Declaration macros
 
-#define INSTR_HANDLE(handler) \
-    if (handler != 0) \
-        this->Write("jo", handler);
+#define REG_INSTR_HANDLE(handler, reg) \
+    if (handler != 0 && reg.id != x86::Gp::rsp.id) { \
+        if (reg.signed_value) \
+            this->Write("jo", handler); \
+        else \
+            this->Write("jc", handler); \
+    }
+
+#define MEM_INSTR_HANDLE(handler) \
+    if (handler != 0) { \
+        this->Write("jc", handler); \
+    }
 
 
-#define A_IRR_INSTR(name, handler) void name(Reg dst, Reg src) { this->Write(#name, dst, src); INSTR_HANDLE(handler) } // IRR stands for "Instruction Register-Register"
-#define A_IRM_INSTR(name, handler) void name(Reg dst, Mem src) { this->Write(#name, dst, src); INSTR_HANDLE(handler) } // IRM stands for "Instruction Register-Memory"
-#define A_IMR_INSTR(name, handler) void name(Mem dst, Reg src) { this->Write(#name, dst, src); INSTR_HANDLE(handler) } // IMR stands for "Instruction Memory-Register"
-#define A_IRI_INSTR(name, handler) void name(Reg dst, int64_t imm) { this->Write(#name, dst, imm); INSTR_HANDLE(handler) } // IRI stands for "Instruction Register-Immediate"
-#define A_IMI_INSTR(name, handler) void name(Mem dst, int64_t imm) { this->Write(#name, dst, imm); INSTR_HANDLE(handler) } // IMI stands for "Instruction Memory-Immediate"
-#define A_IIR_INSTR(name, handler) void name(int64_t imm, Reg src) { this->Write(#name, imm, src); INSTR_HANDLE(handler) } // IIR stands for "Instruction Immediate-Register"
-#define A_IIM_INSTR(name, handler) void name(int64_t imm, Mem src) { this->Write(#name, imm, src); INSTR_HANDLE(handler) } // IIM stands for "Instruction Immediate-Memory"
+#define A_IRR_INSTR(name, handler) void name(Reg dst, Reg src) { this->Write(#name, dst, src); REG_INSTR_HANDLE(handler, dst) } // IRR stands for "Instruction Register-Register"
+#define A_IRM_INSTR(name, handler) void name(Reg dst, Mem src) { this->Write(#name, dst, src); REG_INSTR_HANDLE(handler, dst) } // IRM stands for "Instruction Register-Memory"
+#define A_IMR_INSTR(name, handler) void name(Mem dst, Reg src) { this->Write(#name, dst, src);  REG_INSTR_HANDLE(handler, src) } // IMR stands for "Instruction Memory-Register"
+#define A_IRI_INSTR(name, handler) void name(Reg dst, int64_t imm) { this->Write(#name, dst, imm); REG_INSTR_HANDLE(handler, dst) } // IRI stands for "Instruction Register-Immediate"
+#define A_IMI_INSTR(name, handler) void name(Mem dst, int64_t imm) { this->Write(#name, dst, imm); MEM_INSTR_HANDLE(handler) } // IMI stands for "Instruction Memory-Immediate"
+#define A_IIR_INSTR(name, handler) void name(int64_t imm, Reg src) { this->Write(#name, imm, src); } // IIR stands for "Instruction Immediate-Register"
+#define A_IIM_INSTR(name, handler) void name(int64_t imm, Mem src) { this->Write(#name, imm, src); } // IIM stands for "Instruction Immediate-Memory"
 #define A_FIVE_INSTR(name, handler) \
     A_IRR_INSTR(name, handler) \
     A_IRM_INSTR(name, handler) \
     A_IMR_INSTR(name, handler) \
     A_IRI_INSTR(name, handler) \
     A_IMI_INSTR(name, handler) // FIVE for (IRR IRM IMR)
+
 
 #define B_N_INSTR(name) void name() { this->Write(#name); } // N stands for "No"
 #define B_IR_INSTR(name) void name(Reg dst) { this->Write(#name, dst); } // IR stands for "Instruction Register"
@@ -152,8 +162,10 @@ public:
     A_FIVE_INSTR(shr, 0)
     A_FIVE_INSTR(shl, 0)
     A_FIVE_INSTR(imul, "__WDH_mul_overflow")
+    A_FIVE_INSTR(mul, "__WDH_mul_overflow")
 
     A_FIVE_INSTR(movzx, 0)
+    A_FIVE_INSTR(movsx, 0)
 
     B_TRIPLE_INSTR(jmp)
     B_TRIPLE_INSTR(call)
@@ -169,6 +181,7 @@ public:
     B_TRIPLE_INSTR(jae)
     B_TRIPLE_INSTR(jb)
     B_TRIPLE_INSTR(jbe)
+    B_TRIPLE_INSTR(jnb)
     B_TRIPLE_INSTR(jo)
     B_TRIPLE_INSTR(jno)
     B_TRIPLE_INSTR(js)

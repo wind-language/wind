@@ -6,7 +6,7 @@
 #include <iostream>
 
 void WindEmitter::EmitCJump(IRNode *node, uint8_t label, bool invert) {
-    this->EmitExpr(node, x86::Gp::rax, true);
+    Reg rinfo = this->EmitExpr(node, x86::Gp::rax, true);
     if (node->type() != IRNode::NodeType::BIN_OP) {
         this->writer->test(x86::Gp::rax, x86::Gp::rax);
     } else {
@@ -15,7 +15,8 @@ void WindEmitter::EmitCJump(IRNode *node, uint8_t label, bool invert) {
         if (jmp_it == this->jmp_map.end()) {
             this->writer->test(x86::Gp::rax, x86::Gp::rax);
         } else {
-            jmp_it->second[invert ? 1 : 0](label);
+            std::cerr << "Signed: " << rinfo.signed_value << std::endl;
+            jmp_it->second[rinfo.signed_value][invert ? 1 : 0](label);
             return;
         }
     }

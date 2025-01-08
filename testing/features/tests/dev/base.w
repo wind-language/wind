@@ -3,10 +3,13 @@
 ]
 
 func main(): int {
-    var i:int=0;
+    var i:int16=0;
     loop [i<10] {
-        printf("Hello %d\n", i);
+        printf("Hello %hd\n", i);
         i++;
     }
+    i = 32767;
+    i = i+1;
+    printf("Res: %hu\n", i);
     return 0;
 }

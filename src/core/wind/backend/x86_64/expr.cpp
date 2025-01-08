@@ -15,7 +15,7 @@ Reg WindEmitter::EmitString(IRStringLiteral *str, Reg dst) {
             8
         )
     );
-    return {dst.id, 8, Reg::GPR};
+    return {dst.id, 8, Reg::GPR, false};
 }
 
 Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
@@ -45,7 +45,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
             )
         );
     }
-    return {dst.id, 8, Reg::GPR};
+    return {dst.id, 8, Reg::GPR, false};
 }
 
 Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
@@ -80,7 +80,11 @@ Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
 
 void WindEmitter::TryCast(Reg dst, Reg proc) {
     if (dst.size > proc.size) {
-        this->writer->movzx(dst, proc);
+        if (!dst.signed_value) {
+            this->writer->movzx(dst, proc);
+        } else {
+            this->writer->movsx(dst, proc);
+        }
     }
 }
 
@@ -96,12 +100,13 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
         -binop->right()->as<IRLocalRef>()->offset(), \
         binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
     )); \
-    return {dst.id, (uint8_t)binop->right()->as<IRLocalRef>()->datatype()->moveSize(), Reg::GPR};
+    return {dst.id, (uint8_t)binop->right()->as<IRLocalRef>()->datatype()->moveSize(), Reg::GPR, binop->right()->as<IRLocalRef>()->datatype()->isSigned()};
 
 #define OPT_LOCAL_OP(type, op) \
     case type: { \
         if (freg) { \
             this->writer->op(dst, *freg); \
+            dst.signed_value = binop->right()->as<IRLocalRef>()->datatype()->isSigned(); \
             return dst; \
         } else { \
             LOCAL_OP_RAW(op) \
@@ -114,7 +119,7 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
         0, \
         binop->right()->as<IRGlobRef>()->getType()->moveSize() \
     )); \
-    return {dst.id, (uint8_t)binop->right()->as<IRGlobRef>()->getType()->moveSize(), Reg::GPR};
+    return {dst.id, (uint8_t)binop->right()->as<IRGlobRef>()->getType()->moveSize(), Reg::GPR, binop->right()->as<IRGlobRef>()->getType()->isSigned()};
 
 #define GLOBAL_OP(type, op) \
     case type: { \
@@ -206,6 +211,7 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
             LOCAL_OP_RAW(cmp) \
         } \
         dst.size = binop->right()->as<IRLocalRef>()->datatype()->moveSize(); \
+        dst.signed_value = binop->right()->as<IRLocalRef>()->datatype()->isSigned(); \
         if (!isJmp) { \
             this->writer->op(this->CastReg(dst, 1)); \
             this->TryCast(dst, x86::Gp::al); \
@@ -221,6 +227,7 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
             binop->right()->as<IRGlobRef>()->getType()->moveSize() \
         )); \
         dst.size = binop->right()->as<IRGlobRef>()->getType()->moveSize(); \
+        dst.signed_value = binop->right()->as<IRGlobRef>()->getType()->isSigned(); \
         if (!isJmp) { \
             this->writer->op(this->CastReg(dst, 1)); \
             this->TryCast(dst, x86::Gp::al); \
@@ -239,11 +246,16 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
     case type: { \
         op(binop->right()->as<IRLiteral>()->get()); \
         dst.size = binop->left()->as<IRLocalRef>()->datatype()->moveSize(); \
+        dst.signed_value = binop->left()->as<IRLocalRef>()->datatype()->isSigned(); \
         this->writer->mov(dst, this->writer->ptr( \
             x86::Gp::rbp, \
             -binop->left()->as<IRLocalRef>()->offset(), \
             binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
         )); \
+        if (binop->left()->is<IRLocalRef>()) \
+            this->regalloc.SetVar(dst, binop->left()->as<IRLocalRef>()->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC); \
+        else \
+            this->regalloc.SetLabel(dst, binop->left()->as<IRGlobRef>()->getName(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC); \
         return dst; \
     }
 
@@ -263,6 +275,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
         dst = this->EmitExpr((IRNode*)binop->left(), dst);
         this->regalloc.SetDirty(dst);
     }
+    
 
     switch (binop->right()->type()) {
         case IRNode::NodeType::LITERAL: {
@@ -271,19 +284,31 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 LITERAL_OP(IRBinOp::SUB, sub)
                 LITERAL_OP(IRBinOp::SHL, shl)
                 LITERAL_OP(IRBinOp::SHR, shr)
-                LITERAL_OP(IRBinOp::MUL, imul)
                 LITERAL_OP(IRBinOp::AND, and_)
                 LIT_CMP_OP(IRBinOp::EQ, sete)
-                LIT_CMP_OP(IRBinOp::LESS, setl)
-                LIT_CMP_OP(IRBinOp::GREATER, setg)
-                LIT_CMP_OP(IRBinOp::LESSEQ, setle)
                 GEN_ASSIGN_LIT(IRBinOp::L_ASSIGN, L_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::G_ASSIGN, G_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::L_PLUS_ASSIGN, L_PLUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::G_PLUS_ASSIGN, G_PLUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::L_MINUS_ASSIGN, L_MINUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::G_MINUS_ASSIGN, G_MINUS_ASSIGN_OP)
+                
                 default: {}
+            }
+            if (dst.signed_value) {
+                switch (binop->operation()) {
+                    LITERAL_OP(IRBinOp::MUL, imul)
+                    LIT_CMP_OP(IRBinOp::LESS, setl)
+                    LIT_CMP_OP(IRBinOp::GREATER, setg)
+                    LIT_CMP_OP(IRBinOp::LESSEQ, setle)
+                }
+            } else {
+                switch (binop->operation()) {
+                    LITERAL_OP(IRBinOp::MUL, mul)
+                    LIT_CMP_OP(IRBinOp::LESS, setb)
+                    LIT_CMP_OP(IRBinOp::GREATER, seta)
+                    LIT_CMP_OP(IRBinOp::LESSEQ, setbe)
+                }
             }
             break;
         }
@@ -295,13 +320,24 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 OPT_LOCAL_OP(IRBinOp::SUB, sub)
                 OPT_LOCAL_OP(IRBinOp::SHL, shl)
                 OPT_LOCAL_OP(IRBinOp::SHR, shr)
-                OPT_LOCAL_OP(IRBinOp::MUL, imul)
                 OPT_LOCAL_OP(IRBinOp::AND, and_)
                 LOC_CMP_OP(IRBinOp::EQ, sete)
-                LOC_CMP_OP(IRBinOp::LESS, setl)
-                LOC_CMP_OP(IRBinOp::GREATER, setg)
-                LOC_CMP_OP(IRBinOp::LESSEQ, setle)
                 default: {}
+            }
+            if (dst.signed_value) {
+                switch (binop->operation()) {
+                    OPT_LOCAL_OP(IRBinOp::MUL, imul)
+                    LOC_CMP_OP(IRBinOp::LESS, setl)
+                    LOC_CMP_OP(IRBinOp::GREATER, setg)
+                    LOC_CMP_OP(IRBinOp::LESSEQ, setle)
+                }
+            } else {
+                switch (binop->operation()) {
+                    OPT_LOCAL_OP(IRBinOp::MUL, mul)
+                    LOC_CMP_OP(IRBinOp::LESS, setb)
+                    LOC_CMP_OP(IRBinOp::GREATER, seta)
+                    LOC_CMP_OP(IRBinOp::LESSEQ, setbe)
+                }
             }
             break;
         }
@@ -313,13 +349,24 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 GLOBAL_OP(IRBinOp::SUB, sub)
                 GLOBAL_OP(IRBinOp::SHL, shl)
                 GLOBAL_OP(IRBinOp::SHR, shr)
-                GLOBAL_OP(IRBinOp::MUL, imul)
                 GLOBAL_OP(IRBinOp::AND, and_)
                 GLB_CMP_OP(IRBinOp::EQ, sete)
-                GLB_CMP_OP(IRBinOp::LESS, setl)
-                GLB_CMP_OP(IRBinOp::GREATER, setg)
-                GLB_CMP_OP(IRBinOp::LESSEQ, setle)
                 default: {}
+            }
+            if (dst.signed_value) {
+                switch (binop->operation()) {
+                    GLOBAL_OP(IRBinOp::MUL, imul)
+                    GLB_CMP_OP(IRBinOp::LESS, setl)
+                    GLB_CMP_OP(IRBinOp::GREATER, setg)
+                    GLB_CMP_OP(IRBinOp::LESSEQ, setle)
+                }
+            } else {
+                switch (binop->operation()) {
+                    GLOBAL_OP(IRBinOp::MUL, mul)
+                    GLB_CMP_OP(IRBinOp::LESS, setb)
+                    GLB_CMP_OP(IRBinOp::GREATER, seta)
+                    GLB_CMP_OP(IRBinOp::LESSEQ, setbe)
+                }
             }
             break;
         }
@@ -371,18 +418,31 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             EL_CMP_OP(sete)
             break;
         case IRBinOp::LESS:
-            EL_CMP_OP(setl)
+            if (dst.signed_value) {
+                EL_CMP_OP(setl)
+            } else {
+                EL_CMP_OP(setb)
+            }
             break;
         case IRBinOp::GREATER:
-            EL_CMP_OP(setg)
+            if (dst.signed_value) {
+                EL_CMP_OP(setg)
+            } else {
+                EL_CMP_OP(seta)
+            }
             break;
         case IRBinOp::LESSEQ:
-            EL_CMP_OP(setle)
+            if (dst.signed_value) {
+                EL_CMP_OP(setle)
+            } else {
+                EL_CMP_OP(setbe)
+            }
             break;
         default:
             throw std::runtime_error("Unsupported binop (" + std::to_string((uint8_t)binop->operation()) + "): Report to maintainer!");
     }
 
+    dst.signed_value = tmp.signed_value ? tmp.signed_value : dst.signed_value;
     this->regalloc.Free(tmp);
     if (binop->operation() == IRBinOp::Operation::L_ASSIGN) {
         this->regalloc.SetVar(dst, binop->left()->as<IRLocalRef>()->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);

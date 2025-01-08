@@ -130,7 +130,7 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
 
         if (last->type() == IRNode::NodeType::ARG_DECL) {
             IRArgDecl *arg = last->as<IRArgDecl>();
-            if (arg_i<=8) {
+            if (arg_i<8) {
                 this->regalloc.SetVar(SYSVABI_CNV[arg_i], arg->local()->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
                 if (!func->ignore_stack_abi) {
                     this->writer->mov(
@@ -143,7 +143,7 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
                     );
                 }
             } else {
-                this->writer->pop(x86::Gp::rax);
+                /* this->writer->pop(x86::Gp::rax);
                 this->writer->mov(
                     this->writer->ptr(
                         x86::Gp::rbp,
@@ -151,7 +151,8 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
                         arg->local()->datatype()->moveSize()
                     ),
                     CastReg(x86::Gp::rax, arg->local()->datatype()->moveSize())
-                );
+                ); */
+                throw std::runtime_error(">8 fn args not supported");
             }
             arg_i++;
         }
@@ -187,14 +188,15 @@ Reg WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
         if (arg_i>=call->getRef()->ArgNum() && !(call->getRef()->flags & FN_VARIADIC)) {
             throw std::runtime_error("Too many arguments");
         }
-        if (arg_i<=8) {
+        if (arg_i<8) {
             this->EmitExpr(call->args()[arg_i].get(), SYSVABI_CNV[arg_i]);
             this->regalloc.SetVar(SYSVABI_CNV[arg_i], 0, RegisterAllocator::RegValue::Lifetime::FN_CALL);
         } else {
-            Reg arg = this->regalloc.Allocate(8, false);
+            /* Reg arg = this->regalloc.Allocate(8, false);
             this->EmitExpr(call->args()[arg_i].get(), arg);
             this->writer->push(arg);
-            this->regalloc.Free(arg);
+            this->regalloc.Free(arg); */
+            throw std::runtime_error(">8 fn args not supported");
         }
     }
 

@@ -55,13 +55,15 @@ class DataType {
     DataType *array;
     uint16_t type_size;
     uint16_t capacity;
+    bool signed_type = true;
 
   public:
-    DataType(uint16_t size) : type_size(size), capacity(1), array(nullptr) {}
+    DataType(uint16_t size, bool is_signed) : type_size(size), capacity(1), array(nullptr), signed_type(is_signed) {}
     DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr) {}
     DataType(uint16_t size, DataType *arr) : type_size(size), capacity(UINT16_MAX), array(arr) {}
     DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr) {}
     bool isArray() const { return array != nullptr; }
+    bool isSigned() const { return signed_type; }
     uint16_t moveSize() const { if (!isArray()) return type_size; return 8; }
     uint16_t index2offset(uint16_t index) const {
       if (isArray()) { return index * type_size; }

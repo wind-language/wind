@@ -204,25 +204,10 @@ void* WindCompiler::visit(const Function &node) {
  * @param type The string representation of the data type.
  * @return The resolved data type.
  */
-DataType *WindCompiler::ResolveDataType(const std::string &type) {
-  if (type == "byte") {
-    return new DataType(DataType::Sizes::BYTE);
-  }
-  else if (type == "short") {
-    return new DataType(DataType::Sizes::WORD);
-  }
-  else if (type == "int") {
-    return new DataType(DataType::Sizes::DWORD);
-  }
-  else if (type == "long") {
-    return new DataType(DataType::Sizes::QWORD);
-  }
-  else if (type == "void") {
-    return new DataType(DataType::Sizes::VOID);
-  }
-  else if (type[0]=='[' && type[type.size()-1]==']') {
+DataType *WindCompiler::ResolveDataType(const std::string &n_type) {
+  if (n_type[0]=='[' && n_type[n_type.size()-1]==']') {
     uint32_t capacity = 0, size=0;
-    std::string inner = type.substr(1, type.size()-2);
+    std::string inner = n_type.substr(1, n_type.size()-2);
     // if semicolon is present, there's capacity
     if (inner.find(';') != std::string::npos) {
       std::string cap = inner.substr(inner.find(';')+1);
@@ -235,6 +220,24 @@ DataType *WindCompiler::ResolveDataType(const std::string &type) {
       return new DataType(size, capacity, intype);
     }
     return new DataType(size, intype);
+  }
+  bool unsigned_type = n_type.find("unsigned") != std::string::npos;
+  size_t sf = n_type.find(" ");
+  std::string type = n_type.substr((sf!=std::string::npos) ? sf+1 : 0);
+  if (type == "byte") {
+    return new DataType(DataType::Sizes::BYTE, !unsigned_type);
+  }
+  else if (type == "short") {
+    return new DataType(DataType::Sizes::WORD, !unsigned_type);
+  }
+  else if (type == "int") {
+    return new DataType(DataType::Sizes::DWORD, !unsigned_type);
+  }
+  else if (type == "long") {
+    return new DataType(DataType::Sizes::QWORD, !unsigned_type);
+  }
+  else if (type == "void") {
+    return new DataType(DataType::Sizes::VOID, false);
   }
   else if (this->userdef_types_map.find(type) != this->userdef_types_map.end()) {
     return this->userdef_types_map[type];

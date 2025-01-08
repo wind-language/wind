@@ -12,6 +12,7 @@ struct Reg {
         GPR,
         SEG
     } type;
+    bool signed_value=true;
 };
 
 class Mem {

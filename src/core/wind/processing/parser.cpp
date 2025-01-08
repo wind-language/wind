@@ -36,8 +36,14 @@ bool WindParser::until(Token::Type type) {
 
 std::string WindParser::typeSignature(Token::Type until, Token::Type oruntil) {
   std::string signature = "";
+  bool first = true;
   while (!this->until(until) && !this->until(oruntil)) {
     Token *token = stream->pop();
+    if (first){
+      first=false;
+    } else {
+      signature += " ";
+    }
     signature += token->value;
   }
   return signature;
@@ -57,8 +63,14 @@ std::string WindParser::typeSignature(Token::Type while_) {
     return signature;
   }
 
+  bool first = true;
   while (this->until(while_)) {
     Token *token = stream->pop();
+    if (first) {
+      first = false;
+    } else {
+      signature += " ";
+    }
     signature += token->value;
   }
   return signature;
