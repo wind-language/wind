@@ -340,18 +340,31 @@ Return *WindParser::parseRet() {
 
 VariableDecl *WindParser::parseVarDecl() {
   this->expect(Token::Type::IDENTIFIER, "var");
-  std::string name = this->expect(Token::Type::IDENTIFIER, "variable name")->value;
+  std::vector<std::string> names;
+  if (this->stream->current()->type == Token::Type::LBRACKET) {
+    // Multi declaration
+    this->expect(Token::Type::LBRACKET, "[");
+    while (!this->until(Token::Type::RBRACKET)) {
+      names.push_back(this->expect(Token::Type::IDENTIFIER, "variable name")->value);
+      if (this->until(Token::Type::COMMA)) {
+        this->expect(Token::Type::COMMA, ",");
+      }
+    }
+    this->expect(Token::Type::RBRACKET, "]");
+  } else {
+    names.push_back(this->expect(Token::Type::IDENTIFIER, "variable name")->value);
+  }
   this->expect(Token::Type::COLON, ":");
   std::string type = this->typeSignature(Token::Type::IDENTIFIER);
+  ASTNode *expr = nullptr;
   if (this->stream->current()->type == Token::Type::ASSIGN) {
     this->expect(Token::Type::ASSIGN, "=");
-    ASTNode *expr = this->parseExprSemi();
-    return new VariableDecl(name, type, std::unique_ptr<ASTNode>(expr));
+    expr = this->parseExprSemi();
   }
   else {
     this->expect(Token::Type::SEMICOLON, ";");
-    return new VariableDecl(name, type, nullptr);
   }
+  return new VariableDecl(names, type, std::unique_ptr<ASTNode>(expr));
 }
 
 static std::map<std::string, FnFlags> FLAGS_MAP = {

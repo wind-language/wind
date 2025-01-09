@@ -23,6 +23,7 @@ private:
   std::map<std::string, DataType*> userdef_types_map;
   std::map<std::string, IRGlobRef*> global_table;
   std::map<std::string, IRFunction*> fn_table;
+  bool decl_return = false;
 
   void compile();
   DataType *ResolveDataType(const std::string &type);

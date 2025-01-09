@@ -83,7 +83,6 @@ void WindEmitter::EmitFnEpilogue() {
         this->writer->leave();
     }
     this->writer->ret();
-    this->current_fn = nullptr;
 }
 
 const Reg SYSVABI_CNV[8] = {
@@ -121,7 +120,6 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
     
     this->EmitFnPrologue(func);
 
-
     this->regalloc.FreeAllRegs();
     IRNode *last = nullptr;
     int arg_i=0;
@@ -136,7 +134,7 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
                     this->writer->mov(
                         this->writer->ptr(
                             x86::Gp::rbp,
-                            arg->local()->offset(),
+                            -arg->local()->offset(),
                             arg->local()->datatype()->moveSize()
                         ),
                         CastReg(SYSVABI_CNV[arg_i], arg->local()->datatype()->moveSize())
@@ -179,6 +177,7 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
             "__WD_canary_fail"
         );
     }
+    this->current_fn = nullptr;
 }
 
 Reg WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {

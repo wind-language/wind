@@ -1,8 +1,8 @@
 #include <stdio.h>
 
-long long occrec(int N, long long last, long long M, int i) {
-    if (N==i) return 0;
-    long long maxRes=-1;
+long long maxRes=-1;
+void occrec(int N, long long last, long long M, int i) {
+    if (N==i) return;
     for(int digit=3;digit<=9;digit+=3) {
         if (digit == (last%10)) {
         } else {
@@ -11,17 +11,15 @@ long long occrec(int N, long long last, long long M, int i) {
             if (modc > maxRes) {
                 maxRes = modc;
             }
-            long long modr = occrec(N, newLast, M, i+1);
-            if (modr >maxRes) {
-                maxRes = modr;
-            }
+            occrec(N, newLast, M, i+1);
         }
     }
-    return maxRes;
 }
 
 long long occulta(int N, int M) {
-    return occrec(N,0,M,0);
+    maxRes=-1;
+    occrec(N,0,M,0);
+    return maxRes;
 }
 
 int main() {

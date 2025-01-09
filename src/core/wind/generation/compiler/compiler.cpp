@@ -165,8 +165,16 @@ void* WindCompiler::visit(const Body &node) {
   IRBody *body = new IRBody({});
   for (const auto &child : node.get()) {
     auto *child_node = (IRNode*)child->accept(*this);
-    if (child_node != nullptr) {
-      *body += std::unique_ptr<IRNode>(child_node);
+    if (this->decl_return) {
+      this->decl_return = false;
+      std::vector<IRVariableDecl*> *decls = (std::vector<IRVariableDecl*>*)child_node;
+      for (IRVariableDecl *decl : *decls) {
+        *body += std::unique_ptr<IRNode>(decl);
+      }
+    } else {
+      if (child_node != nullptr) {
+        *body += std::unique_ptr<IRNode>(child_node);
+      }
     }
   }
   return body;
@@ -253,18 +261,20 @@ DataType *WindCompiler::ResolveDataType(const std::string &n_type) {
  */
 void *WindCompiler::visit(const VariableDecl &node) {
   assert(this->current_fn != nullptr);
+  IRNode *val=nullptr;
   if (node.getValue()) {
-    IRNode *val = (IRNode*)node.getValue()->accept(*this);
-    IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType()));
-    return new IRVariableDecl(
-      local,
-      val
-    );
+    val = (IRNode*)node.getValue()->accept(*this);
   }
-  return new IRVariableDecl(
-    this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType())),
-    nullptr
-  );
+  std::vector<IRVariableDecl*> *decls = new std::vector<IRVariableDecl*>();
+  for (std::string name : node.getNames()) {
+    IRLocalRef *local = this->current_fn->NewLocal(name, this->ResolveDataType(node.getType()));
+    if (local->datatype()->isArray()) {
+      this->current_fn->canary_needed = true;
+    }
+    decls->push_back(new IRVariableDecl(local, val));
+  }
+  this->decl_return = true;
+  return decls;
 }
 
 /**

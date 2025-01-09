@@ -98,6 +98,8 @@ public:
     void Write(std::string instr, Mem dst) { this->Write(instr + " " + ResolveMem(dst)); }
     void Write(std::string instr, std::string label) { this->Write(instr + " " + label); }
 
+    void Write(std::string instr, int64_t imm) { this->Write(instr + " " + std::to_string(imm)); }
+
     // Memory
     Mem ptr(Reg base, int64_t offset, uint16_t size) { return Mem(base, offset, size); }
     Mem ptr(std::string label, int64_t offset, uint16_t size) { return Mem(label, offset, size); }

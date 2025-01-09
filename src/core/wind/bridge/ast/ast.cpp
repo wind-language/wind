@@ -124,14 +124,14 @@ std::vector<std::string> Function::getArgTypes() const {
   return arg_types;
 }
 
-VariableDecl::VariableDecl(std::string name, std::string type, std::unique_ptr<ASTNode> value) : name(name), type(type), value(std::move(value)) {}
+VariableDecl::VariableDecl(std::vector<std::string> names, std::string type, std::unique_ptr<ASTNode> value) : vars(names), type(type), value(std::move(value)) {}
 
 void *VariableDecl::accept(ASTVisitor &visitor) const {
   return visitor.visit(*this);
 }
 
-const std::string& VariableDecl::getName() const {
-  return name;
+const std::vector<std::string>& VariableDecl::getNames() const {
+  return vars;
 }
 
 const std::string& VariableDecl::getType() const {

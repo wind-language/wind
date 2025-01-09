@@ -85,6 +85,8 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
         } else {
             this->writer->movsx(dst, proc);
         }
+    } else if (dst.id != proc.id) {
+        this->writer->mov(dst, proc);
     }
 }
 
@@ -242,23 +244,133 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
         this->TryCast(dst, x86::Gp::al); \
     } \
 
+#define AFTER_LOC_ASSIGN() \
+    dst.size = binop->left()->as<IRLocalRef>()->datatype()->moveSize(); \
+    dst.signed_value = binop->left()->as<IRLocalRef>()->datatype()->isSigned(); \
+    this->writer->mov(dst, this->writer->ptr( \
+        x86::Gp::rbp, \
+        -binop->left()->as<IRLocalRef>()->offset(), \
+        binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
+    ));
+
+#define AFTER_GLB_ASSIGN() \
+    dst.size = binop->left()->as<IRGlobRef>()->getType()->moveSize(); \
+    dst.signed_value = binop->left()->as<IRGlobRef>()->getType()->isSigned(); \
+    this->writer->mov(dst, this->writer->ptr( \
+        binop->left()->as<IRGlobRef>()->getName(), \
+        0, \
+        binop->left()->as<IRGlobRef>()->getType()->moveSize() \
+    ));
+
 #define GEN_ASSIGN_LIT(type, op) \
     case type: { \
         op(binop->right()->as<IRLiteral>()->get()); \
-        dst.size = binop->left()->as<IRLocalRef>()->datatype()->moveSize(); \
-        dst.signed_value = binop->left()->as<IRLocalRef>()->datatype()->isSigned(); \
-        this->writer->mov(dst, this->writer->ptr( \
-            x86::Gp::rbp, \
-            -binop->left()->as<IRLocalRef>()->offset(), \
-            binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
-        )); \
-        if (binop->left()->is<IRLocalRef>()) \
+        if (binop->left()->is<IRLocalRef>()) { \
+            AFTER_LOC_ASSIGN() \
             this->regalloc.SetVar(dst, binop->left()->as<IRLocalRef>()->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC); \
-        else \
+        } \
+        else {\
+            AFTER_GLB_ASSIGN() \
             this->regalloc.SetLabel(dst, binop->left()->as<IRGlobRef>()->getName(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC); \
+        } \
         return dst; \
     }
 
+#define LIT_RAW_DIV(op) \
+    this->TryCast(x86::Gp::rax, dst); \
+    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    this->writer->mov(x86::Gp::r10, binop->right()->as<IRLiteral>()->get()); \
+    this->writer->op(x86::Gp::r10); \
+
+#define LIT_DIV(type, op) \
+    case type: { \
+        LIT_RAW_DIV(op) \
+        this->TryCast(dst, x86::Gp::rax); \
+        return dst; \
+    }
+
+#define LIT_MOD(type, op) \
+    case type: { \
+        LIT_RAW_DIV(op) \
+        this->TryCast(dst, x86::Gp::rdx); \
+        return dst; \
+    }
+
+#define LOC_RAW_DIV(op) \
+    this->TryCast(x86::Gp::rax, dst); \
+    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    if (freg) { \
+        this->writer->op(*freg); \
+    } else { \
+        this->writer->op(this->writer->ptr( \
+            x86::Gp::rbp, \
+            -binop->right()->as<IRLocalRef>()->offset(), \
+            binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
+        )); \
+    } \
+
+#define LOCAL_DIV(type, op) \
+    case type: { \
+        LOC_RAW_DIV(op) \
+        this->TryCast(dst, x86::Gp::rax); \
+        return dst; \
+    }
+
+#define LOCAL_MOD(type, op) \
+    case type: { \
+        LOC_RAW_DIV(op) \
+        this->TryCast(dst, x86::Gp::rdx); \
+        return dst; \
+    }
+
+#define GLOBAL_DIV_RAW(op) \
+    this->TryCast(x86::Gp::rax, dst); \
+    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    if (freg) { \
+        this->writer->op(*freg); \
+    } else { \
+        this->writer->op(this->writer->ptr( \
+            binop->right()->as<IRGlobRef>()->getName(), \
+            0, \
+            binop->right()->as<IRGlobRef>()->getType()->moveSize() \
+        )); \
+    } \
+
+#define GLOBAL_DIV(type, op) \
+    case type: { \
+        GLOBAL_DIV_RAW(op) \
+        this->TryCast(dst, x86::Gp::rax); \
+        return dst; \
+    }
+
+#define GLOBAL_MOD(type, op) \
+    case type: { \
+        GLOBAL_DIV_RAW(op) \
+        this->TryCast(dst, x86::Gp::rdx); \
+        return dst; \
+    }
+
+#define REGS_RAW_DIV(op) \
+    this->TryCast(x86::Gp::rax, dst); \
+    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    this->TryCast(x86::Gp::rdx, tmp); \
+    this->writer->op(tmp); \
+
+#define REGS_DIV() \
+    if (dst.signed_value) { \
+        REGS_RAW_DIV(idiv) \
+    } else { \
+        REGS_RAW_DIV(div) \
+    } \
+    this->TryCast(dst, x86::Gp::rax); \
+
+#define REGS_MOD() \
+    if (dst.signed_value) { \
+        REGS_RAW_DIV(idiv) \
+    } else { \
+        REGS_RAW_DIV(div) \
+    } \
+    this->TryCast(dst, x86::Gp::rdx); \
 
 Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
     uint8_t tmp_size = dst.size;
@@ -282,8 +394,6 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             switch (binop->operation()) {
                 LITERAL_OP(IRBinOp::ADD, add)
                 LITERAL_OP(IRBinOp::SUB, sub)
-                LITERAL_OP(IRBinOp::SHL, shl)
-                LITERAL_OP(IRBinOp::SHR, shr)
                 LITERAL_OP(IRBinOp::AND, and_)
                 LIT_CMP_OP(IRBinOp::EQ, sete)
                 GEN_ASSIGN_LIT(IRBinOp::L_ASSIGN, L_ASSIGN_OP)
@@ -292,12 +402,15 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 GEN_ASSIGN_LIT(IRBinOp::G_PLUS_ASSIGN, G_PLUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::L_MINUS_ASSIGN, L_MINUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::G_MINUS_ASSIGN, G_MINUS_ASSIGN_OP)
-                
                 default: {}
             }
             if (dst.signed_value) {
                 switch (binop->operation()) {
+                    LITERAL_OP(IRBinOp::SHL, sal)
+                    LITERAL_OP(IRBinOp::SHR, sar)
                     LITERAL_OP(IRBinOp::MUL, imul)
+                    LIT_DIV(IRBinOp::DIV, idiv)
+                    LIT_MOD(IRBinOp::MOD, idiv)
                     LIT_CMP_OP(IRBinOp::LESS, setl)
                     LIT_CMP_OP(IRBinOp::GREATER, setg)
                     LIT_CMP_OP(IRBinOp::LESSEQ, setle)
@@ -305,6 +418,10 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             } else {
                 switch (binop->operation()) {
                     LITERAL_OP(IRBinOp::MUL, mul)
+                    LITERAL_OP(IRBinOp::SHL, shl)
+                    LITERAL_OP(IRBinOp::SHR, shr)
+                    LIT_DIV(IRBinOp::DIV, div)
+                    LIT_MOD(IRBinOp::MOD, div)
                     LIT_CMP_OP(IRBinOp::LESS, setb)
                     LIT_CMP_OP(IRBinOp::GREATER, seta)
                     LIT_CMP_OP(IRBinOp::LESSEQ, setbe)
@@ -318,22 +435,28 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             switch (binop->operation()) {
                 OPT_LOCAL_OP(IRBinOp::ADD, add)
                 OPT_LOCAL_OP(IRBinOp::SUB, sub)
-                OPT_LOCAL_OP(IRBinOp::SHL, shl)
-                OPT_LOCAL_OP(IRBinOp::SHR, shr)
                 OPT_LOCAL_OP(IRBinOp::AND, and_)
                 LOC_CMP_OP(IRBinOp::EQ, sete)
                 default: {}
             }
             if (dst.signed_value) {
                 switch (binop->operation()) {
+                    OPT_LOCAL_OP(IRBinOp::SHL, sal)
+                    OPT_LOCAL_OP(IRBinOp::SHR, sar)
                     OPT_LOCAL_OP(IRBinOp::MUL, imul)
+                    LOCAL_DIV(IRBinOp::DIV, idiv)
+                    LOCAL_MOD(IRBinOp::MOD, idiv)
                     LOC_CMP_OP(IRBinOp::LESS, setl)
                     LOC_CMP_OP(IRBinOp::GREATER, setg)
                     LOC_CMP_OP(IRBinOp::LESSEQ, setle)
                 }
             } else {
                 switch (binop->operation()) {
+                    OPT_LOCAL_OP(IRBinOp::SHL, shl)
+                    OPT_LOCAL_OP(IRBinOp::SHR, shr)
                     OPT_LOCAL_OP(IRBinOp::MUL, mul)
+                    LOCAL_DIV(IRBinOp::DIV, div)
+                    LOCAL_MOD(IRBinOp::MOD, div)
                     LOC_CMP_OP(IRBinOp::LESS, setb)
                     LOC_CMP_OP(IRBinOp::GREATER, seta)
                     LOC_CMP_OP(IRBinOp::LESSEQ, setbe)
@@ -347,22 +470,28 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             switch (binop->operation()) {
                 GLOBAL_OP(IRBinOp::ADD, add)
                 GLOBAL_OP(IRBinOp::SUB, sub)
-                GLOBAL_OP(IRBinOp::SHL, shl)
-                GLOBAL_OP(IRBinOp::SHR, shr)
                 GLOBAL_OP(IRBinOp::AND, and_)
                 GLB_CMP_OP(IRBinOp::EQ, sete)
                 default: {}
             }
             if (dst.signed_value) {
                 switch (binop->operation()) {
+                    GLOBAL_OP(IRBinOp::SHL, sal)
+                    GLOBAL_OP(IRBinOp::SHR, sar)
                     GLOBAL_OP(IRBinOp::MUL, imul)
+                    GLOBAL_DIV(IRBinOp::DIV, idiv)
+                    GLOBAL_MOD(IRBinOp::MOD, idiv)
                     GLB_CMP_OP(IRBinOp::LESS, setl)
                     GLB_CMP_OP(IRBinOp::GREATER, setg)
                     GLB_CMP_OP(IRBinOp::LESSEQ, setle)
                 }
             } else {
                 switch (binop->operation()) {
+                    GLOBAL_OP(IRBinOp::SHL, shl)
+                    GLOBAL_OP(IRBinOp::SHR, shr)
                     GLOBAL_OP(IRBinOp::MUL, mul)
+                    GLOBAL_DIV(IRBinOp::DIV, div)
+                    GLOBAL_MOD(IRBinOp::MOD, div)
                     GLB_CMP_OP(IRBinOp::LESS, setb)
                     GLB_CMP_OP(IRBinOp::GREATER, seta)
                     GLB_CMP_OP(IRBinOp::LESSEQ, setbe)
@@ -385,13 +514,22 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             this->writer->sub(dst, tmp);
             break;
         case IRBinOp::SHL:
-            this->writer->shl(dst, tmp);
+            if (dst.signed_value) { this->writer->sal(dst, tmp); }
+            else { this->writer->shl(dst, tmp); }
             break;
         case IRBinOp::SHR:
-            this->writer->shr(dst, tmp);
+            if (dst.signed_value) { this->writer->sar(dst, tmp); }
+            else { this->writer->shr(dst, tmp); }
             break;
         case IRBinOp::MUL:
-            this->writer->imul(dst, tmp);
+            if (dst.signed_value) { this->writer->imul(dst, tmp); }
+            else { this->writer->mul(dst, tmp); }
+            break;
+        case IRBinOp::DIV:
+            REGS_DIV()
+            break;
+        case IRBinOp::MOD:
+            REGS_MOD()
             break;
         case IRBinOp::AND:
             this->writer->and_(dst, tmp);

@@ -123,17 +123,17 @@ public:
 };
 
 class VariableDecl : public ASTNode {
-  std::string name;
+  std::vector<std::string> vars;
   std::string type; // Will resolve on IR generation
   std::unique_ptr<ASTNode> value;
 
 public:
-  VariableDecl(std::string n, std::string t, std::unique_ptr<ASTNode> v = nullptr);
+  VariableDecl(std::vector<std::string> n, std::string t, std::unique_ptr<ASTNode> v = nullptr);
 
   void *accept(ASTVisitor &visitor) const override;
 
   // Getters
-  const std::string& getName() const;
+  const std::vector<std::string>& getNames() const;
   const std::string& getType() const;
   ASTNode *getValue() const;
 };

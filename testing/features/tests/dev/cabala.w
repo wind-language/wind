@@ -2,52 +2,44 @@
   "#libc.w"
 ]
 
-global maxRes:long=-1;
-func occrec(N: int, last: long, M: long, i: int): long {
+global maxRes:int64=-1;
+func occrec(N: int, last: int64, M: int64, i: int): void {
     branch[
-        N==i: return 0;
+        N==i: return;
     ]
-    var maxRes: long=-1;
     var digit: int=3;
     loop[digit<=9] {
         branch[
             digit == (last%10): {}
             else : {
-                var newLast: long = (last*10)+digit;
-                var modc: long = newLast%M;
+                var newLast: int64 = (last*10)+digit;
+                var modc: int64 = newLast%M;
                 branch [
                     modc > maxRes: {
                         maxRes = modc;
                     }
                 ]
-                var modr: long = occrec(N, newLast, M, i+1);
-                branch[
-                    modr > maxRes: {
-                        maxRes = modr;
-                    }
-                ]
+                occrec(N, newLast, M, i+1);
             }
         ]
-        digit=digit+3;
+        digit+=3;
     }
+}
+
+func occulta(N: int, M: int): int64 {
+    maxRes=-1;
+    occrec(N,0,M,-1);
     return maxRes;
 }
 
-func occulta(N: int, M: int): long {
-    return occrec(N,0,M,maxRes);
-}
-
 func main(): int {
-    var N: int;
-    var M: int;
-    var T: int;
+    var [N,M,T]: int;
     var i: int = 0;
     scanf("%d", &T);
     loop[i<T] {
         scanf("%d %d", &N, &M);
-        var max: long = occulta(N,M);
-        printf("%ld\n", max);
-        i=i+1;
+        printf("%ld\n", occulta(N,M));
+        i++;
     }
     return 0;
 }

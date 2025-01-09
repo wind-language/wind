@@ -15,7 +15,6 @@ void WindEmitter::EmitCJump(IRNode *node, uint8_t label, bool invert) {
         if (jmp_it == this->jmp_map.end()) {
             this->writer->test(x86::Gp::rax, x86::Gp::rax);
         } else {
-            std::cerr << "Signed: " << rinfo.signed_value << std::endl;
             jmp_it->second[rinfo.signed_value][invert ? 1 : 0](label);
             return;
         }

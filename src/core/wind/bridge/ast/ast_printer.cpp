@@ -64,7 +64,7 @@ void *ASTPrinter::visit(const Function &node) {
 
 void *ASTPrinter::visit(const VariableDecl &node) {
   this->print_tabs();
-  std::cout << "decl [" << node.getType() << "] " << node.getName();
+  std::cout << "decl [" << node.getType() << "] " << node.getNames()[0];
   if (node.getValue()) {
     std::cout << " = ";
     node.getValue()->accept(*this);

@@ -178,16 +178,17 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
     op == IRBinOp::Operation::MOD &&
     opt_right->is<IRLiteral>()
   ) {
+    int64_t val = opt_right->as<IRLiteral>()->get();
     if (opt_left->is<IRLiteral>()) {
-      return new IRLiteral(opt_left->as<IRLiteral>()->get() % opt_right->as<IRLiteral>()->get());
+      return new IRLiteral(opt_left->as<IRLiteral>()->get() % val);
     }
-    else if (opt_right->as<IRLiteral>()->get() == 1) {
+    else if (val == 1) {
       return new IRLiteral(0);
     }
-    else if (opt_right->as<IRLiteral>()->get() % 2 == 0) {
+    else if ((val&(val-1))==0) {
       return new IRBinOp(
         std::unique_ptr<IRNode>(opt_left),
-        std::unique_ptr<IRNode>(new IRLiteral(opt_right->as<IRLiteral>()->get() - 1)),
+        std::unique_ptr<IRNode>(new IRLiteral(val - 1)),
         IRBinOp::Operation::AND
       );
     }

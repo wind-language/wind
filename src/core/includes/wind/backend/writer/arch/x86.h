@@ -2,11 +2,11 @@
 #ifndef WRITER_Ax86_64_H
 #define WRITER_Ax86_64_H
 
-#define GPREG64(name, id) const Reg name = {id, 8, Reg::GPR}
-#define GPREG32(name, id) const Reg name = {id, 4, Reg::GPR}
-#define GPREG16(name, id) const Reg name = {id, 2, Reg::GPR}
-#define GPREG8(name, id) const Reg name = {id, 1, Reg::GPR}
-#define SEGREG(name, id) const Reg name = {id, 8, Reg::SEG}
+#define GPREG64(name, id) const Reg name = {id, 8, Reg::GPR, true}
+#define GPREG32(name, id) const Reg name = {id, 4, Reg::GPR, true}
+#define GPREG16(name, id) const Reg name = {id, 2, Reg::GPR, true}
+#define GPREG8(name, id) const Reg name = {id, 1, Reg::GPR, true}
+#define SEGREG(name, id) const Reg name = {id, 8, Reg::SEG, true}
 
 namespace x86 {
     namespace Gp {
@@ -143,6 +143,14 @@ namespace x86 {
 // ----------------------------
 
 
+#define SPECIAL_ARITHMETIC(name, handler, sign)\
+    void name(Reg src) { this->Write(#name, src); } \
+    void name(Mem src) { this->Write(#name, src); } \
+    void name(int64_t imm) { \
+        this->Write(#name, imm); \
+    }
+
+
 class Ax86_64 : public WindWriter {
 private:
     // Resolve regs
@@ -161,8 +169,14 @@ public:
     A_FIVE_INSTR(sub, "__WDH_sub_overflow")
     A_FIVE_INSTR(shr, 0)
     A_FIVE_INSTR(shl, 0)
+    A_FIVE_INSTR(sar, 0)
+    A_FIVE_INSTR(sal, 0)
     A_FIVE_INSTR(imul, "__WDH_mul_overflow")
     A_FIVE_INSTR(mul, "__WDH_mul_overflow")
+
+    SPECIAL_ARITHMETIC(div, "__WDH_div_overflow", false)
+    SPECIAL_ARITHMETIC(idiv, "__WDH_div_overflow", true)
+
 
     A_FIVE_INSTR(movzx, 0)
     A_FIVE_INSTR(movsx, 0)
@@ -206,7 +220,6 @@ public:
 
     C_SEVEN_INSTR(cmp)
     C_SEVEN_INSTR(test)
-
 
 
 
