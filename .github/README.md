@@ -19,38 +19,32 @@ Modernized C with a touch of Rust and a sprinkle of Go.
 
 <details>
   <summary>
-    This code:
+    Example code:
   </summary>
 
 ```rs
-func occrec(N: int, last: long, M: long, i: int): long {
+global maxRes:int64=-1;
+func occrec(N: int, last: int64, M: int64, i: int): void {
     branch[
-        N==i: return 0;
+        N==i: return;
     ]
-    var maxRes: long=-1;
     var digit: int=3;
     loop[digit<=9] {
         branch[
             digit == (last%10): {}
             else : {
-                var newLast: long = (last*10)+digit;
-                var modc: long = newLast%M;
+                var newLast: int64 = (last*10)+digit;
+                var modc: int64 = newLast%M;
                 branch [
                     modc > maxRes: {
                         maxRes = modc;
                     }
                 ]
-                var modr: long = occrec(N, newLast, M, i+1);
-                branch[
-                    modr > maxRes: {
-                        maxRes = modr;
-                    }
-                ]
+                occrec(N, newLast, M, i+1);
             }
         ]
-        digit=digit+3;
+        digit+=3;
     }
-    return maxRes;
 }
 ```
 <sub>
@@ -61,67 +55,19 @@ func occrec(N: int, last: long, M: long, i: int): long {
 
 </details>
 
-Runs **~2.5x times** faster than **C++**
-
-Compiles **3x times** faster than **C++**
-
 </td>
 </tr>
 </table>
 <div align="center">
-  <h3>Try benchmarking it yourself!</h3>
+  <h3>Try benchmarking it!</h3>
 </div>
 
 ```sh
-cd testing/benchmarks/
-python run_bench.py cabala
+python testing/benchmarks/run_bench.py cabala
 ```
 
-## Command line Table
+<div align="center">
 
-| ⚙️ Command |  📜 Description   |
-| :--------: | :---------------: |
-|    `-o`    |    Output file    |
-|    `-h`    |     Show help     |
-|   `-ej`    | Compile as object |
-|   `-sa`    |     Show AST      |
-|   `-si`    |      Show IR      |
-|   `-ss`    |     Show ASM      |
+## [Documentation](https://utcq.github.io/wind/)
 
-<h3 align="center">
-Example
-</h3>
-
-```sh
-wind <file> -o <output>
-
-### EXECUTABLE + SHOW AST + SHOW IR
-
-wind main.w -o main -sa -si
-
-### OBJECT FILE
-
-wind main.w -o main.o --ej
-```
-
-## Troubleshooting
-
-> [!WARNING]
-> `ld: cannot find wrt.o: No such file or directory`
-
----
-
-<details>
-<summary> Why is this happening? </summary>
-
-[❗] Wind has a runtime utility that is required to jump to main function and run stack checks. Just compile it if it hasn't been done by cmake.
-
-</details>
-
----
-
-### Solution
-
-```sh
-wind src/runtime/stack.w src/runtime/start.w -ej -o src/runtime/wrt.o
-```
+</div>
