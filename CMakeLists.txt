@@ -15,13 +15,13 @@ add_subdirectory(src)
 
 set(SRC_FILES src/main/proc.cpp)
 
-add_executable(wind ${SRC_FILES})
-target_link_libraries(wind windlib)
-target_compile_options(wind PRIVATE -g)
+add_executable(windc ${SRC_FILES})
+target_link_libraries(windc windlib)
+target_compile_options(windc PRIVATE -g)
 
 add_custom_command(
-    TARGET wind POST_BUILD
-    COMMAND ${CMAKE_BINARY_DIR}/wind ${WIND_RUNTIME_PATH}/stack.w ${WIND_RUNTIME_PATH}/handler.w ${WIND_RUNTIME_PATH}/start.w -ej -o ${WIND_RUNTIME_PATH}/wind_runtime.o
+    TARGET windc POST_BUILD
+    COMMAND ${CMAKE_BINARY_DIR}/windc ${WIND_RUNTIME_PATH}/stack.w ${WIND_RUNTIME_PATH}/handler.w ${WIND_RUNTIME_PATH}/start.w -ej -o ${WIND_RUNTIME_PATH}/wrt.o
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     COMMENT "Compiling runtime utilities"
 )

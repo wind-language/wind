@@ -1,6 +1,6 @@
 import subprocess,time,os,sys
 
-WIND_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "build", "wind")
+WIND_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "build", "windc")
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "build/")
 if (not os.path.exists(OUTPUT_PATH)):
     os.makedirs(OUTPUT_PATH)

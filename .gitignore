@@ -23,3 +23,6 @@ testing/benchmarks/build/
 
 # Runtime obj
 src/runtime/*.o
+
+# Docs
+/docs/*
