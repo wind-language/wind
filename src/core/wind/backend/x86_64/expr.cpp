@@ -302,11 +302,12 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
     if (freg) { \
         this->writer->op(*freg); \
     } else { \
-        this->writer->op(this->writer->ptr( \
+        this->writer->mov(x86::Gp::r10, this->writer->ptr( \
             x86::Gp::rbp, \
             -binop->right()->as<IRLocalRef>()->offset(), \
             binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
         )); \
+        this->writer->op(x86::Gp::r10); \
     } \
 
 #define LOCAL_DIV(type, op) \
@@ -329,11 +330,12 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
     if (freg) { \
         this->writer->op(*freg); \
     } else { \
-        this->writer->op(this->writer->ptr( \
+        this->writer->mov(x86::Gp::r15, this->writer->ptr( \
             binop->right()->as<IRGlobRef>()->getName(), \
             0, \
             binop->right()->as<IRGlobRef>()->getType()->moveSize() \
         )); \
+        this->writer->op(x86::Gp::r15); \
     } \
 
 #define GLOBAL_DIV(type, op) \

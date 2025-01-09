@@ -107,7 +107,7 @@ wind main.w -o main.o --ej
 ## Troubleshooting
 
 > [!WARNING]
-> `ld: cannot find wind_runtime.o: No such file or directory`
+> `ld: cannot find wrt.o: No such file or directory`
 
 ---
 
@@ -123,5 +123,5 @@ wind main.w -o main.o --ej
 ### Solution
 
 ```sh
-wind src/runtime/stack.w src/runtime/start.w -ej -o src/runtime/wind_runtime.o
+wind src/runtime/stack.w src/runtime/start.w -ej -o src/runtime/wrt.o
 ```

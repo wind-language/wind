@@ -144,11 +144,7 @@ namespace x86 {
 
 
 #define SPECIAL_ARITHMETIC(name, handler, sign)\
-    void name(Reg src) { this->Write(#name, src); } \
-    void name(Mem src) { this->Write(#name, src); } \
-    void name(int64_t imm) { \
-        this->Write(#name, imm); \
-    }
+    void name(Reg src) { this->Write(#name, src); REG_INSTR_HANDLE(handler, src) }
 
 
 class Ax86_64 : public WindWriter {

@@ -142,7 +142,7 @@ void WindUserInterface::ldDefFlags(WindLdInterface *ld) {
 void WindUserInterface::ldExecFlags(WindLdInterface *ld) {
   ld->addFlag("-dynamic-linker /lib64/ld-linux-x86-64.so.2");
   ld->addFlag("-lc");
-  std::string runtime_lib = std::string(WIND_RUNTIME_PATH) + "/wind_runtime.o";
+  std::string runtime_lib = std::string(WIND_RUNTIME_PATH) + "/wrt.o";
   ld->addFile(runtime_lib);
 }
 
