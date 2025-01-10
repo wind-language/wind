@@ -57,6 +57,12 @@ void* WindCompiler::visit(const BinaryExpr &node) {
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
       op = IRBinOp::Operation::G_PLUS_ASSIGN;
     }
+    else if (left->type() == IRNode::NodeType::LADDR_REF) {
+      if (!left->as<IRLocalAddrRef>()->datatype()->isArray()) {
+        throw std::runtime_error("Indexed assignment only allowed for arrays");
+      }
+      op = IRBinOp::Operation::VA_PLUS_ASSIGN;
+    }
     else {
       throw std::runtime_error("Left operand of += must be a variable reference (also not a pointer)");
     }
@@ -67,6 +73,12 @@ void* WindCompiler::visit(const BinaryExpr &node) {
     } 
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
       op = IRBinOp::Operation::G_MINUS_ASSIGN;
+    }
+    else if (left->type() == IRNode::NodeType::LADDR_REF) {
+      if (!left->as<IRLocalAddrRef>()->datatype()->isArray()) {
+        throw std::runtime_error("Indexed assignment only allowed for arrays");
+      }
+      op = IRBinOp::Operation::VA_MINUS_ASSIGN;
     }
     else {
       throw std::runtime_error("Left operand of -= must be a variable reference (also not a pointer)");
@@ -79,6 +91,12 @@ void* WindCompiler::visit(const BinaryExpr &node) {
     } 
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
       op = IRBinOp::Operation::G_ASSIGN;
+    }
+    else if (left->type() == IRNode::NodeType::LADDR_REF) {
+      if (!left->as<IRLocalAddrRef>()->datatype()->isArray()) {
+        throw std::runtime_error("Indexed assignment only allowed for arrays");
+      }
+      op = IRBinOp::Operation::VA_ASSIGN;
     }
     else {
       throw std::runtime_error("Left operand of assignment must be a variable reference (also not a pointer)");
@@ -118,7 +136,14 @@ void *WindCompiler::visit(const VarAddressing &node) {
     throw std::runtime_error("Variable " + node.getName() + " not found");
   }
   this->current_fn->occupyOffset(local->offset());
-  return new IRLocalAddrRef(local->offset(), local->datatype(), node.getIndex());
+  IRNode *index = (IRNode*)node.getIndex()->accept(*this);
+  if (index->type() == IRNode::NodeType::LITERAL) {
+    uint16_t indexv = index->as<IRLiteral>()->get();
+    if (local->datatype()->isArray() && local->datatype()->hasCapacity() && indexv >= local->datatype()->getCaps()) {
+      throw std::runtime_error("Index " + std::to_string(indexv) + " out of bounds");
+    }
+  }
+  return new IRLocalAddrRef(local->offset(), local->datatype(), index);
 }
 
 /**

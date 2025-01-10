@@ -192,7 +192,7 @@ ASTNode *WindParser::parseExprPrimary() {
       } else if (this->stream->peek()->type == Token::LBRACKET) {
         std::string name = this->stream->pop()->value;
         this->expect(Token::Type::LBRACKET, "[");
-        int16_t index = fmtinttostr(this->expect(Token::Type::INTEGER, "index")->value);
+        ASTNode *index = this->parseExpr(0);
         this->expect(Token::Type::RBRACKET, "]");
         return new VarAddressing(
           name, index

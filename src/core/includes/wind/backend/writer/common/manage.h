@@ -21,6 +21,7 @@ public:
     Reg index;
     int64_t offset;
     uint16_t size;
+    uint16_t id = 90;
     std::string label;
     enum BaseType {
         BASE,
@@ -28,13 +29,15 @@ public:
     } base_type;
     enum OffsetType {
         IMM,
-        REG
+        REG,
+        REG_IMM
     } offset_type;
 
     Mem(Reg base, int64_t offset, uint16_t size) : base(base), offset(offset), size(size) { base_type = BASE; offset_type = IMM; }
     Mem(std::string label, int64_t offset, uint16_t size) : label(label), offset(offset), size(size) { base_type = LABEL; offset_type = IMM; }
     Mem(Reg base, Reg index, uint16_t size) : base(base), index(index), size(size) { base_type = BASE; offset_type = REG; }
     Mem(std::string label, Reg index, int64_t offset, uint16_t size) : label(label), index(index), offset(offset), size(size) { base_type = LABEL; offset_type = REG; }
+    Mem(Reg base, Reg index, int64_t offset, uint16_t size) : base(base), index(index), offset(offset), size(size) { base_type = BASE; offset_type = REG_IMM; }
 };
 
 struct Label {
@@ -105,6 +108,7 @@ public:
     Mem ptr(std::string label, int64_t offset, uint16_t size) { return Mem(label, offset, size); }
     Mem ptr(Reg base, Reg index, uint16_t size) { return Mem(base, index, size); }
     Mem ptr(std::string label, Reg index, int64_t offset, uint16_t size) { return Mem(label, index, offset, size); }
+    Mem ptr(Reg base, Reg index, int64_t offset, uint16_t size) { return Mem(base, index, offset, size); }
 
     // Data
     void String(std::string content) { this->Write(".string \"" + content + "\""); }

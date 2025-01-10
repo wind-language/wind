@@ -78,6 +78,9 @@ std::string Ax86_64::ResolveMem(Mem &mem) {
         case Mem::REG:
             res += " + " + ResolveReg(mem.index);
             break;
+        case Mem::REG_IMM:
+            res += " + " + ((mem.size > 1)? (std::to_string(mem.size)+"*"): "") + ResolveReg(mem.index);
+            if(mem.offset!=0){ res += std::string(" ") + (mem.offset < 0 ? "-" : "+") + std::to_string(std::abs(mem.offset)); }
     }
     res += "]";
     return res;

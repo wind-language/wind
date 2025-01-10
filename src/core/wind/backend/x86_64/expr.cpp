@@ -1,6 +1,7 @@
 #include <wind/generation/IR.h>
 #include <wind/backend/writer/writer.h>
 #include <wind/backend/x86_64/backend.h>
+#include <wind/backend/x86_64/expr_macros.h>
 #include <wind/bridge/opt_flags.h>
 #include <stdexcept>
 #include <iostream>
@@ -23,18 +24,34 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
         if (!ref->datatype()->isArray()) {
             throw std::runtime_error("Cannot index non-array");
         }
-        uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex());
-        if (offset < 0) {
-            throw std::runtime_error("Invalid offset");
+        if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) {
+            uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get());
+            if (offset < 0) {
+                throw std::runtime_error("Invalid offset");
+            }
+            dst.size = ref->datatype()->moveSize(); dst.signed_value = ref->datatype()->isSigned();
+            CASTED_MOV(
+                dst,
+                this->writer->ptr(
+                    x86::Gp::rbp,
+                    -offset,
+                    ref->datatype()->rawSize()
+                )
+            );
+        } else {
+            Reg r_index = this->EmitValue(ref->getIndex(), dst);
+            Reg index = {r_index.id, 8, Reg::GPR, false};
+            this->TryCast(index, r_index);
+            CASTED_MOV(
+                dst,
+                this->writer->ptr(
+                    x86::Gp::rbp,
+                    index,
+                    -ref->offset(),
+                    ref->datatype()->rawSize()
+                )
+            );
         }
-        this->writer->mov(
-            dst,
-            this->writer->ptr(
-                x86::Gp::rbp,
-                -offset,
-                ref->datatype()->rawSize()
-            )
-        );
     } else {
         this->writer->lea(
             dst,
@@ -79,7 +96,7 @@ Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
 }
 
 void WindEmitter::TryCast(Reg dst, Reg proc) {
-    if (dst.size > proc.size) {
+    if (dst.size > proc.size && proc.size < 4) {
         if (!dst.signed_value) {
             this->writer->movzx(dst, proc);
         } else {
@@ -90,291 +107,16 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
     }
 }
 
-#define LITERAL_OP(type, op) \
-    case type: { \
-        this->writer->op(dst, binop->right()->as<IRLiteral>()->get()); \
-        return dst; \
-    }
-
-#define LOCAL_OP_RAW(op) \
-    this->writer->op(dst, this->writer->ptr( \
-        x86::Gp::rbp, \
-        -binop->right()->as<IRLocalRef>()->offset(), \
-        binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
-    )); \
-    return {dst.id, (uint8_t)binop->right()->as<IRLocalRef>()->datatype()->moveSize(), Reg::GPR, binop->right()->as<IRLocalRef>()->datatype()->isSigned()};
-
-#define OPT_LOCAL_OP(type, op) \
-    case type: { \
-        if (freg) { \
-            this->writer->op(dst, *freg); \
-            dst.signed_value = binop->right()->as<IRLocalRef>()->datatype()->isSigned(); \
-            return dst; \
-        } else { \
-            LOCAL_OP_RAW(op) \
-        } \
-    }
-
-#define GLOB_OP_RAW(op) \
-    this->writer->op(dst, this->writer->ptr( \
-        binop->right()->as<IRGlobRef>()->getName(), \
-        0, \
-        binop->right()->as<IRGlobRef>()->getType()->moveSize() \
-    )); \
-    return {dst.id, (uint8_t)binop->right()->as<IRGlobRef>()->getType()->moveSize(), Reg::GPR, binop->right()->as<IRGlobRef>()->getType()->isSigned()};
-
-#define GLOBAL_OP(type, op) \
-    case type: { \
-        if (freg) { \
-            this->writer->op(dst, *freg); \
-            return dst; \
-        } else { \
-            GLOB_OP_RAW(op) \
-        } \
-    }
-
-#define L_ASSIGN_OP(src) \
-    this->writer->mov( \
-        this->writer->ptr( \
-            x86::Gp::rbp, \
-            -binop->left()->as<IRLocalRef>()->offset(), \
-            binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
-        ), \
-        src \
-    ); \
-
-#define G_ASSIGN_OP(src) \
-    this->writer->mov( \
-        this->writer->ptr( \
-            binop->left()->as<IRGlobRef>()->getName(), \
-            0, \
-            binop->left()->as<IRGlobRef>()->getType()->moveSize() \
-        ), \
-        src \
-    ); \
-
-#define L_PLUS_ASSIGN_OP(src) \
-    this->writer->add( \
-        this->writer->ptr( \
-            x86::Gp::rbp, \
-            -binop->left()->as<IRLocalRef>()->offset(), \
-            binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
-        ), \
-        src \
-    ); \
-
-#define G_PLUS_ASSIGN_OP(src) \
-    this->writer->add( \
-        this->writer->ptr( \
-            binop->left()->as<IRGlobRef>()->getName(), \
-            0, \
-            binop->left()->as<IRGlobRef>()->getType()->moveSize() \
-        ), \
-        src \
-    ); \
-
-#define L_MINUS_ASSIGN_OP(src) \
-    this->writer->sub( \
-        this->writer->ptr( \
-            x86::Gp::rbp, \
-            -binop->left()->as<IRLocalRef>()->offset(), \
-            binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
-        ), \
-        src \
-    ); \
-
-#define G_MINUS_ASSIGN_OP(src) \
-    this->writer->sub( \
-        this->writer->ptr( \
-            binop->left()->as<IRGlobRef>()->getName(), \
-            0, \
-            binop->left()->as<IRGlobRef>()->getType()->moveSize() \
-        ), \
-        src \
-    ); \
-
-#define LIT_CMP_OP(type, op) \
-    case type: { \
-        this->writer->cmp(dst, binop->right()->as<IRLiteral>()->get()); \
-        dst.size = tmp_size; \
-        if (!isJmp) { \
-            this->writer->op(this->CastReg(dst, 1)); \
-            this->TryCast(dst, x86::Gp::al); \
-        } \
-        return dst; \
-    }
-
-#define LOC_CMP_OP(type, op) \
-    case type: { \
-        if (freg) { \
-            this->writer->cmp(dst, *freg); \
-            return dst; \
-        } else { \
-            LOCAL_OP_RAW(cmp) \
-        } \
-        dst.size = binop->right()->as<IRLocalRef>()->datatype()->moveSize(); \
-        dst.signed_value = binop->right()->as<IRLocalRef>()->datatype()->isSigned(); \
-        if (!isJmp) { \
-            this->writer->op(this->CastReg(dst, 1)); \
-            this->TryCast(dst, x86::Gp::al); \
-        } \
-        return dst; \
-    }
-
-#define GLB_CMP_OP(type, op) \
-    case type: { \
-        this->writer->cmp(dst, this->writer->ptr( \
-            binop->right()->as<IRGlobRef>()->getName(), \
-            0, \
-            binop->right()->as<IRGlobRef>()->getType()->moveSize() \
-        )); \
-        dst.size = binop->right()->as<IRGlobRef>()->getType()->moveSize(); \
-        dst.signed_value = binop->right()->as<IRGlobRef>()->getType()->isSigned(); \
-        if (!isJmp) { \
-            this->writer->op(this->CastReg(dst, 1)); \
-            this->TryCast(dst, x86::Gp::al); \
-        } \
-        return dst; \
-    }
-
-#define EL_CMP_OP(op) \
-    this->writer->cmp(dst, tmp); \
-    if (!isJmp) { \
-        this->writer->op(this->CastReg(dst, 1)); \
-        this->TryCast(dst, x86::Gp::al); \
-    } \
-
-#define AFTER_LOC_ASSIGN() \
-    dst.size = binop->left()->as<IRLocalRef>()->datatype()->moveSize(); \
-    dst.signed_value = binop->left()->as<IRLocalRef>()->datatype()->isSigned(); \
-    this->writer->mov(dst, this->writer->ptr( \
-        x86::Gp::rbp, \
-        -binop->left()->as<IRLocalRef>()->offset(), \
-        binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
-    ));
-
-#define AFTER_GLB_ASSIGN() \
-    dst.size = binop->left()->as<IRGlobRef>()->getType()->moveSize(); \
-    dst.signed_value = binop->left()->as<IRGlobRef>()->getType()->isSigned(); \
-    this->writer->mov(dst, this->writer->ptr( \
-        binop->left()->as<IRGlobRef>()->getName(), \
-        0, \
-        binop->left()->as<IRGlobRef>()->getType()->moveSize() \
-    ));
-
-#define GEN_ASSIGN_LIT(type, op) \
-    case type: { \
-        op(binop->right()->as<IRLiteral>()->get()); \
-        if (binop->left()->is<IRLocalRef>()) { \
-            AFTER_LOC_ASSIGN() \
-            this->regalloc.SetVar(dst, binop->left()->as<IRLocalRef>()->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC); \
-        } \
-        else {\
-            AFTER_GLB_ASSIGN() \
-            this->regalloc.SetLabel(dst, binop->left()->as<IRGlobRef>()->getName(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC); \
-        } \
-        return dst; \
-    }
-
-#define LIT_RAW_DIV(op) \
-    this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
-    this->writer->mov(x86::Gp::r10, binop->right()->as<IRLiteral>()->get()); \
-    this->writer->op(x86::Gp::r10); \
-
-#define LIT_DIV(type, op) \
-    case type: { \
-        LIT_RAW_DIV(op) \
-        this->TryCast(dst, x86::Gp::rax); \
-        return dst; \
-    }
-
-#define LIT_MOD(type, op) \
-    case type: { \
-        LIT_RAW_DIV(op) \
-        this->TryCast(dst, x86::Gp::rdx); \
-        return dst; \
-    }
-
-#define LOC_RAW_DIV(op) \
-    this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
-    if (freg) { \
-        this->writer->op(*freg); \
-    } else { \
-        this->writer->mov(x86::Gp::r10, this->writer->ptr( \
-            x86::Gp::rbp, \
-            -binop->right()->as<IRLocalRef>()->offset(), \
-            binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
-        )); \
-        this->writer->op(x86::Gp::r10); \
-    } \
-
-#define LOCAL_DIV(type, op) \
-    case type: { \
-        LOC_RAW_DIV(op) \
-        this->TryCast(dst, x86::Gp::rax); \
-        return dst; \
-    }
-
-#define LOCAL_MOD(type, op) \
-    case type: { \
-        LOC_RAW_DIV(op) \
-        this->TryCast(dst, x86::Gp::rdx); \
-        return dst; \
-    }
-
-#define GLOBAL_DIV_RAW(op) \
-    this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
-    if (freg) { \
-        this->writer->op(*freg); \
-    } else { \
-        this->writer->mov(x86::Gp::r15, this->writer->ptr( \
-            binop->right()->as<IRGlobRef>()->getName(), \
-            0, \
-            binop->right()->as<IRGlobRef>()->getType()->moveSize() \
-        )); \
-        this->writer->op(x86::Gp::r15); \
-    } \
-
-#define GLOBAL_DIV(type, op) \
-    case type: { \
-        GLOBAL_DIV_RAW(op) \
-        this->TryCast(dst, x86::Gp::rax); \
-        return dst; \
-    }
-
-#define GLOBAL_MOD(type, op) \
-    case type: { \
-        GLOBAL_DIV_RAW(op) \
-        this->TryCast(dst, x86::Gp::rdx); \
-        return dst; \
-    }
-
-#define REGS_RAW_DIV(op) \
-    this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
-    this->TryCast(x86::Gp::rdx, tmp); \
-    this->writer->op(tmp); \
-
-#define REGS_DIV() \
-    if (dst.signed_value) { \
-        REGS_RAW_DIV(idiv) \
-    } else { \
-        REGS_RAW_DIV(div) \
-    } \
-    this->TryCast(dst, x86::Gp::rax); \
-
-#define REGS_MOD() \
-    if (dst.signed_value) { \
-        REGS_RAW_DIV(idiv) \
-    } else { \
-        REGS_RAW_DIV(div) \
-    } \
-    this->TryCast(dst, x86::Gp::rdx); \
-
 Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
+    /*
+    
+    TODO:
+        - Add runtime checks for array expr indexing
+            >> mov offset to rbx
+            >> cmp to immediate
+            >> jge to error
+    
+    */
     uint8_t tmp_size = dst.size;
     if (binop->operation() == IRBinOp::Operation::L_ASSIGN
         || binop->operation() == IRBinOp::Operation::L_PLUS_ASSIGN
@@ -384,6 +126,10 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
         || binop->operation() == IRBinOp::Operation::G_PLUS_ASSIGN
         || binop->operation() == IRBinOp::Operation::G_MINUS_ASSIGN) {
         tmp_size = binop->left()->as<IRGlobRef>()->getType()->moveSize();
+    } else if (binop->operation() == IRBinOp::Operation::VA_ASSIGN
+        || binop->operation() == IRBinOp::Operation::VA_PLUS_ASSIGN
+        || binop->operation() == IRBinOp::Operation::VA_MINUS_ASSIGN) {
+        tmp_size = binop->left()->as<IRLocalAddrRef>()->datatype()->moveSize();
     }
     else {
         dst = this->EmitExpr((IRNode*)binop->left(), dst);
@@ -404,6 +150,9 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 GEN_ASSIGN_LIT(IRBinOp::G_PLUS_ASSIGN, G_PLUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::L_MINUS_ASSIGN, L_MINUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::G_MINUS_ASSIGN, G_MINUS_ASSIGN_OP)
+                LIT_VA_ASSIGN(IRBinOp::VA_ASSIGN)
+                LIT_VA_ASSIGN(IRBinOp::VA_PLUS_ASSIGN)
+                LIT_VA_ASSIGN(IRBinOp::VA_MINUS_ASSIGN)
                 default: {}
             }
             if (dst.signed_value) {
@@ -554,6 +303,19 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
         case IRBinOp::G_MINUS_ASSIGN:
             G_MINUS_ASSIGN_OP(tmp)
             break;
+        case IRBinOp::VA_ASSIGN: {
+            VA_ASSIGN_OP(tmp)
+            break;
+        }
+        case IRBinOp::VA_PLUS_ASSIGN: {
+            VA_OPASSIGN_OP(tmp, add)
+            break;
+        }
+        case IRBinOp::VA_MINUS_ASSIGN: {
+            VA_OPASSIGN_OP(tmp, sub)
+            break;
+        }
+        
         case IRBinOp::EQ:
             EL_CMP_OP(sete)
             break;

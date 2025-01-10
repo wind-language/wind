@@ -44,16 +44,16 @@ public:
 
 class VarAddressing : public ASTNode {
   std::string name;
-  int16_t index;
+  ASTNode *index;
 
 public:
-  explicit VarAddressing(const std::string& n, int16_t index = -1);
+  explicit VarAddressing(const std::string& n, ASTNode *index = nullptr);
 
   void *accept(ASTVisitor &visitor) const override;
 
   // Getter
   const std::string& getName() const;
-  const int16_t getIndex() const;
+  const ASTNode *getIndex() const;
 };
 
 class Literal : public ASTNode {
