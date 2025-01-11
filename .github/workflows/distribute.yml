@@ -40,11 +40,11 @@ jobs:
         ./utils/distribute.sh
 
     # Upload the tarball as an artifact
-    - name: Upload Distribution Artifact
+    - name: Upload Artifact
       uses: actions/upload-artifact@v3
       with:
         name: windc-dist-${{ github.event.inputs.version || github.ref_name }}
-        path: ./windc-dist-*.tar
+        path: windc-dist-*.tar.gz
 
   release:
     needs: build
@@ -60,5 +60,5 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./windc-dist-*.tar
+        file: windc-dist-*.tar.gz
         tag: ${{ github.ref_name }}
