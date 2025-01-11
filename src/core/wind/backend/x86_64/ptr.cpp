@@ -98,7 +98,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
                     addr_holder,
                     -ref->offset()+ref->datatype()->memSize()
                 );
-                this->writer->jae("__WDH_out_of_bounds");
+                this->writer->jge("__WDH_out_of_bounds");
                 this->writer->add(
                     addr_holder,
                     x86::Gp::rbp
@@ -229,7 +229,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
                 addr_holder,
                 -ref->offset()+ref->datatype()->memSize()
             );
-            this->writer->jae("__WDH_out_of_bounds");
+            this->writer->jge("__WDH_out_of_bounds");
             this->writer->add(
                 addr_holder,
                 x86::Gp::rbp
