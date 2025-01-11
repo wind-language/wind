@@ -44,11 +44,11 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: windc-dist-${{ github.event.inputs.version || github.ref_name }}
-        path: windc-dist-*
+        path: windc-dist-${{ github.event.inputs.version || github.ref_name }}.tar.gz
 
     - name: Upload Release Asset
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./windc-dist-*
-        tag: ${{ github.ref_name }}-dist
+        file: windc-dist-${{ github.event.inputs.version || github.ref_name }}.tar.gz
+        tag: ${{ github.event.inputs.version || github.ref_name }}-dist
