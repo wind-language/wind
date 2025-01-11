@@ -70,6 +70,10 @@ void WindEmitter::RegisterAllocator::SetLabel(Reg reg, std::string label, RegVal
     regs[reg.id].stack_offset = 0;
 }
 
+void WindEmitter::RegisterAllocator::SetLifetime(Reg reg, RegValue::Lifetime lifetime) {
+    regs[reg.id].lifetime = lifetime;
+}
+
 /**
  * @brief Frees registers after a function call.
  */

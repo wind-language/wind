@@ -138,7 +138,7 @@
             ); \
         } \
         else { \
-            Reg r_index = this->EmitValue(ref->getIndex(), dst); \
+            Reg r_index = this->EmitValue(ref->getIndex(), this->regalloc.Allocate(8, false)); \
             Reg index = {r_index.id, 8, Reg::GPR, false}; \
             this->TryCast(index, r_index); \
             src = this->CastReg(src, ref->datatype()->rawSize()); \

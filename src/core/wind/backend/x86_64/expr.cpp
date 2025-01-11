@@ -19,58 +19,14 @@ Reg WindEmitter::EmitString(IRStringLiteral *str, Reg dst) {
     return {dst.id, 8, Reg::GPR, false};
 }
 
-Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
-    if (ref->isIndexed()) {
-        if (!ref->datatype()->isArray()) {
-            throw std::runtime_error("Cannot index non-array");
-        }
-        if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) {
-            uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get());
-            if (offset < 0) {
-                throw std::runtime_error("Invalid offset");
-            }
-            dst.size = ref->datatype()->moveSize(); dst.signed_value = ref->datatype()->isSigned();
-            CASTED_MOV(
-                dst,
-                this->writer->ptr(
-                    x86::Gp::rbp,
-                    -offset,
-                    ref->datatype()->rawSize()
-                )
-            );
-        } else {
-            Reg r_index = this->EmitValue(ref->getIndex(), dst);
-            Reg index = {r_index.id, 8, Reg::GPR, false};
-            this->TryCast(index, r_index);
-            CASTED_MOV(
-                dst,
-                this->writer->ptr(
-                    x86::Gp::rbp,
-                    index,
-                    -ref->offset(),
-                    ref->datatype()->rawSize()
-                )
-            );
-        }
-    } else {
-        this->writer->lea(
-            dst,
-            this->writer->ptr(
-                x86::Gp::rbp,
-                -ref->offset(),
-                8
-            )
-        );
-    }
-    return {dst.id, 8, Reg::GPR, false};
-}
+
 
 Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
     switch (value->type()) {
         case IRNode::NodeType::LITERAL: {
             int64_t val = value->as<IRLiteral>()->get();
             if (val==0) {
-                this->writer->xor_(dst, dst);
+                this->writer->xor_(CastReg(dst, 8), CastReg(dst, 8));
             } else {
                 this->writer->mov(dst, val);
             }
@@ -109,13 +65,7 @@ void WindEmitter::TryCast(Reg dst, Reg proc) {
 
 Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
     /*
-    
     TODO:
-        - Add runtime checks for array expr indexing
-            >> mov offset to rbx
-            >> cmp to immediate
-            >> jge to error
-    
     */
     uint8_t tmp_size = dst.size;
     if (binop->operation() == IRBinOp::Operation::L_ASSIGN
@@ -304,18 +254,9 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             G_MINUS_ASSIGN_OP(tmp)
             break;
         case IRBinOp::VA_ASSIGN: {
-            VA_ASSIGN_OP(tmp)
+            this->EmitIntoLocAddrRef((IRLocalAddrRef*)binop->left()->as<IRLocalAddrRef>(), tmp);
             break;
         }
-        case IRBinOp::VA_PLUS_ASSIGN: {
-            VA_OPASSIGN_OP(tmp, add)
-            break;
-        }
-        case IRBinOp::VA_MINUS_ASSIGN: {
-            VA_OPASSIGN_OP(tmp, sub)
-            break;
-        }
-        
         case IRBinOp::EQ:
             EL_CMP_OP(sete)
             break;
