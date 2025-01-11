@@ -40,11 +40,11 @@ jobs:
         ./utils/distribute.sh
 
     # Upload the tarball as an artifact
-    - name: Upload Artifact
+    - name: Upload Distribution Artifact
       uses: actions/upload-artifact@v3
       with:
         name: windc-dist-${{ github.event.inputs.version || github.ref_name }}
-        path: windc-dist-*
+        path: windc-dist-${{ github.event.inputs.version || github.ref_name }}/
 
   release:
     needs: build
