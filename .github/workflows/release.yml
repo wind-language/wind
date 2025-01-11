@@ -24,9 +24,14 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y build-essential cmake
 
     # Set the VERSION file if manual trigger
-    - name: Set Version File
+    - name: Set Version File from Manual Trigger
       if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version }}
       run: echo "${{ github.event.inputs.version }}" > VERSION
+
+    # Set the VERSION file from Git tag if it's a push trigger
+    - name: Set Version from Tag
+      if: ${{ github.event_name == 'push' }}
+      run: echo "${{ github.ref_name }}" > VERSION
 
     # Run the build script
     - name: Build and Package WindC
