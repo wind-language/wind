@@ -44,7 +44,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: windc-dist-${{ github.event.inputs.version || github.ref_name }}
-        path: windc-dist-*.tar.gz
+        path: windc-dist-*
 
   release:
     needs: build
@@ -60,5 +60,5 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: windc-dist-*.tar.gz
+        file: windc-dist-*
         tag: ${{ github.ref_name }}
