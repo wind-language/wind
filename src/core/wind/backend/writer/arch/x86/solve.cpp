@@ -7,10 +7,10 @@ const std::string GP_REG_MAP[16][4] = {
     {"cl", "cx", "ecx", "rcx"},
     {"dl", "dx", "edx", "rdx"},
     {"bl", "bx", "ebx", "rbx"},
-    {"ah", "sp", "esp", "rsp"},
-    {"ch", "bp", "ebp", "rbp"},
-    {"dh", "si", "esi", "rsi"},
-    {"bh", "di", "edi", "rdi"},
+    {"spl", "sp", "esp", "rsp"},
+    {"bpl", "bp", "ebp", "rbp"},
+    {"sil", "si", "esi", "rsi"},
+    {"dil", "di", "edi", "rdi"},
     {"r8b", "r8w", "r8d", "r8"},
     {"r9b", "r9w", "r9d", "r9"},
     {"r10b", "r10w", "r10d", "r10"},
@@ -78,7 +78,14 @@ std::string Ax86_64::ResolveMem(Mem &mem) {
         case Mem::REG:
             res += " + " + ResolveReg(mem.index);
             break;
+        case Mem::REG_IMM:
+            res += " + " + ((mem.size > 1)? (std::to_string(mem.size)+"*"): "") + ResolveReg(mem.index);
+            if(mem.offset!=0){ res += std::string(" ") + (mem.offset < 0 ? "-" : "+") + std::to_string(std::abs(mem.offset)); }
     }
     res += "]";
     return res;
+}
+
+std::string Ax86_64::ResolveRegOff(RegOffset &off) {
+    return ResolveReg(off.reg) + (off.offset < 0 ? "-" : "+") + std::to_string(std::abs(off.offset));
 }

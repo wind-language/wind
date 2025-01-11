@@ -84,6 +84,9 @@ class DataType {
     uint16_t rawSize() const { return type_size; }
     DataType *getArrayType() const { return array; }
     bool isVoid() const { return type_size == 0; }
+    bool hasCapacity() const { return capacity != UINT16_MAX; }
+    uint16_t getCaps() const { return capacity; }
+
 
     enum Sizes {
       BYTE = 1,
@@ -117,14 +120,14 @@ public:
 
 class IRLocalAddrRef : public IRNode {
   uint16_t stack_offset;
-  int16_t index;
+  IRNode *index;
   DataType *var_type;
 
 public:
-  IRLocalAddrRef(uint16_t stack_offset, DataType *type, int16_t index = -1);
+  IRLocalAddrRef(uint16_t stack_offset, DataType *type, IRNode *index = nullptr);
   uint16_t offset() const;
-  int16_t getIndex() const;
-  bool isIndexed() const { return index != -1; }
+  IRNode *getIndex() const;
+  bool isIndexed() const { return index != nullptr; }
   DataType *datatype() const;
   NodeType type() const override { return NodeType::LADDR_REF; }
 };
@@ -196,12 +199,15 @@ public:
     LESSEQ,
     L_ASSIGN,
     G_ASSIGN,
+    VA_ASSIGN,
     MOD,
     LOGAND,
     L_PLUS_ASSIGN,
     L_MINUS_ASSIGN,
     G_PLUS_ASSIGN,
     G_MINUS_ASSIGN,
+    VA_PLUS_ASSIGN,
+    VA_MINUS_ASSIGN
   };
 
 private:

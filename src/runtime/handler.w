@@ -39,3 +39,12 @@
   printf("Div overflow encountered in function '%s'\n");
   abort();
 }
+
+@pub @pure[stchk] func __WDH_out_of_bounds() : void {
+  puts("*** [ out of bounds ] ***");
+  asm {
+    mov rsi, r15;
+  }
+  printf("Array indexing out of bounds encountered in function '%s'\n");
+  abort();
+}

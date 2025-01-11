@@ -3,13 +3,13 @@
 ]
 
 func main(): int {
-    var i:int16=0;
-    loop [i<10] {
-        printf("Hello %hd\n", i);
+    var buff: [char;32];
+    __builtin_memset(buff, 0, 32);
+    __builtin_copy(buff, "Hello World", 12);
+    var i: int=0;
+    loop [i<32] {
+        printf("buff[%d]: %c\n", i, buff[i]);
         i++;
     }
-    i = 32767;
-    i = i+1;
-    printf("Res: %hu\n", i);
     return 0;
 }

@@ -57,6 +57,7 @@ private:
         bool Request(Reg reg); // Request a specific register
         void SetVar(Reg reg, uint16_t stack_offset, RegValue::Lifetime lifetime); // Set a local to a register
         void SetLabel(Reg reg, std::string label, RegValue::Lifetime lifetime); // Set a label to a register
+        void SetLifetime(Reg reg, RegValue::Lifetime lifetime); // Set a lifetime to a register
         void Free(Reg reg); // Free a register
         void FreeAllRegs();
         void PostExpression();
@@ -118,6 +119,7 @@ private:
     void EmitIntoLoc(IRLocalRef *ref, IRNode *value);
     Reg EmitString(IRStringLiteral *str, Reg dst);
     Reg EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst);
+    void EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src);
 
     void ProcessStatement(IRNode *node);
     void ProcessTop(IRNode *node);

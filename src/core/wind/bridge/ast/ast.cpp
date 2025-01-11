@@ -36,7 +36,7 @@ const std::string& VariableRef::getName() const {
 
 // VarAddressing
 
-VarAddressing::VarAddressing(const std::string& n, int16_t index) : name(n), index(index) {}
+VarAddressing::VarAddressing(const std::string& n, ASTNode *index) : name(n), index(index) {}
 
 void *VarAddressing::accept(ASTVisitor &visitor) const {
   return visitor.visit(*this);
@@ -46,7 +46,7 @@ const std::string& VarAddressing::getName() const {
   return name;
 }
 
-const int16_t VarAddressing::getIndex() const {
+const ASTNode *VarAddressing::getIndex() const {
   return index;
 }
 
