@@ -12,6 +12,7 @@
 #include <wind/generation/compiler.h>
 #include <wind/generation/optimizer.h>
 #include <wind/generation/ir_printer.h>
+#include <wind/processing/utils.h>
 #include <wind/isc/isc.h>
 #include <wind/backend/x86_64/backend.h>
 #include <wind/backend/interface/ld.h>
@@ -142,7 +143,11 @@ void WindUserInterface::ldDefFlags(WindLdInterface *ld) {
 void WindUserInterface::ldExecFlags(WindLdInterface *ld) {
   ld->addFlag("-dynamic-linker /lib64/ld-linux-x86-64.so.2");
   ld->addFlag("-lc");
-  std::string runtime_lib = std::string(WIND_RUNTIME_PATH) + "/wrt.o";
+  std::string path = std::string(WIND_RUNTIME_PATH);
+  if (path[0] != '/') {
+    path = std::filesystem::path(getExeDir()).append(path).string();
+  }
+  std::string runtime_lib = path + "/wrt.o";
   ld->addFile(runtime_lib);
 }
 

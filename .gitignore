@@ -2,7 +2,7 @@
 external/
 
 # CMake
-build/
+*build/
 
 # IDE
 .vscode/

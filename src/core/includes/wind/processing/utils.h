@@ -15,4 +15,6 @@ long long fmtinttostr(std::string &str);
 
 std::string getRealPath(const std::string& path);
 
+std::string getExeDir();
+
 #endif
