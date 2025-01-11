@@ -44,7 +44,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: windc-dist-${{ github.event.inputs.version || github.ref_name }}
-        path: windc-dist-*.tar.gz
+        path: windc-dist-*
 
   release:
     needs: build
