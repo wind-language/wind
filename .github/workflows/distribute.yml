@@ -51,4 +51,4 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: windc-dist-${{ github.event.inputs.version || github.ref_name }}.tar.gz
-        tag: windc_${{ github.event.inputs.version || github.ref_name }}
+        tag: Wind ${{ github.event.inputs.version || github.ref_name }}
