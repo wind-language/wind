@@ -6,12 +6,12 @@ REPO_NAME="wind"
 INSTALL_DIR="/opt/wind/"
 
 if [ -f "/usr/local/bin/windc" ]; then
-  echo "WindC compiler already exists in /usr/local/bin..."
+  echo "windc compiler already exists in /usr/local/bin..."
   if [ -w "/usr/local/bin/" ]; then
-    echo "Removing old WindC compiler..."
+    echo "Removing old windc compiler..."
     rm -f "/usr/local/bin/windc"
   else
-    echo "Old WindC compiler needs sudo to be removed..."
+    echo "Old windc compiler needs sudo to be removed..."
     sudo rm -f "/usr/local/bin/windc"
   fi
 fi
@@ -55,12 +55,12 @@ else
   sudo ln -s "$INSTALL_DIR/windc" "/usr/local/bin/windc"
 fi
 
-echo "Installing WindC compiler..."
+echo "Installing windc compiler..."
 cp -r "$TEMP_DIR/wind-dist-$RELEASE_VERSION/"* "$INSTALL_DIR"
 chmod +x "$INSTALL_DIR/windc"
 
 echo "Cleaning up..."
 rm -rf "$TEMP_DIR"
 
-echo "WindC compiler version $RELEASE_VERSION installed successfully!"
+echo "windc compiler version $RELEASE_VERSION installed successfully!"
 echo "You can now use it by typing 'windc' in your terminal."
