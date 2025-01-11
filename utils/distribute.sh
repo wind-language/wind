@@ -56,10 +56,4 @@ echo "Compiling runtime files with windc..."
     "$WRT_DIR/start.w" \
     -ej -o "$WRT_DIR/wrt.o"
 
-echo "Packaging distribution..."
-tar -czf "windc-dist-$VERSION.tar.gz" "$DIST_DIR"
-
-echo "Cleaning up..."
-rm -rf "$DIST_DIR"
-
-echo "Build completed successfully! Distribution is in windc-dist-$VERSION.tar.gz"
+echo "Build completed successfully! Distribution is in windc-dist/"
