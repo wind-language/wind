@@ -15,12 +15,18 @@ struct Reg {
     bool signed_value=true;
 };
 
+struct RegOffset {
+    Reg reg;
+    int64_t offset;
+};
+
 class Mem {
 public:
     Reg base;
     Reg index;
     int64_t offset;
     uint16_t size;
+    uint16_t id = 90;
     std::string label;
     enum BaseType {
         BASE,
@@ -28,13 +34,15 @@ public:
     } base_type;
     enum OffsetType {
         IMM,
-        REG
+        REG,
+        REG_IMM
     } offset_type;
 
     Mem(Reg base, int64_t offset, uint16_t size) : base(base), offset(offset), size(size) { base_type = BASE; offset_type = IMM; }
     Mem(std::string label, int64_t offset, uint16_t size) : label(label), offset(offset), size(size) { base_type = LABEL; offset_type = IMM; }
     Mem(Reg base, Reg index, uint16_t size) : base(base), index(index), size(size) { base_type = BASE; offset_type = REG; }
     Mem(std::string label, Reg index, int64_t offset, uint16_t size) : label(label), index(index), offset(offset), size(size) { base_type = LABEL; offset_type = REG; }
+    Mem(Reg base, Reg index, int64_t offset, uint16_t size) : base(base), index(index), offset(offset), size(size) { base_type = BASE; offset_type = REG_IMM; }
 };
 
 struct Label {
@@ -83,6 +91,7 @@ public:
 
     virtual std::string ResolveReg(Reg &reg) { return ""; }
     virtual std::string ResolveMem(Mem &mem) { return ""; }
+    virtual std::string ResolveRegOff(RegOffset &offs) { return ""; }
     virtual std::string ResolveWord(uint16_t size) { return ""; }
 
     void Write(std::string instr, Reg dst, Reg src) { this->Write(instr + " " + ResolveReg(dst) + ", " + ResolveReg(src)); }
@@ -100,11 +109,16 @@ public:
 
     void Write(std::string instr, int64_t imm) { this->Write(instr + " " + std::to_string(imm)); }
 
+    void Write(std::string instr, Reg src, RegOffset offs) { this->Write(instr + " " + ResolveReg(src) + ", " + ResolveRegOff(offs)); }
+
     // Memory
     Mem ptr(Reg base, int64_t offset, uint16_t size) { return Mem(base, offset, size); }
     Mem ptr(std::string label, int64_t offset, uint16_t size) { return Mem(label, offset, size); }
     Mem ptr(Reg base, Reg index, uint16_t size) { return Mem(base, index, size); }
     Mem ptr(std::string label, Reg index, int64_t offset, uint16_t size) { return Mem(label, index, offset, size); }
+    Mem ptr(Reg base, Reg index, int64_t offset, uint16_t size) { return Mem(base, index, offset, size); }
+
+    RegOffset roff(Reg reg, int64_t offset) { return {reg, offset}; }
 
     // Data
     void String(std::string content) { this->Write(".string \"" + content + "\""); }

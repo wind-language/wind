@@ -68,6 +68,6 @@ python testing/benchmarks/run_bench.py cabala
 
 <div align="center">
 
-## [Documentation](https://utcq.github.io/wind/)
+## [Documentation](https://wind-lang.me)
 
 </div>

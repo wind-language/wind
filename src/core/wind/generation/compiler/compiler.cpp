@@ -80,6 +80,9 @@ void* WindCompiler::visit(const BinaryExpr &node) {
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
       op = IRBinOp::Operation::G_ASSIGN;
     }
+    else if (left->type() == IRNode::NodeType::LADDR_REF) {
+      op = IRBinOp::Operation::VA_ASSIGN;
+    }
     else {
       throw std::runtime_error("Left operand of assignment must be a variable reference (also not a pointer)");
     }
@@ -118,7 +121,17 @@ void *WindCompiler::visit(const VarAddressing &node) {
     throw std::runtime_error("Variable " + node.getName() + " not found");
   }
   this->current_fn->occupyOffset(local->offset());
-  return new IRLocalAddrRef(local->offset(), local->datatype(), node.getIndex());
+  IRNode *index = nullptr;
+  if (node.getIndex() != nullptr) {
+    index = (IRNode*)node.getIndex()->accept(*this);
+    if (index->type() == IRNode::NodeType::LITERAL) {
+      uint16_t indexv = index->as<IRLiteral>()->get();
+      if (local->datatype()->isArray() && local->datatype()->hasCapacity() && indexv >= local->datatype()->getCaps()) {
+        throw std::runtime_error("Index " + std::to_string(indexv) + " out of bounds");
+      }
+    }
+  }
+  return new IRLocalAddrRef(local->offset(), local->datatype(), index);
 }
 
 /**
@@ -232,6 +245,7 @@ DataType *WindCompiler::ResolveDataType(const std::string &n_type) {
   bool unsigned_type = n_type.find("unsigned") != std::string::npos;
   size_t sf = n_type.find(" ");
   std::string type = n_type.substr((sf!=std::string::npos) ? sf+1 : 0);
+  type.erase(std::remove(type.begin(), type.end(), ' '), type.end());
   if (type == "byte") {
     return new DataType(DataType::Sizes::BYTE, !unsigned_type);
   }
@@ -349,24 +363,28 @@ std::string wordstr(int size) {
  */
 void *WindCompiler::visit(const InlineAsm &node) {
   std::string code = node.getCode();
-  std::regex localRefPattern(R"(\?\w+)");
-  std::smatch match;
-  while (std::regex_search(code, match, localRefPattern)) {
-    std::string localRef = match.str().substr(1);
-    IRLocalRef *local = this->current_fn->GetLocal(localRef);
-    if (local) {
-      std::string ref = wordstr(local->datatype()->moveSize()) + " ptr [rbp-" + std::to_string(local->offset()) + "]";
-      code = std::regex_replace(code, localRefPattern, ref);
-    } else {
-      auto globit = this->global_table.find(localRef);
-      if (globit == this->global_table.end()) {
-        throw std::runtime_error("variable " + localRef + " not found");
+  std::string new_code = "";
+  
+  for (int i=0;i<code.size();i++) {
+    if (code[i] == '?') {
+      std::string var = "";
+      i++;
+      while (i < code.size() && isalnum(code[i])) {
+        var += code[i];
+        i++;
       }
-      std::string ref = wordstr(globit->second->getType()->moveSize()) + " ptr [" + globit->first + "]";
-      code = std::regex_replace(code, localRefPattern, ref);
+      i--; // compensate for the increment
+      IRLocalRef *local = this->current_fn->GetLocal(var);
+      if (local == nullptr) {
+        throw std::runtime_error("[INLINE ASM] Variable " + var + " not found");
+      }
+      new_code += "[rbp-" + std::to_string(local->offset()) + "]";
+    } else {
+      new_code += code[i];
     }
   }
-  IRInlineAsm *asm_node = new IRInlineAsm(code);
+
+  IRInlineAsm *asm_node = new IRInlineAsm(new_code);
   return asm_node;
 }
 

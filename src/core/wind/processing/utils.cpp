@@ -2,6 +2,7 @@
 #include <string>
 #include <random>
 #include <filesystem>
+#include <unistd.h>
 
 bool LexUtils::whitespace(char c) {
   return (
@@ -53,4 +54,15 @@ long long fmtinttostr(std::string &str) {
 std::string getRealPath(const std::string& path) {
   std::filesystem::path p(path);
   return std::filesystem::absolute(p).string();
+}
+
+std::string getExeDir() {
+  char path[4096];
+  ssize_t count = readlink("/proc/self/exe", path, sizeof(path));
+  if (count == -1) {
+      perror("readlink");
+      return "";
+  }
+  path[count] = '\0';
+  return std::filesystem::path(path).parent_path().string();
 }

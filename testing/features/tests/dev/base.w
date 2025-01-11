@@ -1,15 +1,19 @@
 @include[
     "#libc.w"
+    "#types.w"
 ]
 
 func main(): int {
-    var i:int16=0;
-    loop [i<10] {
-        printf("Hello %hd\n", i);
-        i++;
-    }
-    i = 32767;
-    i = i+1;
-    printf("Res: %hu\n", i);
+    var buff: [char;32];
+    __builtin_memset(buff, 0, 32);
+    
+    var user_i: int32;
+    printf("name: ");
+    scanf("%s", buff);
+    printf("index: ");
+    scanf("%d", &user_i);
+    var user_c: char = buff[user_i];
+    var square: int32 = user_i * user_i;
+    printf("buff[%d] = %c ; Squared i = %d\n", user_i, user_c, square);
     return 0;
 }

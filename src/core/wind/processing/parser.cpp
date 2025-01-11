@@ -192,7 +192,7 @@ ASTNode *WindParser::parseExprPrimary() {
       } else if (this->stream->peek()->type == Token::LBRACKET) {
         std::string name = this->stream->pop()->value;
         this->expect(Token::Type::LBRACKET, "[");
-        int16_t index = fmtinttostr(this->expect(Token::Type::INTEGER, "index")->value);
+        ASTNode *index = this->parseExpr(0);
         this->expect(Token::Type::RBRACKET, "]");
         return new VarAddressing(
           name, index
@@ -391,6 +391,9 @@ void WindParser::pathWork(std::string relative, Token *token_ref) {
     path = std::filesystem::path(folder).append(relative).string();
   } else {
     path = std::filesystem::path(WIND_STD_PATH).append(relative.substr(1)).string();
+    if (path[0] != '/') {
+      path = std::filesystem::path(getExeDir()).append(path).string();
+    }
   }
   int srcId = global_isc->getSrcId(path);
   if (srcId == -1) {
@@ -405,9 +408,9 @@ void WindParser::pathWork(std::string relative, Token *token_ref) {
     }
   }
   else {
-    GetReporter(token_ref)->Report(ParserReport::PARSER_WARNING, new Token(
+    /* GetReporter(token_ref)->Report(ParserReport::PARSER_WARNING, new Token(
       token_ref->value, token_ref->type, "Nothing (Already included)", token_ref->range, token_ref->srcId
-    ), token_ref);
+    ), token_ref); */
   }
 }
 

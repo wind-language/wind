@@ -6,12 +6,14 @@
 
 void WindEmitter::EmitReturn(IRRet *ret) {
     IRNode *val = ret->get();
-    if (val) this->EmitExpr(
-                val,
-                this->CastReg(
-                    x86::Gp::rax,
-                    this->current_fn->return_type->moveSize()
-                )
-            );
+    if (val) {
+        Reg retv = this->EmitExpr(
+            val,
+            this->CastReg(
+                x86::Gp::rax,
+                this->current_fn->return_type->moveSize()
+            )
+        );
+    }
     this->EmitFnEpilogue();
 }

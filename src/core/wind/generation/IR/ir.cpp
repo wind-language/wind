@@ -58,7 +58,7 @@ DataType* IRLocalRef::datatype() const {
  * @param type The data type.
  * @param index The index.
  */
-IRLocalAddrRef::IRLocalAddrRef(uint16_t stack_offset, DataType* type, int16_t index) : stack_offset(stack_offset), var_type(type), index(index) {}
+IRLocalAddrRef::IRLocalAddrRef(uint16_t stack_offset, DataType* type, IRNode *index) : stack_offset(stack_offset), var_type(type), index(index) {}
 
 /**
  * @brief Gets the stack offset.
@@ -72,7 +72,7 @@ uint16_t IRLocalAddrRef::offset() const {
  * @brief Gets the index.
  * @return The index.
  */
-int16_t IRLocalAddrRef::getIndex() const {
+IRNode *IRLocalAddrRef::getIndex() const {
   return index;
 }
 

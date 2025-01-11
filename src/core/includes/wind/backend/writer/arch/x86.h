@@ -93,7 +93,7 @@ namespace x86 {
 // Declaration macros
 
 #define REG_INSTR_HANDLE(handler, reg) \
-    if (handler != 0 && reg.id != x86::Gp::rsp.id) { \
+    if (handler != 0 && reg.id != x86::Gp::rsp.id && OverflowChecks) { \
         if (reg.signed_value) \
             this->Write("jo", handler); \
         else \
@@ -101,7 +101,7 @@ namespace x86 {
     }
 
 #define MEM_INSTR_HANDLE(handler) \
-    if (handler != 0) { \
+    if (handler != 0 && OverflowChecks) { \
         this->Write("jc", handler); \
     }
 
@@ -112,6 +112,7 @@ namespace x86 {
 #define A_IRI_INSTR(name, handler) void name(Reg dst, int64_t imm) { this->Write(#name, dst, imm); REG_INSTR_HANDLE(handler, dst) } // IRI stands for "Instruction Register-Immediate"
 #define A_IMI_INSTR(name, handler) void name(Mem dst, int64_t imm) { this->Write(#name, dst, imm); MEM_INSTR_HANDLE(handler) } // IMI stands for "Instruction Memory-Immediate"
 #define A_IIR_INSTR(name, handler) void name(int64_t imm, Reg src) { this->Write(#name, imm, src); } // IIR stands for "Instruction Immediate-Register"
+#define A_RROI_INSTR(name, handler) void name(Reg src, RegOffset offs) { this->Write(#name, src, offs); } // RROI stands for "Register Register Offset"
 #define A_IIM_INSTR(name, handler) void name(int64_t imm, Mem src) { this->Write(#name, imm, src); } // IIM stands for "Instruction Immediate-Memory"
 #define A_FIVE_INSTR(name, handler) \
     A_IRR_INSTR(name, handler) \
@@ -138,6 +139,7 @@ namespace x86 {
     A_IRI_INSTR(name, 0) \
     A_IMI_INSTR(name, 0) \
     A_IIR_INSTR(name, 0) \
+    A_RROI_INSTR(name, 0) \
     A_IIM_INSTR(name, 0) // SEVEN for (IRR IRM IMR IRI IMI IIR IIM)
     
 // ----------------------------
@@ -153,10 +155,12 @@ private:
     std::string ResolveGpr(Reg &reg);
     std::string ResolveSeg(Reg &reg);
     std::string ResolveReg(Reg &reg) override;
+    std::string ResolveRegOff(RegOffset &offs) override;
     std::string ResolveMem(Mem &reg) override;
     std::string ResolveWord(uint16_t size) override;
 
 public:
+    bool OverflowChecks = true;
     Ax86_64() {}
     
     A_FIVE_INSTR(mov, 0)
@@ -169,6 +173,9 @@ public:
     A_FIVE_INSTR(sal, 0)
     A_FIVE_INSTR(imul, "__WDH_mul_overflow")
     A_FIVE_INSTR(mul, "__WDH_mul_overflow")
+
+    A_FIVE_INSTR(inc, 0)
+    A_FIVE_INSTR(dec, 0)
 
     SPECIAL_ARITHMETIC(div, "__WDH_div_overflow", false)
     SPECIAL_ARITHMETIC(idiv, "__WDH_div_overflow", true)
