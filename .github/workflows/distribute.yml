@@ -11,7 +11,7 @@ on:
         required: false
 
 jobs:
-  build:
+  build_release:
     runs-on: ubuntu-latest
 
     steps:
@@ -46,19 +46,9 @@ jobs:
         name: windc-dist-${{ github.event.inputs.version || github.ref_name }}
         path: windc-dist-*
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-    # Checkout the code (required for GitHub Actions context)
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    # Upload the tarball to GitHub Release
     - name: Upload Release Asset
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: windc-dist-*
-        tag: ${{ github.ref_name }}
+        file: ./windc-dist-*
+        tag: ${{ github.ref_name }}-dist
