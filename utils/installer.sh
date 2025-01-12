@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPO_OWNER="utcq"
+REPO_OWNER="wind-language"
 REPO_NAME="wind"
 INSTALL_DIR="/opt/wind/"
 
