@@ -90,10 +90,21 @@ const Reg SYSVABI_CNV[8] = {
     x86::Gp::r8, x86::Gp::r9, x86::Gp::r10, x86::Gp::r11
 };
 
+bool isFnDef(std::vector<std::string> def_fns, std::string name) {
+    for (auto fn : def_fns) {
+        if (fn == name) return true;
+    }
+    return false;
+}
+
 void WindEmitter::ProcessFunction(IRFunction *func) {
     this->writer->BindSection(this->textSection);
-    if (func->flags & FN_EXTERN) {
-        this->writer->Extern(func->name());
+    
+    if ((func->flags & FN_EXTERN || !func->isDefined)) {
+        if (!isFnDef(this->program->getDefFns(), func->name())) {
+            // either extern or wrongly externed
+            this->writer->Extern(func->name());
+        }
         return;
     }
     else if (func->flags & FN_PUBLIC || func->name() == "main") {

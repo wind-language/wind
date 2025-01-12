@@ -106,6 +106,9 @@ void* WindCompiler::visit(const VariableRef &node) {
   if (this->global_table.find(node.getName()) != this->global_table.end()) {
     return this->global_table[node.getName()];
   }
+  else if (this->fn_table.find(node.getName()) != this->fn_table.end()) {
+    return new IRFnRef(node.getName());
+  }
   throw std::runtime_error("Variable " + node.getName() + " not found");
 }
 
@@ -186,6 +189,9 @@ void* WindCompiler::visit(const Body &node) {
       }
     } else {
       if (child_node != nullptr) {
+        if (child_node->type() == IRNode::NodeType::FUNCTION && child_node->as<IRFunction>()->isDefined) {
+          body->addDefFn(child_node->as<IRFunction>()->fn_name);
+        }
         *body += std::unique_ptr<IRNode>(child_node);
       }
     }
@@ -201,10 +207,11 @@ void* WindCompiler::visit(const Body &node) {
 void* WindCompiler::visit(const Function &node) {
   IRFunction *fn = new IRFunction(node.getName(), {}, std::unique_ptr<IRBody>(new IRBody({})));
   fn->metadata = node.metadata;
-  if (std::find(this->fn_names.begin(), this->fn_names.end(), node.getName()) != this->fn_names.end()) {
+  fn->isDefined = node.isDefined;
+  auto found_fn = fn_table.find(node.getName());
+  if (found_fn != this->fn_table.end() && found_fn->second->isDefined) {
     throw std::runtime_error("Function " + node.getName() + " already defined");
   }
-  this->fn_names.push_back(node.getName());
   fn->return_type = this->ResolveDataType(node.getType());
   std::vector<DataType*> arg_types;
   for (std::string type : node.getArgTypes()) {

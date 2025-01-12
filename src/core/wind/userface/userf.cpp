@@ -130,6 +130,17 @@ void WindUserInterface::emitObject(std::string path) {
     std::cout << backend->GetAsm() << std::endl;
   }
   this->objects.push_back(output);
+
+  std::vector<std::string> user_ld_flags = global_isc->getLdFlags();
+  for (std::string flag : user_ld_flags) {
+    this->user_ld_flags.push_back(flag);
+  }
+
+  std::vector<std::string> pending_src = global_isc->getImports();
+  for (std::string src : pending_src) {
+    global_isc->popImport();
+    this->emitObject(src);
+  }
   
   delete ir;
   delete opt;
@@ -138,6 +149,9 @@ void WindUserInterface::emitObject(std::string path) {
 
 void WindUserInterface::ldDefFlags(WindLdInterface *ld) {
   ld->addFlag("-m elf_x86_64");
+  for (std::string flag : this->user_ld_flags) {
+    ld->addFlag(flag);
+  }
 }
 
 void WindUserInterface::ldExecFlags(WindLdInterface *ld) {

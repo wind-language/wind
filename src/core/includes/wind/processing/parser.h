@@ -39,7 +39,8 @@ private:
   ASTNode *parseExprColon();
   Body *parseBranchBody();
 
-  void pathWork(std::string relative, Token *token_ref);
+  void pathWorkInclude(std::string relative, Token *token_ref);
+  void pathWorkImport(std::string relative, Token *token_ref);
 
 private:
   TokenStream *stream;

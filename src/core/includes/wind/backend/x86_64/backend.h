@@ -120,6 +120,7 @@ private:
     Reg EmitString(IRStringLiteral *str, Reg dst);
     Reg EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst);
     void EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src);
+    Reg EmitFnRef(IRFnRef *ref, Reg dst);
 
     void ProcessStatement(IRNode *node);
     void ProcessTop(IRNode *node);

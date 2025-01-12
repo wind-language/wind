@@ -225,6 +225,7 @@ IRFunction *IRFunction::clone() {
   new_fn->return_type = return_type;
   new_fn->ignore_stack_abi = ignore_stack_abi;
   new_fn->metadata = metadata;
+  new_fn->isDefined = isDefined;
   new_fn->canary_needed = canary_needed;
   return new_fn;
 }

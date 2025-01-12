@@ -14,6 +14,10 @@
 #define WIND_STD_PATH ""
 #endif
 
+#ifndef WIND_PKGS_PATH
+#define WIND_PKGS_PATH ""
+#endif
+
 ParserReport *GetReporter(Token *src) {
   return global_isc->getParserReport(src->srcId);
 }
@@ -101,6 +105,7 @@ Function *WindParser::parseFn() {
   this->expect(Token::Type::RPAREN, ")");
   this->expect(Token::Type::COLON, ":");
   std::string ret_type = this->typeSignature(Token::Type::IDENTIFIER);
+  bool isDefined = this->stream->current()->type == Token::Type::LBRACE;
   if (this->stream->current()->type == Token::Type::LBRACE) {
     this->expect(Token::Type::LBRACE, "{");
     while (!this->until(Token::Type::RBRACE)) {
@@ -114,6 +119,7 @@ Function *WindParser::parseFn() {
     this->expect(Token::Type::SEMICOLON, ";");
   }
   Function *fn = new Function(name, ret_type, std::unique_ptr<Body>(fn_body));
+  fn->isDefined = isDefined;
   fn->metadata = std::filesystem::path(global_isc->getPath(fn_ref_tok->srcId)).filename().string();
   fn->copyArgTypes(arg_types);
   fn->flags = this->flag_holder;
@@ -383,7 +389,7 @@ FnFlags macroIntoFlag(std::string name) {
   return 0;
 }
 
-void WindParser::pathWork(std::string relative, Token *token_ref) {
+void WindParser::pathWorkInclude(std::string relative, Token *token_ref) {
   std::string path;
   if (relative[0] != '#') {
     std::string this_path = global_isc->getPath(token_ref->srcId);
@@ -399,7 +405,38 @@ void WindParser::pathWork(std::string relative, Token *token_ref) {
   if (srcId == -1) {
     if (global_isc->workOnInclude(path)) {
       GetReporter(token_ref)->Report(ParserReport::PARSER_ERROR, new Token(
-        token_ref->value, token_ref->type, "Nothing (Failed to include)", token_ref->range, token_ref->srcId
+        token_ref->value, token_ref->type, "Nothing Failed to include: " + path, token_ref->range, token_ref->srcId
+      ), token_ref);
+    }
+    Body *commit_diff = global_isc->commitAST(this->ast);
+    if (commit_diff != nullptr) {
+      this->ast = commit_diff;
+    }
+  }
+  else {
+    /* GetReporter(token_ref)->Report(ParserReport::PARSER_WARNING, new Token(
+      token_ref->value, token_ref->type, "Nothing (Already included)", token_ref->range, token_ref->srcId
+    ), token_ref); */
+  }
+}
+
+void WindParser::pathWorkImport(std::string relative, Token *token_ref) {
+  std::string path;
+  if (relative[0] != '#') {
+    std::string this_path = global_isc->getPath(token_ref->srcId);
+    std::string folder = std::filesystem::path(this_path).parent_path().string();
+    path = std::filesystem::path(folder).append(relative).string();
+  } else {
+    path = std::filesystem::path(WIND_PKGS_PATH).append(relative.substr(1)).string();
+    if (path[0] != '/') {
+      path = std::filesystem::path(getExeDir()).append(path).string();
+    }
+  }
+  int srcId = global_isc->getSrcId(path);
+  if (srcId == -1) {
+    if (global_isc->workOnImport(path)) {
+      GetReporter(token_ref)->Report(ParserReport::PARSER_ERROR, new Token(
+        token_ref->value, token_ref->type, "Nothing, Failed to import: " + path , token_ref->range, token_ref->srcId
       ), token_ref);
     }
     Body *commit_diff = global_isc->commitAST(this->ast);
@@ -442,15 +479,36 @@ ASTNode* WindParser::parseMacro() {
   else if (name == "include") {
     if (this->stream->current()->type != Token::Type::LBRACKET) {
       Token *path = this->expect(Token::Type::STRING, "include path");
-      this->pathWork(path->value, macro_tok);
+      this->pathWorkInclude(path->value, macro_tok);
     } else {
       this->expect(Token::Type::LBRACKET, "[");
       while (!this->until(Token::Type::RBRACKET)) {
         Token *path = this->expect(Token::Type::STRING, "include path");
-        this->pathWork(path->value, path);
+        this->pathWorkInclude(path->value, path);
       }
       this->expect(Token::Type::RBRACKET, "]");
     }
+  }
+  else if (name == "import") {
+    if (this->stream->current()->type != Token::Type::LBRACKET) {
+      Token *path = this->expect(Token::Type::STRING, "import path");
+      this->pathWorkImport(path->value, macro_tok);
+    } else {
+      this->expect(Token::Type::LBRACKET, "[");
+      while (!this->until(Token::Type::RBRACKET)) {
+        Token *path = this->expect(Token::Type::STRING, "import path");
+        this->pathWorkImport(path->value, path);
+      }
+      this->expect(Token::Type::RBRACKET, "]");
+    }
+  }
+  else if (name == "linkflag") {
+    this->expect(Token::Type::LPAREN, "(");
+    while (!this->until(Token::Type::RPAREN)) {
+      Token *flag = this->expect(Token::Type::STRING, "link flag");
+      global_isc->addLdFlag(flag->value);
+    }
+    this->expect(Token::Type::RPAREN, ")");
   }
   else if (name == "type") {
     std::string type = this->typeSignature(Token::Type::IDENTIFIER);

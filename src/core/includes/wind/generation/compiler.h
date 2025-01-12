@@ -19,7 +19,6 @@ private:
   Body *program;
   IRBody *emission;
   IRFunction *current_fn;
-  std::vector<std::string> fn_names;
   std::map<std::string, DataType*> userdef_types_map;
   std::map<std::string, IRGlobRef*> global_table;
   std::map<std::string, IRFunction*> fn_table;

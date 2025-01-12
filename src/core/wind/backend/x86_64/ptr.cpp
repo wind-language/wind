@@ -33,7 +33,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
                 );
             } else {
                 this->regalloc.SetDirty(dst);
-                Reg r_index = this->EmitValue(ref->getIndex(), this->regalloc.Allocate(8, false));
+                Reg r_index = this->EmitExpr(ref->getIndex(), this->regalloc.Allocate(8, false));
                 Reg index = {r_index.id, 8, Reg::GPR, false};
                 this->TryCast(index, r_index);
                 CASTED_MOV(
@@ -64,7 +64,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
                 )
             );
         } else {
-            Reg r_index = this->EmitValue(ref->getIndex(), dst);
+            Reg r_index = this->EmitExpr(ref->getIndex(), dst);
             Reg index = {r_index.id, 8, Reg::GPR, false};
             this->TryCast(index, r_index);
             regalloc.SetDirty(index);
@@ -158,7 +158,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
                 );
             } else {
                 this->regalloc.SetDirty(src); // Keep src alive
-                Reg r_index = this->EmitValue(ref->getIndex(), this->regalloc.Allocate(8, false));
+                Reg r_index = this->EmitExpr(ref->getIndex(), this->regalloc.Allocate(8, false));
                 Reg index = {r_index.id, 8, Reg::GPR, false};
                 this->TryCast(index, r_index);
                 this->writer->mov(
@@ -195,7 +195,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
             )
         );
     } else {
-        Reg r_index = this->EmitValue(ref->getIndex(), src);
+        Reg r_index = this->EmitExpr(ref->getIndex(), src);
         Reg index = {r_index.id, 8, Reg::GPR, false};
         this->TryCast(index, r_index);
         regalloc.SetDirty(index);
@@ -247,4 +247,16 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
         }
         this->regalloc.Free(index);
     }
+}
+
+Reg WindEmitter::EmitFnRef(IRFnRef *ref, Reg dst) {
+    this->writer->lea(
+        dst,
+        this->writer->ptr(
+            ref->name(),
+            0,
+            8
+        )
+    );
+    return {dst.id, 8, Reg::GPR, false};
 }

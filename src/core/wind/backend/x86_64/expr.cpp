@@ -44,6 +44,9 @@ Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
         case IRNode::NodeType::LADDR_REF: {
             return this->EmitLocAddrRef(value->as<IRLocalAddrRef>(), dst);
         }
+        case IRNode::NodeType::FN_REF: {
+            return this->EmitFnRef(value->as<IRFnRef>(), dst);
+        }
         default: {
             throw std::runtime_error("Unknown value type(" + std::to_string((uint8_t)value->type()) + "): Report to maintainer!");
         }
@@ -100,9 +103,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 GEN_ASSIGN_LIT(IRBinOp::G_PLUS_ASSIGN, G_PLUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::L_MINUS_ASSIGN, L_MINUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::G_MINUS_ASSIGN, G_MINUS_ASSIGN_OP)
-                LIT_VA_ASSIGN(IRBinOp::VA_ASSIGN)
-                LIT_VA_ASSIGN(IRBinOp::VA_PLUS_ASSIGN)
-                LIT_VA_ASSIGN(IRBinOp::VA_MINUS_ASSIGN)
+                //LIT_VA_ASSIGN(IRBinOp::VA_ASSIGN) // TODO
                 default: {}
             }
             if (dst.signed_value) {

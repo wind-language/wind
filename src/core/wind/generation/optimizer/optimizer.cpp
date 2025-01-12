@@ -346,6 +346,9 @@ void WindOptimizer::OptimizeBody(IRBody *body, IRFunction *parent) {
 }
 
 void WindOptimizer::optimize() {
+  for (std::string &fn_name : this->program->getDefFns()) {
+    this->emission->addDefFn(fn_name);
+  }
   for (auto &node : this->program->get()) {
     if (node->is<IRFunction>()) {
       IRFunction *fn = (IRFunction*)node->as<IRFunction>();

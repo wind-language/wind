@@ -8,7 +8,12 @@ set(EXTERN_DIR ${PARENT_DIR}/external)
 
 set(WIND_STD_PATH "${CMAKE_CURRENT_LIST_DIR}/std" CACHE STRING "Path to the standard lib files")
 set(WIND_RUNTIME_PATH "${CMAKE_CURRENT_LIST_DIR}/runtime" CACHE STRING "Path to the runtime files")
+set (WIND_PKGS_PATH "${CMAKE_CURRENT_LIST_DIR}/pkgs" CACHE STRING "Path to the packages directory")
 option(WIND_BUILD_TESTLIB "Build the API for python testing" OFF)
+
+message (STATUS "Standard library path: ${WIND_STD_PATH}")
+message (STATUS "Runtime path: ${WIND_RUNTIME_PATH}")
+message (STATUS "Packages path: ${WIND_PKGS_PATH}")
 
 file(GLOB_RECURSE SOURCES "core/*.cpp")
 
@@ -19,6 +24,7 @@ target_include_directories(windlib PUBLIC ${CMAKE_CURRENT_LIST_DIR}/core/include
 target_compile_definitions(windlib PRIVATE 
     WIND_STD_PATH="${WIND_STD_PATH}"
     WIND_RUNTIME_PATH="${WIND_RUNTIME_PATH}"
+    WIND_PKGS_PATH="${WIND_PKGS_PATH}"
   )
 
 if (WIND_BUILD_TESTLIB)
@@ -66,5 +72,6 @@ if (WIND_BUILD_TESTLIB)
   target_compile_definitions(windtest_api PRIVATE 
     WIND_STD_PATH="${WIND_STD_PATH}"
     WIND_RUNTIME_PATH="${WIND_RUNTIME_PATH}"
+    WIND_PKGS_PATH="${WIND_PKGS_PATH}"
   )
 endif()

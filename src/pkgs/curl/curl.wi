@@ -1,0 +1,9 @@
+@linkflag("-lcurl")
+
+@extern func curl_easy_init(): ptr;
+@extern func curl_easy_setopt(curl: ptr, option: int, param: ptr): int;
+@extern func curl_easy_perform(curl: ptr): int;
+@extern func curl_easy_strerror(res: int): string;
+@extern func curl_easy_cleanup(curl: ptr): void;
+
+func curl_test(): void;

@@ -30,6 +30,7 @@ private:
   std::string output;
   EmissionFlags flags;
   std::vector<std::string> objects;
+  std::vector<std::string> user_ld_flags;
   char **argv;
 };
 

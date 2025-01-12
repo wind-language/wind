@@ -245,70 +245,12 @@
         } \
     }
 
-#define RAW_VALIT_OPASSIGN(src, op) \
-    const IRLocalAddrRef *ref = binop->left()->as<IRLocalAddrRef>(); \
-    if (ref->isIndexed()) { \
-        if (!ref->datatype()->isArray()) { \
-            throw std::runtime_error("Cannot index non-array"); \
-        } \
-        if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) { \
-            uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
-            if (offset < 0) { \
-                throw std::runtime_error("Invalid offset"); \
-            } \
-            this->writer->op( \
-                this->writer->ptr( \
-                    x86::Gp::rbp, \
-                    -offset, \
-                    ref->datatype()->rawSize() \
-                ), \
-                src \
-            ); \
-            this->writer->mov( \
-                this->writer->ptr( \
-                    x86::Gp::rbp, \
-                    -offset, \
-                    ref->datatype()->rawSize() \
-                ), \
-                src \
-            ); \
-        } \
-        else { \
-            Reg r_index = this->EmitValue(ref->getIndex(), dst); \
-            Reg index = {r_index.id, 8, Reg::GPR, false}; \
-            this->TryCast(index, r_index); \
-            this->writer->op( \
-                this->writer->ptr( \
-                    x86::Gp::rbp, \
-                    index, \
-                    -ref->offset(), \
-                    ref->datatype()->rawSize() \
-                ), \
-                src \
-            ); \
-            this->writer->mov( \
-                this->writer->ptr( \
-                    x86::Gp::rbp, \
-                    index, \
-                    -ref->offset(), \
-                    ref->datatype()->rawSize() \
-                ), \
-                src \
-            ); \
-        } \
-    } \
-
 #define LIT_VA_ASSIGN(type) \
     case type: { \
         RAW_VALIT_ASSIGN(binop->right()->as<IRLiteral>()->get()); \
         return dst; \
     }
 
-#define LIT_VA_OPASSIGN(type, op) \
-    case type: { \
-        RAW_VALIT_OPASSIGN(binop->right()->as<IRLiteral>()->get(), op); \
-        return dst; \
-    }
 
 #define LIT_CMP_OP(type, op) \
     case type: { \

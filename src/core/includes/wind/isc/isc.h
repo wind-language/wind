@@ -5,6 +5,7 @@
 #include <wind/reporter/parser.h>
 #include <wind/bridge/ast.h>
 #include <map>
+#include <algorithm>
 
 #ifndef INTER_SOURCE_COMMUNICATION_H
 #define INTER_SOURCE_COMMUNICATION_H
@@ -29,12 +30,26 @@ public:
   ParserReport *getParserReport(uint16_t id);
 
   int workOnInclude(std::string path);
+  int workOnImport(std::string path);
 
   Body *commitAST(Body *ast);
+
+  std::vector<std::string> getImports() { return this->imp_toprocess; }
+  void popImport() { this->imp_toprocess.pop_back(); }
+  
+  void addLdFlag(std::string flag) {
+    if (std::find(this->ld_user_flags.begin(), this->ld_user_flags.end(), flag) != this->ld_user_flags.end()) {
+      return;
+    }
+    this->ld_user_flags.push_back(flag);
+  }
+  std::vector<std::string> getLdFlags() { return this->ld_user_flags; }
   
 private:
   std::map<int, SourceDesc> sources;
   Body *volatile_ast;
+  std::vector<std::string> imp_toprocess;
+  std::vector<std::string> ld_user_flags;
 };
 
 extern WindISC *global_isc;

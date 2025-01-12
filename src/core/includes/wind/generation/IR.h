@@ -1,3 +1,4 @@
+#include <algorithm>
 #ifndef IR_H
 #define IR_H
 
@@ -28,7 +29,8 @@ public:
     BRANCH,
     LOOP,
     BREAK,
-    CONTINUE
+    CONTINUE,
+    FN_REF
   };
 
   virtual ~IRNode() = default;
@@ -107,6 +109,14 @@ public:
   NodeType type() const override { return NodeType::RET; }
 };
 
+class IRFnRef : public IRNode {
+  std::string fn_name;
+public:
+  explicit IRFnRef(std::string name) : fn_name(name) {}
+  const std::string& name() const { return fn_name; }
+  NodeType type() const override { return NodeType::FN_REF; }
+};
+
 class IRLocalRef : public IRNode {
   uint16_t stack_offset;
   DataType *var_type;
@@ -134,6 +144,7 @@ public:
 
 class IRBody : public IRNode {
   std::vector<std::unique_ptr<IRNode>> statements;
+  std::vector<std::string> def_fn_names;
 
 public:
   explicit IRBody(std::vector<std::unique_ptr<IRNode>> s);
@@ -142,12 +153,16 @@ public:
   IRBody& operator + (std::unique_ptr<IRNode> statement);
   IRBody& operator += (std::unique_ptr<IRNode> statement);
   NodeType type() const override { return NodeType::BODY; }
+  void addDefFn(std::string name) { def_fn_names.push_back(name); }
+  bool hasDefFn(std::string name) { return std::find(def_fn_names.begin(), def_fn_names.end(), name) != def_fn_names.end(); }
+  std::vector<std::string> getDefFns() { return def_fn_names; }
 };
 
 class IRFunction : public IRNode {
 public:
   std::string fn_name;
   std::string metadata;
+  bool isDefined = true;
   std::vector<std::unique_ptr<IRLocalRef>> fn_locals;
   std::unique_ptr<IRBody> fn_body;
   std::unordered_map<std::string, IRLocalRef*> local_table;

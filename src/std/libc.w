@@ -5,6 +5,11 @@
 @extern func puts(str: string) : int;
 @extern func scanf(str: string, ...) : int;
 @extern func memset(dest: ptr, c: int, size: int) : ptr;
+@extern func malloc(size: int) : ptr;
+@extern func free(ptr: ptr) : void;
+@extern func realloc(ptr: ptr, size: int) : ptr;
+@extern func strlen(str: string) : int;
+@extern func strncat(dest: string, src: string, n: int) : string;
 
 
 // Wind runtime functions useful for the user

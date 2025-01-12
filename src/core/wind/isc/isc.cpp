@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <iostream>
+#include <filesystem>
 
 WindISC *global_isc;
 
@@ -59,6 +60,23 @@ int WindISC::workOnInclude(std::string path) {
   WindParser *parser = new WindParser(lexer->get(), path);
   Body *ast = parser->parse();
   this->volatile_ast = ast;
+  return 0;
+}
+
+int WindISC::workOnImport(std::string path) {
+  if (!std::filesystem::exists(path)) {
+    return 1;
+  }
+  std::string dir_name = std::filesystem::path(path).filename().string();
+  std::string interface_file = path + "/" + dir_name + ".wi";
+  if (!std::filesystem::exists(interface_file)) {
+    return 1;
+  }
+  std::string source_file = path + "/" + dir_name + ".w";
+  this->imp_toprocess.push_back(source_file);
+  if (this->workOnInclude(interface_file)) {
+    return 1;
+  }
   return 0;
 }
 
