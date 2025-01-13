@@ -254,6 +254,26 @@ public:
   void *accept(ASTVisitor &visitor) const;
 };
 
+class GenericIndexing : public ASTNode {
+  std::unique_ptr<ASTNode> index;
+  std::unique_ptr<ASTNode> base;
+
+public:
+  GenericIndexing(std::unique_ptr<ASTNode> i, std::unique_ptr<ASTNode> b);
+  void *accept(ASTVisitor &visitor) const;
+  const ASTNode* getIndex() const;
+  const ASTNode* getBase() const;
+};
+
+class PtrGuard : public ASTNode {
+  std::unique_ptr<ASTNode> value;
+
+public:
+  PtrGuard(std::unique_ptr<ASTNode> v);
+  void *accept(ASTVisitor &visitor) const;
+  const ASTNode* getValue() const;
+};
+
 
 class ASTVisitor {
 public:
@@ -275,6 +295,8 @@ public:
   virtual void *visit(const Looping &node) = 0;
   virtual void *visit(const Break &node) = 0;
   virtual void *visit(const Continue &node) = 0;
+  virtual void *visit(const GenericIndexing &node) = 0;
+  virtual void *visit(const PtrGuard &node) = 0;
 };
 
 #endif // AST_H

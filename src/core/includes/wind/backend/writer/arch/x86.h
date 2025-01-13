@@ -189,6 +189,7 @@ public:
     B_TRIPLE_INSTR(push)
     B_TRIPLE_INSTR(pop)
     B_TRIPLE_INSTR(je)
+    B_TRIPLE_INSTR(jz)
     B_TRIPLE_INSTR(jne)
     B_TRIPLE_INSTR(jg)
     B_TRIPLE_INSTR(jge)

@@ -23,6 +23,8 @@ public:
     void *visit(const Looping &node) override;
     void *visit(const Break &node) override;
     void *visit(const Continue &node) override;
+    void *visit(const GenericIndexing &node) override;
+    void *visit(const PtrGuard &node) override;
 
 private:
     void print_tabs();

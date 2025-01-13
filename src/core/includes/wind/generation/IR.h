@@ -9,49 +9,6 @@
 #include <stdint.h>
 #include <wind/bridge/opt_flags.h>
 
-class IRNode {
-public:
-  enum class NodeType {
-    RET,
-    LOCAL_REF,
-    GLOBAL_REF,
-    BODY,
-    FUNCTION,
-    BIN_OP,
-    LITERAL,
-    STRING,
-    LOCAL_DECL,
-    GLOBAL_DECL,
-    ARG_DECL,
-    FUNCTION_CALL,
-    IN_ASM,
-    LADDR_REF,
-    BRANCH,
-    LOOP,
-    BREAK,
-    CONTINUE,
-    FN_REF
-  };
-
-  virtual ~IRNode() = default;
-  virtual NodeType type() const = 0;
-
-  template <typename T>
-  bool is() const {
-    return dynamic_cast<const T*>(this) != nullptr;
-  }
-
-  template <typename T>
-  T* as() {
-    return dynamic_cast<T*>(this);
-  }
-
-  template <typename T>
-  const T* as() const {
-    return dynamic_cast<const T*>(this);
-  }
-};
-
 class DataType {
   private:
     DataType *array;
@@ -110,6 +67,53 @@ class DataType {
     };
 };
 
+class IRNode {
+public:
+  enum class NodeType {
+    RET,
+    LOCAL_REF,
+    GLOBAL_REF,
+    BODY,
+    FUNCTION,
+    BIN_OP,
+    LITERAL,
+    STRING,
+    LOCAL_DECL,
+    GLOBAL_DECL,
+    ARG_DECL,
+    FUNCTION_CALL,
+    IN_ASM,
+    LADDR_REF,
+    BRANCH,
+    LOOP,
+    BREAK,
+    CONTINUE,
+    FN_REF,
+    GENERIC_INDEXING,
+    PTR_GUARD
+  };
+
+  virtual ~IRNode() = default;
+  virtual NodeType type() const = 0;
+
+  virtual DataType *inferType() const { return new DataType(DataType::QWORD, false); }
+
+  template <typename T>
+  bool is() const {
+    return dynamic_cast<const T*>(this) != nullptr;
+  }
+
+  template <typename T>
+  T* as() {
+    return dynamic_cast<T*>(this);
+  }
+
+  template <typename T>
+  const T* as() const {
+    return dynamic_cast<const T*>(this);
+  }
+};
+
 
 class IRRet : public IRNode {
   std::unique_ptr<IRNode> value;
@@ -126,6 +130,10 @@ public:
   explicit IRFnRef(std::string name) : fn_name(name) {}
   const std::string& name() const { return fn_name; }
   NodeType type() const override { return NodeType::FN_REF; }
+
+  DataType *inferType() const override { 
+    return new DataType(DataType::QWORD, false);
+  }
 };
 
 class IRLocalRef : public IRNode {
@@ -137,6 +145,8 @@ public:
   uint16_t offset() const;
   DataType *datatype() const;
   NodeType type() const override { return NodeType::LOCAL_REF; }
+
+  DataType *inferType() const override { return var_type; }
 };
 
 class IRLocalAddrRef : public IRNode {
@@ -151,6 +161,13 @@ public:
   bool isIndexed() const { return index != nullptr; }
   DataType *datatype() const;
   NodeType type() const override { return NodeType::LADDR_REF; }
+
+  DataType *inferType() {
+    if (isIndexed()) {
+      return var_type->getArrayType();
+    }
+    return new DataType(DataType::QWORD, false);
+  }
 };
 
 class IRBody : public IRNode {
@@ -240,13 +257,19 @@ private:
   std::unique_ptr<IRNode> expr_left;
   std::unique_ptr<IRNode> expr_right;
   Operation op;
+  DataType *infered_type = nullptr;
 
 public:
   IRBinOp(std::unique_ptr<IRNode> l, std::unique_ptr<IRNode> r, Operation o);
+  void setInferedType(DataType *type) { infered_type = type; }
   const IRNode* left() const;
   const IRNode* right() const;
   Operation operation() const;
   NodeType type() const override { return NodeType::BIN_OP; }
+
+  DataType *inferType() const override {
+    return infered_type;
+  }
 };
 
 IRBinOp::Operation IRstr2op(std::string str);
@@ -258,6 +281,10 @@ public:
   explicit IRLiteral(long long v);
   long long get() const;
   NodeType type() const override { return NodeType::LITERAL; }
+
+  DataType *inferType() const override {
+    return new DataType(DataType::Sizes::QWORD, true);
+  }
 };
 
 class IRStringLiteral : public IRNode {
@@ -267,6 +294,10 @@ public:
   explicit IRStringLiteral(std::string v);
   const std::string& get() const;
   NodeType type() const override { return NodeType::STRING; }
+
+  DataType *inferType() const override {
+    return new DataType(DataType::Sizes::QWORD, false);
+  }
 };
 
 class IRVariableDecl : public IRNode {
@@ -289,6 +320,8 @@ public:
   const std::string& getName() const;
   DataType *getType() const;
   NodeType type() const override { return NodeType::GLOBAL_REF; }
+
+  DataType *inferType() const override { return g_type; }
 };
 
 class IRGlobalDecl : public IRNode {
@@ -324,6 +357,8 @@ public:
   void replaceArg(int index, std::unique_ptr<IRNode> arg);
   IRFunction *getRef() const;
   NodeType type() const override { return NodeType::FUNCTION_CALL; }
+
+  DataType *inferType() const override { return ref->return_type; }
 };
 
 
@@ -373,6 +408,31 @@ public:
 class IRContinue : public IRNode {
 public:
   NodeType type() const override { return NodeType::CONTINUE; }
+};
+
+class IRGenericIndexing : public IRNode {
+  IRNode *base;
+  IRNode *index;
+  DataType *infered_type;
+
+public:
+  IRGenericIndexing(IRNode *b, IRNode *i);
+  IRNode* getIndex() const;
+  IRNode* getBase() const;
+  NodeType type() const override { return NodeType::GENERIC_INDEXING; }
+
+  DataType *inferType() const override { return infered_type; }
+};
+
+class IRPtrGuard : public IRNode {
+  IRNode *value;
+
+public:
+  IRPtrGuard(IRNode *value);
+  IRNode *getValue() const;
+  NodeType type() const override { return NodeType::PTR_GUARD; }
+
+  DataType *inferType() const override { return value->inferType(); }
 };
 
 #endif // IR_H

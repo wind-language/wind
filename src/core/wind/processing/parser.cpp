@@ -214,6 +214,17 @@ ASTNode *WindParser::parseExprPrimary() {
         this->stream->pop();
         return new Literal(0);
       }
+      else if (isKeyword(this->stream->current(), "guard") && this->stream->peek()->type == Token::Type::NOT) {
+        // ptr guard
+        this->expect(Token::Type::IDENTIFIER, "guard");
+        this->expect(Token::Type::NOT, "!");
+        this->expect(Token::Type::LBRACKET, "[");
+        ASTNode *value = this->parseExpr(0);
+        this->expect(Token::Type::RBRACKET, "]");
+        return new PtrGuard(
+          std::unique_ptr<ASTNode>(value)
+        );
+      }
 
       if (this->stream->peek()->type == Token::LPAREN) {
         return this->parseExprFnCall();
@@ -251,8 +262,7 @@ ASTNode *WindParser::parseExprPrimary() {
       this->expect(Token::Type::MINUS, "-");
       return this->parseExprLiteral(true);
     }
-
-
+  
     default:
       Token *token = this->stream->pop();
       GetReporter(token)->Report(ParserReport::PARSER_ERROR, new Token(
@@ -266,7 +276,19 @@ ASTNode *WindParser::parseExpr(int precedence) {
   if (!left) {
     return nullptr;
   }
-  return this->parseExprBinOp(left, precedence);
+  ASTNode *enode = this->parseExprBinOp(left, precedence);
+
+  if (this->stream->current()->type == Token::Type::LBRACKET) {
+    this->expect(Token::Type::LBRACKET, "[");
+    ASTNode *index = this->parseExpr(0);
+    this->expect(Token::Type::RBRACKET, "]");
+    enode = new GenericIndexing(
+      std::unique_ptr<ASTNode>(index),
+      std::unique_ptr<ASTNode>(enode)
+    );
+  }
+
+  return enode;
 }
 
 ASTNode *WindParser::parseExprSemi() {

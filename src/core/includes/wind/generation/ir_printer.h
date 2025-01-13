@@ -29,6 +29,7 @@ private:
   void print_asm(const IRInlineAsm *node);
   void print_branch(const IRBranching *node);
   void print_loop(const IRLooping *node);
+  void print_gen_index(const IRGenericIndexing *node);
 
   void print_tabs();
 };

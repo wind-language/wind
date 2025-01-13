@@ -560,3 +560,18 @@ void IRLooping::setCondition(IRNode *c) {
 void IRLooping::setBody(IRBody *b) {
   body = b;
 }
+
+IRGenericIndexing::IRGenericIndexing(IRNode *b, IRNode *i) : base(b), index(i) {
+  this->infered_type = base->inferType();
+}
+IRNode *IRGenericIndexing::getBase() const {
+  return base;
+}
+IRNode *IRGenericIndexing::getIndex() const {
+  return index;
+}
+
+IRPtrGuard::IRPtrGuard(IRNode *v) : value(v) {}
+IRNode *IRPtrGuard::getValue() const {
+  return value;
+}

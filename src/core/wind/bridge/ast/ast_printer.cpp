@@ -171,3 +171,18 @@ void *ASTPrinter::visit(const Continue &node) {
   std::cout << "continue";
   return nullptr;
 }
+
+void *ASTPrinter::visit(const GenericIndexing &node) {
+  node.getBase()->accept(*this);
+  std::cout << "[";
+  node.getIndex()->accept(*this);
+  std::cout << "]";
+  return nullptr;
+}
+
+void *ASTPrinter::visit(const PtrGuard &node) {
+  this->print_tabs();
+  std::cout << "guard ";
+  node.getValue()->accept(*this);
+  return nullptr;
+}

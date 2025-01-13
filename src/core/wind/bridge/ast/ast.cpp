@@ -257,3 +257,25 @@ Continue::Continue() {}
 void *Continue::accept(ASTVisitor &visitor) const {
   return visitor.visit(*this);
 }
+
+GenericIndexing::GenericIndexing(std::unique_ptr<ASTNode> i, std::unique_ptr<ASTNode> b) {
+  index = std::move(i);
+  base = std::move(b);
+}
+void *GenericIndexing::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const ASTNode *GenericIndexing::getIndex() const {
+  return index.get();
+}
+const ASTNode *GenericIndexing::getBase() const {
+  return base.get();
+}
+
+PtrGuard::PtrGuard(std::unique_ptr<ASTNode> v) : value(std::move(v)) {}
+void *PtrGuard::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const ASTNode *PtrGuard::getValue() const {
+  return value.get();
+}

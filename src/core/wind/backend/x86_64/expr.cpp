@@ -44,8 +44,14 @@ Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
         case IRNode::NodeType::LADDR_REF: {
             return this->EmitLocAddrRef(value->as<IRLocalAddrRef>(), dst);
         }
+        case IRNode::NodeType::GENERIC_INDEXING: {
+            return this->EmitGenAddrRef(value->as<IRGenericIndexing>(), dst);
+        }
         case IRNode::NodeType::FN_REF: {
             return this->EmitFnRef(value->as<IRFnRef>(), dst);
+        }
+        case IRNode::NodeType::PTR_GUARD: {
+            return this->EmitPtrGuard(value->as<IRPtrGuard>(), dst);
         }
         default: {
             throw std::runtime_error("Unknown value type(" + std::to_string((uint8_t)value->type()) + "): Report to maintainer!");

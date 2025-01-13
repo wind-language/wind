@@ -43,7 +43,8 @@ public:
     PLUS_ASSIGN,
     MINUS_ASSIGN,
     INCREMENT,
-    DECREMENT
+    DECREMENT,
+    NOT
   };
   
   std::string value;
@@ -92,6 +93,7 @@ std::vector<std::pair<std::string, Token::Type>> const SymbolTable = {
   {"?", Token::Type::QMARK},
   {"...", Token::Type::VARDC},
   {"&", Token::Type::AND},
+  {"!", Token::Type::NOT}
 };
 
 #endif

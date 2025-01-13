@@ -252,3 +252,40 @@ Reg WindEmitter::EmitFnRef(IRFnRef *ref, Reg dst) {
     );
     return {dst.id, 8, Reg::GPR, false};
 }
+
+Reg WindEmitter::EmitGenAddrRef(IRGenericIndexing *ref, Reg dst) {
+    IRNode *index = ref->getIndex();
+    if (index->is<IRLiteral>()) {
+        Reg base = this->EmitExpr(ref->getBase(), x86::Gp::rbx);
+        int16_t indexv = index->as<IRLiteral>()->get();
+        CASTED_MOV(
+            dst,
+            this->writer->ptr(
+                CastReg(base, 8),
+                ref->inferType()->index2offset(indexv),
+                ref->inferType()->rawSize()
+            )
+        )
+        return dst;
+    }
+    Reg base = this->EmitExpr(ref->getBase(), x86::Gp::rbx);
+    Reg r_index = this->EmitExpr(index, this->regalloc.Allocate(8, false));
+    r_index = {r_index.id, 8, Reg::GPR, false};
+    CASTED_MOV(
+        dst,
+        this->writer->ptr(
+            CastReg(base, 8),
+            CastReg(r_index, 8),
+            0,
+            ref->inferType()->rawSize()
+        )
+    )
+    return dst;
+}
+
+Reg WindEmitter::EmitPtrGuard(IRPtrGuard *ref, Reg dst) {
+    Reg ptr = this->EmitExpr(ref->getValue(), dst);
+    this->writer->test(ptr, ptr);
+    this->writer->jz("__WDH_guard_failed");
+    return ptr;
+}

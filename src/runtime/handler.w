@@ -48,3 +48,12 @@
   printf("Array indexing out of bounds encountered in function '%s'\n");
   abort();
 }
+
+@pub @pure[stchk] func __WDH_guard_failed(): void {
+  puts("*** [ ptr guard failed ] ***");
+  asm {
+    mov rsi, r15;
+  }
+  printf("Pointer guard failed in function '%s'\n");
+  abort();
+}

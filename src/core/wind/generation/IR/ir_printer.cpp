@@ -15,12 +15,13 @@ const std::unordered_map<IRBinOp::Operation, std::string> BOpTTable = {
   {IRBinOp::Operation::AND, "and"},
   {IRBinOp::Operation::L_ASSIGN, "ass"},
   {IRBinOp::Operation::G_ASSIGN, "ass"},
+  {IRBinOp::Operation::VA_ASSIGN, "ass"},
   {IRBinOp::Operation::EQ, "eq"},
   {IRBinOp::Operation::LESS, "le"},
   {IRBinOp::Operation::LESSEQ, "leq"},
   {IRBinOp::Operation::GREATER, "gr"},
   {IRBinOp::Operation::MOD, "mod"},
-  {IRBinOp::Operation::LOGAND, "&&"}
+  {IRBinOp::Operation::LOGAND, "&&"},
 };
 
 IRPrinter::~IRPrinter() {}
@@ -137,13 +138,17 @@ void IRPrinter::print_node(const IRNode *node) {
       break;
     }
     case IRNode::NodeType::BREAK : {
-      this->print_tabs();
-      std::cout << "break" << std::endl;
+      std::cout << "break";
       break;
     }
     case IRNode::NodeType::CONTINUE : {
-      this->print_tabs();
-      std::cout << "continue" << std::endl;
+      std::cout << "continue";
+      break;
+    }
+    case IRNode::NodeType::GENERIC_INDEXING : {
+      this->print_gen_index(
+        node->as<IRGenericIndexing>()
+      );
       break;
     }
     default : {
@@ -156,9 +161,11 @@ void IRPrinter::print_node(const IRNode *node) {
 void IRPrinter::print_body(const IRBody *body) {
   this->tabs++;
   for (auto &node : body->get()) {
+    this->print_tabs();
     this->print_node(
       dynamic_cast<IRNode *>(node.get())
     );
+    std::cout << std::endl;
   }
   this->tabs--;
 }
@@ -199,13 +206,11 @@ void IRPrinter::print_bin_op(const IRBinOp *node) {
 }
 
 void IRPrinter::print_ret(const IRRet *node) {
-  this->print_tabs();
   std::cout << "ret ";
   IRNode *val = node->get();
   if (val) {
     this->print_node(val);
   }
-  std::cout << std::endl;
 }
 
 void IRPrinter::print_ref(const IRLocalRef *node) {
@@ -215,7 +220,9 @@ void IRPrinter::print_ref(const IRLocalRef *node) {
 void IRPrinter::print_laddr(const IRLocalAddrRef *node) {
   std::cout << "&loc" << node->offset();
   if (node->isIndexed() != -1) {
-    std::cout << "[" << node->getIndex() << "]";
+    std::cout << "[";
+    this->print_node(node->getIndex());
+    std::cout << "]";
   }
 }
 
@@ -228,43 +235,37 @@ void IRPrinter::print_lit(const IRLiteral *node) {
 }
 
 void IRPrinter::print_ldecl(const IRVariableDecl *node) {
-  this->print_tabs();
-  std::cout << "alloc [" << node->local()->datatype()->memSize() << "] loc" << node->local()->offset() << std::endl;
+  std::cout << "alloc [" << node->local()->datatype()->memSize() << "] loc" << node->local()->offset();
   if (node->value()) {
+    std::cout << "\n";
     this->print_tabs();
     std::cout << "store ";
     this->print_node(node->value());
-    std::cout << " -> loc" << node->local()->offset() << std::endl;
+    std::cout << " -> loc" << node->local()->offset();
   }
 }
 
 void IRPrinter::print_gdecl(const IRGlobalDecl *node) {
-  this->print_tabs();
   std::cout << "global " << node->global()->getName() << " [" << node->global()->getType()->memSize() << "]";
   if (node->value()) {
     std::cout << " = ";
     this->print_node(node->value());
   }
-  std::cout << std::endl;
 }
 
 void IRPrinter::print_argdecl(const IRArgDecl *node) {
-  std::cout << "  alloc [" << node->local()->datatype()->memSize() << "] loc" << node->local()->offset() << std::endl;
+  std::cout << "  alloc [" << node->local()->datatype()->memSize() << "] loc" << node->local()->offset();
 }
 
 void IRPrinter::print_asm(const IRInlineAsm *node) {
-  this->print_tabs();
   // replace every \n with \n\t
   std::string code = node->code();
   std::regex newline("\n");
   code = std::regex_replace(code, newline, "\n    ");
-  std::cout << "asm {\n    " << code << "\n  }" << std::endl;
+  std::cout << "asm {\n    " << code << "\n  }";
 }
 
 void IRPrinter::print_fncall(const IRFnCall *node) {
-  if (!this->in_expr) {
-    this->print_tabs();
-  }
   std::cout << "call " << node->name() << "(";
   for (auto &arg : node->args()) {
     this->print_node(arg.get());
@@ -272,13 +273,9 @@ void IRPrinter::print_fncall(const IRFnCall *node) {
       std::cout << ", ";
   }
   std::cout << ")";
-  if (!this->in_expr) {
-    std::cout << std::endl;
-  }
 }
 
 void IRPrinter::print_branch(const IRBranching *node) {
-  this->print_tabs();
   std::cout << "branch [\n";
   this->tabs++;
   for (const auto &branch : node->getBranches()) {
@@ -307,7 +304,6 @@ void IRPrinter::print_branch(const IRBranching *node) {
 }
 
 void IRPrinter::print_loop(const IRLooping *node) {
-  this->print_tabs();
   std::cout << "while ";
   this->print_node(node->getCondition());
   std::cout << " {\n";
@@ -316,4 +312,11 @@ void IRPrinter::print_loop(const IRLooping *node) {
   this->tabs--;
   this->print_tabs();
   std::cout << "}\n";
+}
+
+void IRPrinter::print_gen_index(const IRGenericIndexing *node) {
+  this->print_node(node->getBase());
+  std::cout << "[";
+  this->print_node(node->getIndex());
+  std::cout << "]";
 }

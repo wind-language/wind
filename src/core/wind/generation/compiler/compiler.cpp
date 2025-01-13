@@ -41,6 +41,57 @@ void WindCompiler::compile() {
   this->emission = (IRBody*)this->program->accept(*this);
 }
 
+DataType *typePriority(DataType *left, DataType *right) {
+  // always prefer pointer types over scalar types
+  if (left->isPointer()) {
+    return left;
+  } else if (right->isPointer()) {
+    return right;
+  }
+  // if both are arrays, prefer the one with the highest capacity
+  if (left->isArray() && right->isArray()) {
+    if (left->getCaps() > right->getCaps()) {
+      return left;
+    } else {
+      return right;
+    }
+  }
+  // if one is an array and the other is not, prefer the array
+  if (left->isArray()) {
+    return left;
+  } else if (right->isArray()) {
+    return right;
+  }
+  // if both are scalars, prefer the one with the highest size
+  if (left->moveSize() > right->moveSize()) {
+    return left;
+  } else {
+    return right;
+  }
+  // if all else fails, return the left type
+  return left;
+}
+
+DataType *findInferType(IRBinOp *binop) {
+  switch (binop->operation()) {
+    case IRBinOp::L_PLUS_ASSIGN:
+    case IRBinOp::L_MINUS_ASSIGN:
+    case IRBinOp::G_PLUS_ASSIGN:
+    case IRBinOp::G_MINUS_ASSIGN:
+    case IRBinOp::VA_PLUS_ASSIGN:
+    case IRBinOp::VA_MINUS_ASSIGN:
+    case IRBinOp::L_ASSIGN:
+    case IRBinOp::G_ASSIGN:
+    case IRBinOp::VA_ASSIGN:
+      return binop->left()->inferType();
+    default: {
+      DataType *left = binop->left()->inferType();
+      DataType *right = binop->right()->inferType();
+      return typePriority(left, right);
+    }
+  }
+}
+
 /**
  * @brief Visits a binary expression node.
  * @param node The binary expression node.
@@ -88,6 +139,7 @@ void* WindCompiler::visit(const BinaryExpr &node) {
     }
   } else { op = IRstr2op(node.getOperator()); }
   IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(left), std::unique_ptr<IRNode>(right), op);
+  binop->setInferedType(findInferType(binop));
   return binop;
 }
 
@@ -471,4 +523,19 @@ void *WindCompiler::visit(const Break &node) {
  */
 void *WindCompiler::visit(const Continue &node) {
   return new IRContinue();
+}
+
+void *WindCompiler::visit(const GenericIndexing &node) {
+  // we need to get infered type from the base and make sure it's a pointer
+  IRNode *base = (IRNode*)node.getBase()->accept(*this);
+  IRNode *index = (IRNode*)node.getIndex()->accept(*this);
+  if (!base->inferType()->isPointer()) {
+    throw std::runtime_error("Base of indexing must be a pointer");
+  }
+  return new IRGenericIndexing(base, index);
+}
+
+void *WindCompiler::visit(const PtrGuard &node) {
+  IRNode *value = (IRNode*)node.getValue()->accept(*this);
+  return new IRPtrGuard(value);
 }

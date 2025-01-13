@@ -121,6 +121,8 @@ private:
     Reg EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst);
     void EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src);
     Reg EmitFnRef(IRFnRef *ref, Reg dst);
+    Reg EmitGenAddrRef(IRGenericIndexing *ref, Reg dst);
+    Reg EmitPtrGuard(IRPtrGuard *guard, Reg dst);
 
     void ProcessStatement(IRNode *node);
     void ProcessTop(IRNode *node);
