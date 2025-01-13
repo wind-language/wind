@@ -7,47 +7,38 @@
 
 Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
     if (ref->isIndexed()) {
-        if (!ref->datatype()->isArray()) {
-            // TOOD: Implement data type indexing for pointers
-            // byte for now
+        if (!ref->datatype()->isArray()) { // pointer indexing
             CASTED_MOV(
-                dst,
+                CastReg(dst, 8),
                 this->writer->ptr(
                     x86::Gp::rbp,
                     -ref->offset(),
-                    ref->datatype()->rawSize()
+                    ref->datatype()->moveSize()
                 )
-            )
-            if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) {
-                int16_t index = ref->getIndex()->as<IRLiteral>()->get();
-                if (index < 0) {
-                    throw std::runtime_error("Invalid offset");
-                }
+            );
+            IRNode *index = ref->getIndex();
+            if (index->is<IRLiteral>()) {
                 CASTED_MOV(
                     dst,
                     this->writer->ptr(
-                        dst,
-                        index,
-                        1 // byte type
+                        CastReg(dst, 8),
+                        ref->datatype()->index2offset(index->as<IRLiteral>()->get()),
+                        ref->datatype()->rawSize()
                     )
-                );
+                )
             } else {
-                this->regalloc.SetDirty(dst);
-                Reg r_index = this->EmitExpr(ref->getIndex(), this->regalloc.Allocate(8, false));
-                Reg index = {r_index.id, 8, Reg::GPR, false};
-                this->TryCast(index, r_index);
+                Reg r_index = this->EmitExpr(index, x86::Gp::rbx);
                 CASTED_MOV(
                     dst,
                     this->writer->ptr(
-                        dst,
-                        index,
+                        CastReg(dst, 8),
+                        r_index,
                         0,
-                        1 // byte type
+                        ref->datatype()->rawSize()
                     )
-                );
-                this->regalloc.Free(index);
+                )
             }
-            return {dst.id, 1, Reg::GPR, false};
+            return dst;
         }
         if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) {
             int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get());
@@ -132,17 +123,17 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
 void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
     if (ref->isIndexed()) {
         if (!ref->datatype()->isArray()) {
-            // TOOD: Implement data type indexing for pointers
-            // byte for now
-            src.size = 1;
+            // pointer indexing
+            src.size = ref->datatype()->rawSize(); src.signed_value = ref->datatype()->isSigned();
             CASTED_MOV(
                 x86::Gp::rbx,
                 this->writer->ptr(
                     x86::Gp::rbp,
                     -ref->offset(),
-                    ref->datatype()->rawSize()
+                    ref->datatype()->moveSize()
                 )
             )
+            this->regalloc.SetVar(x86::Gp::rbx, ref->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
             if (ref->getIndex()->is<IRLiteral>()) {
                 int16_t index = ref->getIndex()->as<IRLiteral>()->get();
                 if (index < 0) {
@@ -152,7 +143,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
                     this->writer->ptr(
                         x86::Gp::rbx,
                         index,
-                        1 // byte type
+                        src.size
                     ),
                     src
                 );
@@ -166,7 +157,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
                         x86::Gp::rbx,
                         index,
                         0,
-                        1 // byte type
+                        src.size
                     ),
                     src
                 );

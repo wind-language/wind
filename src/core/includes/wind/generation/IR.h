@@ -55,24 +55,33 @@ public:
 class DataType {
   private:
     DataType *array;
+    DataType *ptr;
     uint16_t type_size;
     uint16_t capacity;
     bool signed_type = true;
+    bool is_pointer = false;
 
   public:
     DataType(uint16_t size, bool is_signed) : type_size(size), capacity(1), array(nullptr), signed_type(is_signed) {}
     DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr) {}
     DataType(uint16_t size, DataType *arr) : type_size(size), capacity(UINT16_MAX), array(arr) {}
     DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr) {}
+    DataType(DataType *ptr): type_size(ptr->moveSize()), capacity(UINT16_MAX), array(nullptr), ptr(ptr), signed_type(false), is_pointer(true) {}
     bool isArray() const { return array != nullptr; }
     bool isSigned() const { return signed_type; }
-    uint16_t moveSize() const { if (!isArray()) return type_size; return 8; }
+    uint16_t moveSize() const {
+      if (isArray() || isPointer()) return QWORD;
+      else return type_size;
+    }
     uint16_t index2offset(uint16_t index) const {
-      if (isArray()) { return index * type_size; }
+      if (isArray() || isPointer()) { return index * type_size; }
       return index;
     }
     uint16_t memSize() const {
       uint32_t bytes = 0;
+      if (isPointer()) {
+        return QWORD;
+      }
       if (!isArray()) {
         return type_size;
       }
@@ -89,6 +98,8 @@ class DataType {
     bool hasCapacity() const { return capacity != UINT16_MAX; }
     uint16_t getCaps() const { return capacity; }
 
+    bool isPointer() const { return is_pointer; }
+    DataType *getPtrType() const { return ptr; }
 
     enum Sizes {
       BYTE = 1,

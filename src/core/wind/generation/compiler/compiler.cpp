@@ -123,6 +123,9 @@ void *WindCompiler::visit(const VarAddressing &node) {
   if (local == nullptr) {
     throw std::runtime_error("Variable " + node.getName() + " not found");
   }
+  if (!local->datatype()->isPointer() && !local->datatype()->isArray()) {
+    throw std::runtime_error("Variable " + node.getName() + " is not a pointer or array");
+  }
   this->current_fn->occupyOffset(local->offset());
   IRNode *index = nullptr;
   if (node.getIndex() != nullptr) {
@@ -248,6 +251,11 @@ DataType *WindCompiler::ResolveDataType(const std::string &n_type) {
       return new DataType(size, capacity, intype);
     }
     return new DataType(size, intype);
+  }
+  else if (n_type.substr(0, 4) == "ptr<") {
+    std::string inner = n_type.substr(4, n_type.size()-5);
+    DataType *intype = this->ResolveDataType(inner);
+    return new DataType(intype);
   }
   bool unsigned_type = n_type.find("unsigned") != std::string::npos;
   size_t sf = n_type.find(" ");

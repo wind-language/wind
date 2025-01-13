@@ -26,7 +26,7 @@ Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
         case IRNode::NodeType::LITERAL: {
             int64_t val = value->as<IRLiteral>()->get();
             if (val==0) {
-                this->writer->xor_(CastReg(dst, 8), CastReg(dst, 8));
+                this->writer->xor_(dst, dst);
             } else {
                 this->writer->mov(dst, val);
             }

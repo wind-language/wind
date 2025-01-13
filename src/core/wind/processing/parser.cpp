@@ -66,6 +66,13 @@ std::string WindParser::typeSignature(Token::Type while_) {
     signature += this->expect(Token::Type::RBRACKET, "]")->value;
     return signature;
   }
+  else if (isKeyword(this->stream->current(), "ptr") && this->stream->peek()->type == Token::Type::LESS) {
+    signature += this->expect(Token::Type::IDENTIFIER, "ptr")->value;
+    signature += this->expect(Token::Type::LESS, "<")->value;
+    signature += this->typeSignature(Token::Type::IDENTIFIER);
+    signature += this->expect(Token::Type::GREATER, ">")->value;
+    return signature;
+  }
 
   bool first = true;
   while (this->until(while_)) {
@@ -193,6 +200,14 @@ ASTNode *WindParser::parseExprPrimary() {
       return this->parseExprLiteral();
 
     case Token::IDENTIFIER: {
+      if (isKeyword(this->stream->current(), "true")) {
+        this->stream->pop();
+        return new Literal(1);
+      } else if (isKeyword(this->stream->current(), "false") || isKeyword(this->stream->current(), "Null")) {
+        this->stream->pop();
+        return new Literal(0);
+      }
+
       if (this->stream->peek()->type == Token::LPAREN) {
         return this->parseExprFnCall();
       } else if (this->stream->peek()->type == Token::LBRACKET) {
