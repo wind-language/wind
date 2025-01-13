@@ -10,6 +10,7 @@
 @type uint64 = unsigned long;
 @type int64 = signed long;
 
-@type string = uint64;
 @type char = uint8;
 @type bool = uint8;
+
+@type string = ptr<char>;

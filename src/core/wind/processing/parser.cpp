@@ -43,12 +43,19 @@ std::string WindParser::typeSignature(Token::Type until, Token::Type oruntil) {
   bool first = true;
   while (!this->until(until) && !this->until(oruntil)) {
     Token *token = stream->pop();
-    if (first){
-      first=false;
+    if (isKeyword(token, "ptr") && this->stream->current()->type == Token::Type::LESS) {
+      signature += token->value;
+      signature += this->expect(Token::Type::LESS, "<")->value;
+      signature += this->typeSignature(Token::Type::IDENTIFIER);
+      signature += this->expect(Token::Type::GREATER, ">")->value;
     } else {
-      signature += " ";
+      if (first){
+        first=false;
+      } else {
+        signature += " ";
+      }
+      signature += token->value;
     }
-    signature += token->value;
   }
   return signature;
 }

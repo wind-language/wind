@@ -4,6 +4,7 @@
 #include <wind/backend/x86_64/expr_macros.h>
 #include <wind/bridge/opt_flags.h>
 #include <stdexcept>
+#include <iostream>
 
 Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
     if (ref->isIndexed()) {
@@ -32,7 +33,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
                     dst,
                     this->writer->ptr(
                         CastReg(dst, 8),
-                        r_index,
+                        CastReg(r_index, 8),
                         0,
                         ref->datatype()->rawSize()
                     )
@@ -142,7 +143,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
                 this->writer->mov(
                     this->writer->ptr(
                         x86::Gp::rbx,
-                        index,
+                        ref->datatype()->index2offset(index),
                         src.size
                     ),
                     src

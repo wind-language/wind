@@ -5,14 +5,16 @@
     "#link"
 ] */
 
-func get_ptr(): ptr<char> {
-    var buff: ptr<char> = malloc(10);
-    buff[1] = 'a';
+func get_ptr(): ptr<ptr<int>> {
+    var buff: ptr<ptr<int>> = malloc(8*4);
+    buff[i] = malloc(4*4);
+    buff[i][0] = 1;
     return buff;
 }
 
 func main(): int {
-    var buff: ptr<char> = get_ptr();
-    printf("buff[1] = %c\n", buff[1]);
+    var buff: ptr<int> = get_ptr();
+    var i: int = 5;
+    printf("buff[i] = %d\n", buff[i]);
     return 0;
 }

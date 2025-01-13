@@ -215,13 +215,13 @@ void* WindCompiler::visit(const Function &node) {
   if (found_fn != this->fn_table.end() && found_fn->second->isDefined) {
     throw std::runtime_error("Function " + node.getName() + " already defined");
   }
+  this->current_fn = fn;
   fn->return_type = this->ResolveDataType(node.getType());
   std::vector<DataType*> arg_types;
   for (std::string type : node.getArgTypes()) {
     arg_types.push_back(this->ResolveDataType(type));
   }
   fn->copyArgTypes(arg_types);
-  this->current_fn = fn;
   this->fn_table[node.getName()] = fn;
   fn->flags = node.flags;
   IRBody *body = (IRBody*)node.getBody()->accept(*this);
@@ -280,7 +280,11 @@ DataType *WindCompiler::ResolveDataType(const std::string &n_type) {
     return this->userdef_types_map[type];
   }
 
-  throw std::runtime_error("Invalid type " +type);
+  std::string fn_name;
+  if (this->current_fn) {
+    fn_name = " in function: " + this->current_fn->name();
+  }
+  throw std::runtime_error("Invalid type " +type + fn_name);
 }
 
 /**
