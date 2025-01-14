@@ -111,6 +111,8 @@ public:
 
     void Write(std::string instr, Reg src, RegOffset offs) { this->Write(instr + " " + ResolveReg(src) + ", " + ResolveRegOff(offs)); }
 
+    void Write(std::string instr, Mem dst, Mem src) { this->Write(instr + " " + ResolveMem(dst) + ", " + ResolveMem(src)); }
+
     // Memory
     Mem ptr(Reg base, int64_t offset, uint16_t size) { return Mem(base, offset, size); }
     Mem ptr(std::string label, int64_t offset, uint16_t size) { return Mem(label, offset, size); }

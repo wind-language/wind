@@ -121,6 +121,8 @@ namespace x86 {
     A_IRI_INSTR(name, handler) \
     A_IMI_INSTR(name, handler) // FIVE for (IRR IRM IMR)
 
+#define A_IMM_EX_INSTR(name, handler) void name(Mem dst, Mem src) { this->Write(#name, dst, src); MEM_INSTR_HANDLE(handler) } // IMM_EX stands for "Instruction Memory-Memory Extra"
+
 
 #define B_N_INSTR(name) void name() { this->Write(#name); } // N stands for "No"
 #define B_IR_INSTR(name) void name(Reg dst) { this->Write(#name, dst); } // IR stands for "Instruction Register"
@@ -165,6 +167,7 @@ public:
     
     A_FIVE_INSTR(mov, 0)
     A_FIVE_INSTR(lea, 0)
+    A_IMM_EX_INSTR(lea, 0)
     A_FIVE_INSTR(add, "__WDH_sum_overflow")
     A_FIVE_INSTR(sub, "__WDH_sub_overflow")
     A_FIVE_INSTR(shr, 0)

@@ -119,14 +119,6 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
             func->name() + "(...) [" + func->metadata + "]"
         );
         metadata_ros_i = this->rostr_i++;
-        this->writer->lea( // Load function info in r15 [ : HANDLER : ]
-            x86::Gp::r15,
-            this->writer->ptr(
-                ".ros"+std::to_string(metadata_ros_i),
-                0,
-                8
-            )
-        );
     }
     
     this->EmitFnPrologue(func);
@@ -176,14 +168,6 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
         this->writer->BindLabel(
             this->writer->NewLabel("." + func->name() + "_stackfail")
         );
-        this->writer->lea( // Load function info in r15 [ : HANDLER : ]
-            x86::Gp::r15,
-            this->writer->ptr(
-                ".ros"+std::to_string(metadata_ros_i),
-                0,
-                8
-            )
-        );
         this->writer->jmp(
             "__WD_canary_fail"
         );
@@ -214,27 +198,7 @@ Reg WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
         this->writer->xor_(x86::Gp::rax, x86::Gp::rax);
     }
     this->regalloc.FreeAllRegs();
-    if (!(this->current_fn->flags & PURE_STCHK)) {
-        this->writer->mov(
-            this->writer->ptr(
-                x86::Gp::rbp,
-                -16,
-                8
-            ),
-            x86::Gp::r15
-        );
-    }
     this->writer->call(call->name());
-    if (!(this->current_fn->flags & PURE_STCHK)) {
-        this->writer->mov(
-            x86::Gp::r15,
-            this->writer->ptr(
-                x86::Gp::rbp,
-                -16,
-                8
-            )
-        );
-    }
     if (dst.id != 0) {
         this->writer->mov(dst, this->CastReg(x86::Gp::rax, dst.size));
     }

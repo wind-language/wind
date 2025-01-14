@@ -6,54 +6,54 @@
 
 @pub @pure[stchk] func __WDH_sum_overflow() : void {
   puts("*** [ sum overflow ] ***");
-  asm {
+  /* asm {
     mov rsi, r15; 
   }
-  printf("Sum overflow encountered in function '%s'\n");
+  printf("Sum overflow encountered in function '%s'\n"); */
   abort();
 }
 
 @pub @pure[stchk] func __WDH_sub_overflow() : void {
   puts("*** [ sub overflow ] ***");
-  asm {
+  /* asm {
     mov rsi, r15;
   }
-  printf("Sub overflow encountered in function '%s'\n");
+  printf("Sub overflow encountered in function '%s'\n"); */
   abort();
 }
 
 @pub @pure[stchk] func __WDH_mul_overflow() : void {
   puts("*** [ mul overflow ] ***");
-  asm {
+  /* asm {
     mov rsi, r15;
   }
-  printf("Mul overflow encountered in function '%s'\n");
+  printf("Mul overflow encountered in function '%s'\n"); */
   abort();
 }
 
 @pub @pure[stchk] func __WDH_div_overflow() : void {
   puts("*** [ div overflow ] ***");
-  asm {
+  /* asm {
     mov rsi, r15;
   }
-  printf("Div overflow encountered in function '%s'\n");
+  printf("Div overflow encountered in function '%s'\n"); */
   abort();
 }
 
 @pub @pure[stchk] func __WDH_out_of_bounds() : void {
   puts("*** [ out of bounds ] ***");
-  asm {
+  /* asm {
     mov rsi, r15;
   }
-  printf("Array indexing out of bounds encountered in function '%s'\n");
+  printf("Array indexing out of bounds encountered in function '%s'\n"); */
   abort();
 }
 
 @pub @pure[stchk] func __WDH_guard_failed(): void {
   puts("*** [ ptr guard failed ] ***");
-  asm {
+  /* asm {
     mov rsi, r15;
   }
-  printf("Pointer guard failed in function '%s'\n");
+  printf("Pointer guard failed in function '%s'\n"); */
   abort();
 }

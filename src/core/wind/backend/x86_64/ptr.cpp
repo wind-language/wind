@@ -178,28 +178,29 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
             throw std::runtime_error("Invalid offset");
         }
         src.size = ref->datatype()->moveSize(); src.signed_value = ref->datatype()->isSigned();
-        CASTED_MOV(
-            src,
+        this->writer->mov(
             this->writer->ptr(
                 x86::Gp::rbp,
                 -offset,
                 ref->datatype()->rawSize()
-            )
+            ),
+            src
         );
     } else {
+        this->regalloc.SetDirty(src); // Keep src alive
         Reg r_index = this->EmitExpr(ref->getIndex(), src);
         Reg index = {r_index.id, 8, Reg::GPR, false};
         this->TryCast(index, r_index);
         regalloc.SetDirty(index);
         if (!ref->datatype()->hasCapacity() || this->current_fn->flags & PURE_STCHK) {
-            CASTED_MOV(
-                src,
+            this->writer->mov(
                 this->writer->ptr(
                     x86::Gp::rbp,
                     index,
                     -ref->offset(),
                     ref->datatype()->rawSize()
-                )
+                ),
+                src
             );
         } else {
             Reg addr_holder = this->regalloc.Allocate(8);

@@ -8,6 +8,11 @@
 @const CURL_GLOBAL_ALL = 3;
 @const CURLOPT_WRITEFUNCTION = 20011;
 @const CURLOPT_WRITEDATA = 10001;
+@const CURLOPT_VERBOSE = 41;
+@const CURLOPT_PIPEWAIT = 237;
+@const CURLOPT_HTTP_VERSION = 84;
+
+@const CURL_HTTP_VERSION_2_0 = 3;
 
 @extern func curl_easy_init(): CURL;
 @extern func curl_easy_setopt(curl: CURL, option: CURLcode, param: uint64): CURLcode;
