@@ -1,3 +1,4 @@
+#include <iostream>
 #include <algorithm>
 #ifndef IR_H
 #define IR_H
@@ -16,14 +17,13 @@ class DataType {
     uint16_t type_size;
     uint16_t capacity;
     bool signed_type = true;
-    bool is_pointer = false;
 
   public:
     DataType(uint16_t size, bool is_signed) : type_size(size), capacity(1), array(nullptr), signed_type(is_signed) {}
     DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr) {}
     DataType(uint16_t size, DataType *arr) : type_size(size), capacity(UINT16_MAX), array(arr) {}
     DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr) {}
-    DataType(DataType *ptr): type_size(ptr->moveSize()), capacity(UINT16_MAX), array(nullptr), ptr(ptr), signed_type(false), is_pointer(true) {}
+    DataType(DataType *ptr): type_size(ptr->moveSize()), capacity(UINT16_MAX), array(nullptr), ptr(ptr), signed_type(false) {}
     bool isArray() const { return array != nullptr; }
     bool isSigned() const { return signed_type; }
     uint16_t moveSize() const {
@@ -55,7 +55,7 @@ class DataType {
     bool hasCapacity() const { return capacity != UINT16_MAX; }
     uint16_t getCaps() const { return capacity; }
 
-    bool isPointer() const { return is_pointer; }
+    bool isPointer() const { return ptr != nullptr; }
     DataType *getPtrType() const { return ptr; }
 
     enum Sizes {
@@ -162,10 +162,13 @@ public:
   DataType *datatype() const;
   NodeType type() const override { return NodeType::LADDR_REF; }
 
-  DataType *inferType() {
+  DataType *inferType() const override {
     if (isIndexed()) {
-      return var_type->getArrayType();
-    }
+      if (var_type->isArray()) {
+        return var_type->getArrayType();
+      }
+      return var_type->getPtrType();
+    } 
     return new DataType(DataType::QWORD, false);
   }
 };
@@ -249,8 +252,7 @@ public:
     L_MINUS_ASSIGN,
     G_PLUS_ASSIGN,
     G_MINUS_ASSIGN,
-    VA_PLUS_ASSIGN,
-    VA_MINUS_ASSIGN
+    GEN_INDEX_ASSIGN
   };
 
 private:

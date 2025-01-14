@@ -225,6 +225,11 @@ ASTNode *WindParser::parseExprPrimary() {
           std::unique_ptr<ASTNode>(value)
         );
       }
+      else if (
+        this->ast->consts_table.find(this->stream->current()->value) != this->ast->consts_table.end()
+      ) {
+        return this->ast->consts_table[this->stream->pop()->value];
+      }
 
       if (this->stream->peek()->type == Token::LPAREN) {
         return this->parseExprFnCall();
@@ -286,6 +291,7 @@ ASTNode *WindParser::parseExpr(int precedence) {
       std::unique_ptr<ASTNode>(index),
       std::unique_ptr<ASTNode>(enode)
     );
+    enode = this->parseExprBinOp(enode, precedence);
   }
 
   return enode;
@@ -560,6 +566,12 @@ ASTNode* WindParser::parseMacro() {
     std::string value = this->typeSignature(Token::Type::IDENTIFIER);
     this->expect(Token::Type::SEMICOLON, ";");
     return new TypeDecl(type, value);
+  }
+  else if (name == "const") {
+    std::string c_name = this->expect(Token::Type::IDENTIFIER, "const name")->value;
+    this->expect(Token::Type::ASSIGN, "=");
+    ASTNode *expr = this->parseExprSemi();
+    this->ast->consts_table[c_name] = expr;
   }
   else {
     Token *token = stream->pop();

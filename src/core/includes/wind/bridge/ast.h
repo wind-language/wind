@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <map>
 #include <wind/bridge/opt_flags.h>
 
 class ASTVisitor;
@@ -84,6 +85,8 @@ class Body : public ASTNode {
   std::vector<std::unique_ptr<ASTNode>> statements;
 
 public:
+  std::map<std::string, ASTNode*> consts_table;
+
   explicit Body(std::vector<std::unique_ptr<ASTNode>> s);
 
   Body(const Body&) = delete;

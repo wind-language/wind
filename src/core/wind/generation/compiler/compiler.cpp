@@ -78,8 +78,6 @@ DataType *findInferType(IRBinOp *binop) {
     case IRBinOp::L_MINUS_ASSIGN:
     case IRBinOp::G_PLUS_ASSIGN:
     case IRBinOp::G_MINUS_ASSIGN:
-    case IRBinOp::VA_PLUS_ASSIGN:
-    case IRBinOp::VA_MINUS_ASSIGN:
     case IRBinOp::L_ASSIGN:
     case IRBinOp::G_ASSIGN:
     case IRBinOp::VA_ASSIGN:
@@ -134,8 +132,11 @@ void* WindCompiler::visit(const BinaryExpr &node) {
     else if (left->type() == IRNode::NodeType::LADDR_REF) {
       op = IRBinOp::Operation::VA_ASSIGN;
     }
+    else if (left->type() == IRNode::NodeType::GENERIC_INDEXING) {
+      op = IRBinOp::Operation::GEN_INDEX_ASSIGN;
+    }
     else {
-      throw std::runtime_error("Left operand of assignment must be a variable reference (also not a pointer)");
+      throw std::runtime_error("Left operand of assignment must be a variable reference or an indexed pointer");
     }
   } else { op = IRstr2op(node.getOperator()); }
   IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(left), std::unique_ptr<IRNode>(right), op);
@@ -526,7 +527,6 @@ void *WindCompiler::visit(const Continue &node) {
 }
 
 void *WindCompiler::visit(const GenericIndexing &node) {
-  // we need to get infered type from the base and make sure it's a pointer
   IRNode *base = (IRNode*)node.getBase()->accept(*this);
   IRNode *index = (IRNode*)node.getIndex()->accept(*this);
   if (!base->inferType()->isPointer()) {

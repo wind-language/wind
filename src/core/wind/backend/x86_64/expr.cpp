@@ -85,9 +85,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
         || binop->operation() == IRBinOp::Operation::G_PLUS_ASSIGN
         || binop->operation() == IRBinOp::Operation::G_MINUS_ASSIGN) {
         tmp_size = binop->left()->as<IRGlobRef>()->getType()->moveSize();
-    } else if (binop->operation() == IRBinOp::Operation::VA_ASSIGN
-        || binop->operation() == IRBinOp::Operation::VA_PLUS_ASSIGN
-        || binop->operation() == IRBinOp::Operation::VA_MINUS_ASSIGN) {
+    } else if (binop->operation() == IRBinOp::Operation::VA_ASSIGN) {
         tmp_size = binop->left()->as<IRLocalAddrRef>()->datatype()->moveSize();
     }
     else {
@@ -262,6 +260,10 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             break;
         case IRBinOp::VA_ASSIGN: {
             this->EmitIntoLocAddrRef((IRLocalAddrRef*)binop->left()->as<IRLocalAddrRef>(), tmp);
+            break;
+        }
+        case IRBinOp::GEN_INDEX_ASSIGN: {
+            this->EmitIntoGenAddrRef((IRGenericIndexing*)binop->left()->as<IRGenericIndexing>(), tmp);
             break;
         }
         case IRBinOp::EQ:

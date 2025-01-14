@@ -1,6 +1,7 @@
 #include <wind/processing/lexer.h>
 #include <wind/bridge/ast.h>
 #include <wind/reporter/parser.h>
+#include <map>
 #ifndef PARSER_H
 #define PARSER_H
 
@@ -10,6 +11,7 @@ public:
   ASTNode *DiscriminateTop();
   ASTNode *DiscriminateBody();
   Body *parse();
+  
 
 private:
   Token *expect(Token::Type type, std::string str_repr);

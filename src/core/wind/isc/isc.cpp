@@ -96,6 +96,11 @@ Body *WindISC::commitAST(Body *ast) {
     return nullptr;
   }
   Body *resx = sumAST(ast, this->volatile_ast);
+  resx->consts_table = this->volatile_ast->consts_table;
+  for (auto &const_pair : ast->consts_table) {
+    resx->consts_table.insert({const_pair.first, const_pair.second});
+  }
+
   this->volatile_ast = nullptr;
   return resx;
 }

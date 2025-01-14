@@ -104,6 +104,8 @@ private:
    * @return A new IRLiteral node with the optimized result.
    */
   IRLiteral *OptimizeConstFold(IRBinOp *node);
+
+  IRNode *OptimizeGenIndexing(IRGenericIndexing *indexing);
 };
 
 #endif

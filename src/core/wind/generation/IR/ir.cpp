@@ -6,6 +6,7 @@
 #include <wind/generation/IR.h>
 #include <algorithm>
 #include <stdexcept>
+#include <iostream>
 
 /**
  * @brief Constructor for IRRet.

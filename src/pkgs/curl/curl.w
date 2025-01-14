@@ -3,37 +3,47 @@
     "curl.wi"
 ]
 
-@linkflag("temp.o")
-@extern func write_callback(contents: ptr, size: int64, nmemb: int64, userp: ptr): int64;
+func mem_cb(contents: ptr<char>, size: int64, nmemb: int64, userp: ptr<uint64>): uint64 {
+    var realsize: uint64 = size * nmemb;
+    userp[0] = realloc(userp[0], userp[1] + realsize + 1);
+    guard![userp[0]];
+
+
+    var usum: ptr<char> = userp[0] + userp[1];
+    memcpy(usum, contents, realsize);
+    userp[1] = userp[1] + realsize;
+    usum[0] = 0;
+
+    return realsize;
+}
 
 @pub func curl_test(): void {
-    var curl: ptr;
-    var res: int;
-    var response:ptr = malloc(1);
-    response[0] = 0;
+    curl_global_init(CURL_GLOBAL_ALL);
+    var curl: CURL = guard![curl_easy_init()];
+    var res: CURLcode;
 
-    curl = curl_easy_init();
-    printf("curl_easy_init() returned: %p\n", curl);
+    // We don't have structs :(
+    var chunk: ptr<uint64> = malloc(16);
+    chunk[0] = malloc(1);
+    chunk[1] = 0;
+
+    printf("chunk: %p\n", chunk);
+    printf("chunk[0]: %p\n", chunk[0]);
+    printf("chunk[1]: %llu\n", chunk[1]);
+
+    curl_easy_setopt(curl, CURLOPT_URL, "http://captive.apple.com");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, mem_cb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, chunk);
+
     branch [
-        curl == 0: {
-            free(response);
-            return;
+        res == CURLE_OK: {
+            printf("%llu bytes retrieved\n", chunk[1]);
         }
     ]
-    curl_easy_setopt(curl, 10002, "http://google.com");
-    curl_easy_setopt(curl, 52, 1);
-    curl_easy_setopt(curl, 20011, write_callback);
-    curl_easy_setopt(curl, 10001, response);
-    
+
+
     res = curl_easy_perform(curl);
-    branch [
-        res == 0: {
-            printf("Response: %s\n", response);
-            curl_easy_cleanup(curl);
-        }
-        else: {
-            printf("curl_easy_perform() failed: %d\n", res);
-        }
-    ]
-    free(response);
+    curl_easy_cleanup(curl);
+    free(chunk[0]);
+    curl_global_cleanup();
 }

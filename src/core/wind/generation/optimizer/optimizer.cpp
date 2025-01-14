@@ -229,13 +229,17 @@ IRNode *WindOptimizer::OptimizeLDecl(IRVariableDecl *local_decl) {
 }
 
 IRNode *WindOptimizer::OptimizeFnCall(IRFnCall *fn_call) {
-  std::vector<IRNode*> opt_args;
+  std::vector<std::unique_ptr<IRNode>> opt_args;
   for (int i=0;i<fn_call->args().size();i++) {
     std::unique_ptr<IRNode> opt_arg = std::unique_ptr<IRNode>(this->OptimizeExpr(fn_call->args()[i].get()));
-    fn_call->replaceArg(i, std::move(opt_arg));
-    std::cerr << (int)fn_call->args()[i]->type() << std::endl;
+    opt_args.push_back(std::move(opt_arg));
   }
-  return fn_call;
+  IRFnCall *opt_fn_call = new IRFnCall(
+    fn_call->name(),
+    std::move(opt_args),
+    fn_call->getRef()
+  );
+  return opt_fn_call;
 }
 
 IRNode *WindOptimizer::OptimizeFunction(IRFunction *fn) {
@@ -309,6 +313,16 @@ IRNode *WindOptimizer::OptimizeLooping(IRLooping *loop) {
   return opt_loop;
 }
 
+IRNode *WindOptimizer::OptimizeGenIndexing(IRGenericIndexing *indexing) {
+  IRNode *opt_base = this->OptimizeExpr(indexing->getBase());
+  IRNode *opt_index = this->OptimizeExpr(indexing->getIndex());
+  IRGenericIndexing *opt_indexing = new IRGenericIndexing(
+    opt_base,
+    opt_index
+  );
+  return opt_indexing;
+}
+
 IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   if (node->is<IRRet>()) {
     IRRet *ret = node->as<IRRet>();
@@ -329,9 +343,12 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   else if (node->is<IRBinOp>()) {
     return this->OptimizeBinOp(node->as<IRBinOp>());
   }
-  /* else if (node->is<IRFnCall>()) {
+  else if (node->is<IRFnCall>()) {
     return this->OptimizeFnCall(node->as<IRFnCall>());
-  } */
+  }
+  else if (node->is<IRGenericIndexing>()) {
+    return this->OptimizeGenIndexing(node->as<IRGenericIndexing>());
+  }
   return node;
 }
 

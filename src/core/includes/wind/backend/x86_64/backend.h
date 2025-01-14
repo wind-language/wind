@@ -123,6 +123,7 @@ private:
     Reg EmitFnRef(IRFnRef *ref, Reg dst);
     Reg EmitGenAddrRef(IRGenericIndexing *ref, Reg dst);
     Reg EmitPtrGuard(IRPtrGuard *guard, Reg dst);
+    void EmitIntoGenAddrRef(IRGenericIndexing *ref, Reg src);
 
     void ProcessStatement(IRNode *node);
     void ProcessTop(IRNode *node);
