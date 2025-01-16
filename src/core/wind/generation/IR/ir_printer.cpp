@@ -13,9 +13,10 @@ const std::unordered_map<IRBinOp::Operation, std::string> BOpTTable = {
   {IRBinOp::Operation::SHL, "shl"},
   {IRBinOp::Operation::SHR, "shr"},
   {IRBinOp::Operation::AND, "and"},
-  {IRBinOp::Operation::L_ASSIGN, "ass"},
-  {IRBinOp::Operation::G_ASSIGN, "ass"},
-  {IRBinOp::Operation::VA_ASSIGN, "ass"},
+  {IRBinOp::Operation::L_ASSIGN, "mov"},
+  {IRBinOp::Operation::G_ASSIGN, "mov"},
+  {IRBinOp::Operation::VA_ASSIGN, "mov"},
+  {IRBinOp::Operation::GEN_INDEX_ASSIGN, "mov"},
   {IRBinOp::Operation::EQ, "eq"},
   {IRBinOp::Operation::LESS, "le"},
   {IRBinOp::Operation::LESSEQ, "leq"},
@@ -151,8 +152,26 @@ void IRPrinter::print_node(const IRNode *node) {
       );
       break;
     }
+    case IRNode::NodeType::FN_REF : {
+      this->print_fnref(
+        node->as<IRFnRef>()
+      );
+      break;
+    }
+    case IRNode::NodeType::PTR_GUARD : {
+      this->print_ptr_guard(
+        node->as<IRPtrGuard>()
+      );
+      break;
+    }
+    case IRNode::NodeType::TYPE_CAST : {
+      this->print_typecast(
+        node->as<IRTypeCast>()
+      );
+      break;
+    }
     default : {
-      std::cout << "Unknown node type" << std::endl;
+      std::cout << "Unknown node type " << (int)node->type() << std::endl;
       break;
     }
   }
@@ -319,4 +338,20 @@ void IRPrinter::print_gen_index(const IRGenericIndexing *node) {
   std::cout << "[";
   this->print_node(node->getIndex());
   std::cout << "]";
+}
+
+void IRPrinter::print_fnref(const IRFnRef *node) {
+  std::cout << node->name();
+}
+
+void IRPrinter::print_ptr_guard(const IRPtrGuard *node) {
+  std::cout << "guard[";
+  this->print_node(node->getValue());
+  std::cout << "]";
+}
+
+void IRPrinter::print_typecast(const IRTypeCast *node) {
+  std::cout << "<" << node->getType()->rawSize() << ">(";
+  this->print_node(node->getValue());
+  std::cout << ")";
 }

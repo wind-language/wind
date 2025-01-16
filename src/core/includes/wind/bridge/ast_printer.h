@@ -25,6 +25,7 @@ public:
     void *visit(const Continue &node) override;
     void *visit(const GenericIndexing &node) override;
     void *visit(const PtrGuard &node) override;
+    void *visit(const TypeCast &node) override;
 
 private:
     void print_tabs();

@@ -539,3 +539,9 @@ void *WindCompiler::visit(const PtrGuard &node) {
   IRNode *value = (IRNode*)node.getValue()->accept(*this);
   return new IRPtrGuard(value);
 }
+
+void *WindCompiler::visit(const TypeCast &node) {
+  IRNode *value = (IRNode*)node.getValue()->accept(*this);
+  DataType *type = this->ResolveDataType(node.getType());
+  return new IRTypeCast(value, type);
+}

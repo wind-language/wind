@@ -4,24 +4,21 @@
 ]
 
 func write_cb(contents: ptr<char>, size: int64, nmemb: int64, userp: ptr<uint64>): int64 {
-    // Register allocation is panicking in more complex indexing expressions
     var realsize: int64 = size * nmemb;
-    var mem: ptr<ptr<char>> = userp;
-    var alloc_ptr: ptr<char> = guard![ realloc(mem[0], mem[1] + realsize + 1) ];
+    var alloc_ptr: ptr<char> = guard![ realloc(userp[0], userp[1] + realsize + 1) ];
     branch [
         alloc_ptr == Null: return 0;
     ]
-
-    mem[0] = alloc_ptr;
-    var new_addr: ptr<char> = mem[0];
+    userp[0] = alloc_ptr;
     memcpy(
-        new_addr + userp[1],
+        userp[0] + userp[1],
         contents,
         realsize
     );
-    mem[1] = mem[1] + realsize;
-    var mem_size: int64 = mem[1]-1;
-    new_addr[mem_size] = 0;
+    userp[1] = userp[1] + realsize;
+    var mem_size: int64 = userp[1]-1;
+    var cast_ptr: ptr<char> = userp[0];
+    cast_ptr[mem_size] = 0;
 
     return realsize;
 }

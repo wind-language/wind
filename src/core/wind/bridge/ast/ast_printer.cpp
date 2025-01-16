@@ -178,3 +178,10 @@ void *ASTPrinter::visit(const PtrGuard &node) {
   node.getValue()->accept(*this);
   return nullptr;
 }
+
+void *ASTPrinter::visit(const TypeCast &node) {
+  std::cout << "<" << node.getType() << ">(";
+  node.getValue()->accept(*this);
+  std::cout << ")";
+  return nullptr;
+}

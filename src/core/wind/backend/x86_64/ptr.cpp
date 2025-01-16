@@ -60,7 +60,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
             Reg index = {r_index.id, 8, Reg::GPR, false};
             this->TryCast(index, r_index);
             regalloc.SetDirty(index);
-            if (!ref->datatype()->hasCapacity() || this->current_fn->flags & PURE_STCHK) {
+            if (!ref->datatype()->hasCapacity() || this->current_fn->fn->flags & PURE_STCHK) {
                 CASTED_MOV(
                     dst,
                     this->writer->ptr(
@@ -90,7 +90,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
                     addr_holder,
                     -ref->offset()+ref->datatype()->memSize()
                 );
-                this->writer->jge("__WDH_out_of_bounds");
+                WRITER_JBOUNDS();
                 this->writer->add(
                     addr_holder,
                     x86::Gp::rbp
@@ -192,7 +192,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
         Reg index = {r_index.id, 8, Reg::GPR, false};
         this->TryCast(index, r_index);
         regalloc.SetDirty(index);
-        if (!ref->datatype()->hasCapacity() || this->current_fn->flags & PURE_STCHK) {
+        if (!ref->datatype()->hasCapacity() || this->current_fn->fn->flags & PURE_STCHK) {
             this->writer->mov(
                 this->writer->ptr(
                     x86::Gp::rbp,
@@ -222,7 +222,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
                 addr_holder,
                 -ref->offset()+ref->datatype()->memSize()
             );
-            this->writer->jge("__WDH_out_of_bounds");
+            WRITER_JBOUNDS();
             this->writer->add(
                 addr_holder,
                 x86::Gp::rbp
@@ -287,8 +287,23 @@ Reg WindEmitter::EmitGenAddrRef(IRGenericIndexing *ref, Reg dst) {
 Reg WindEmitter::EmitPtrGuard(IRPtrGuard *ref, Reg dst) {
     Reg ptr = this->EmitExpr(ref->getValue(), dst);
     this->writer->test(ptr, ptr);
-    this->writer->jz("__WDH_guard_failed");
+    WRITER_JGUARD();
     return ptr;
+}
+
+Reg WindEmitter::EmitTypeCast(IRTypeCast *cast, Reg dst) {
+    Reg val = this->EmitExpr(cast->getValue(), dst);
+    if (val.size == cast->getType()->rawSize()) {
+        return val;
+    }
+    if (val.size < cast->getType()->rawSize()) {
+        if (val.signed_value) {
+            this->writer->movsx(CastReg(val, cast->getType()->rawSize()), val);
+        } else {
+            this->writer->movzx(CastReg(val, cast->getType()->rawSize()), val);
+        }
+    }
+    return CastReg(val, cast->getType()->rawSize());
 }
 
 void WindEmitter::EmitIntoGenAddrRef(IRGenericIndexing *ref, Reg src) {

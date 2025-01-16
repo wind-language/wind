@@ -576,3 +576,11 @@ IRPtrGuard::IRPtrGuard(IRNode *v) : value(v) {}
 IRNode *IRPtrGuard::getValue() const {
   return value;
 }
+
+IRTypeCast::IRTypeCast(IRNode *v, DataType *t) : value(v), cast_type(t) {}
+IRNode *IRTypeCast::getValue() const {
+  return value;
+}
+DataType *IRTypeCast::getType() const {
+  return cast_type;
+}

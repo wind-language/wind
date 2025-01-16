@@ -106,6 +106,9 @@ private:
   IRLiteral *OptimizeConstFold(IRBinOp *node);
 
   IRNode *OptimizeGenIndexing(IRGenericIndexing *indexing);
+  IRNode *OptimizePtrGuard(IRPtrGuard *ptr_guard);
+  IRNode *OptimizeTypeCast(IRTypeCast *type_cast);
+
 };
 
 #endif

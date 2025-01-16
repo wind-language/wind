@@ -277,6 +277,16 @@ public:
   const ASTNode* getValue() const;
 };
 
+class TypeCast : public ASTNode {
+  std::string type;
+  std::unique_ptr<ASTNode> value;
+public:
+  TypeCast(std::string t, std::unique_ptr<ASTNode> v);
+  void *accept(ASTVisitor &visitor) const;
+  const std::string& getType() const;
+  const ASTNode* getValue() const;
+};
+
 
 class ASTVisitor {
 public:
@@ -300,6 +310,7 @@ public:
   virtual void *visit(const Continue &node) = 0;
   virtual void *visit(const GenericIndexing &node) = 0;
   virtual void *visit(const PtrGuard &node) = 0;
+  virtual void *visit(const TypeCast &node) = 0;
 };
 
 #endif // AST_H

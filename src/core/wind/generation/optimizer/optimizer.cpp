@@ -201,7 +201,7 @@ IRNode *WindOptimizer::OptimizeExpr(IRNode *node) {
   if (node->is<IRBinOp>()) {
     return this->OptimizeBinOp(node->as<IRBinOp>());
   }
-  return node;
+  return this->OptimizeNode(node);
 }
 
 IRNode *WindOptimizer::OptimizeLDecl(IRVariableDecl *local_decl) {
@@ -323,6 +323,21 @@ IRNode *WindOptimizer::OptimizeGenIndexing(IRGenericIndexing *indexing) {
   return opt_indexing;
 }
 
+IRNode *WindOptimizer::OptimizePtrGuard(IRPtrGuard *ptr_guard) {
+  IRNode *opt_value = this->OptimizeExpr(ptr_guard->getValue());
+  IRPtrGuard *opt_ptr_guard = new IRPtrGuard(opt_value);
+  return opt_ptr_guard;
+}
+
+IRNode *WindOptimizer::OptimizeTypeCast(IRTypeCast *type_cast) {
+  IRNode *opt_value = this->OptimizeExpr(type_cast->getValue());
+  IRTypeCast *opt_type_cast = new IRTypeCast(
+    opt_value,
+    type_cast->inferType()
+  );
+  return opt_type_cast;
+}
+
 IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   if (node->is<IRRet>()) {
     IRRet *ret = node->as<IRRet>();
@@ -348,6 +363,12 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   }
   else if (node->is<IRGenericIndexing>()) {
     return this->OptimizeGenIndexing(node->as<IRGenericIndexing>());
+  }
+  else if (node->is<IRPtrGuard>()) {
+    return this->OptimizePtrGuard(node->as<IRPtrGuard>());
+  }
+  else if (node->is<IRTypeCast>()) {
+    return this->OptimizeTypeCast(node->as<IRTypeCast>());
   }
   return node;
 }

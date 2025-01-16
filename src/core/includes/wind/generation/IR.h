@@ -90,7 +90,8 @@ public:
     CONTINUE,
     FN_REF,
     GENERIC_INDEXING,
-    PTR_GUARD
+    PTR_GUARD,
+    TYPE_CAST
   };
 
   virtual ~IRNode() = default;
@@ -435,6 +436,19 @@ public:
   NodeType type() const override { return NodeType::PTR_GUARD; }
 
   DataType *inferType() const override { return value->inferType(); }
+};
+
+class IRTypeCast : public IRNode {
+  IRNode *value;
+  DataType *cast_type;
+
+public:
+  IRTypeCast(IRNode *value, DataType *type);
+  IRNode *getValue() const;
+  DataType *getType() const;
+  NodeType type() const override { return NodeType::TYPE_CAST; }
+
+  DataType *inferType() const override { return cast_type; }
 };
 
 #endif // IR_H

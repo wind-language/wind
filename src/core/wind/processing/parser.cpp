@@ -225,6 +225,19 @@ ASTNode *WindParser::parseExprPrimary() {
           std::unique_ptr<ASTNode>(value)
         );
       }
+      else if (isKeyword(this->stream->current(), "cast") && this->stream->peek()->type == Token::Type::LESS) {
+        // type cast
+        this->expect(Token::Type::IDENTIFIER, "cast");
+        this->expect(Token::Type::LESS, "<");
+        std::string type = this->typeSignature(Token::Type::GREATER);
+        this->expect(Token::Type::GREATER, ">");
+        this->expect(Token::Type::LPAREN, "(");
+        ASTNode *value = this->parseExpr(0);
+        this->expect(Token::Type::RPAREN, ")");
+        return new TypeCast(
+          type, std::unique_ptr<ASTNode>(value)
+        );
+      }
       else if (
         this->ast->consts_table.find(this->stream->current()->value) != this->ast->consts_table.end()
       ) {
@@ -283,7 +296,7 @@ ASTNode *WindParser::parseExpr(int precedence) {
   }
   ASTNode *enode = this->parseExprBinOp(left, precedence);
 
-  if (this->stream->current()->type == Token::Type::LBRACKET) {
+  while (this->stream->current()->type == Token::Type::LBRACKET) {
     this->expect(Token::Type::LBRACKET, "[");
     ASTNode *index = this->parseExpr(0);
     this->expect(Token::Type::RBRACKET, "]");

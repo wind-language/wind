@@ -279,3 +279,14 @@ void *PtrGuard::accept(ASTVisitor &visitor) const {
 const ASTNode *PtrGuard::getValue() const {
   return value.get();
 }
+
+TypeCast::TypeCast(std::string t, std::unique_ptr<ASTNode> v) : type(t), value(std::move(v)) {}
+void *TypeCast::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const std::string &TypeCast::getType() const {
+  return type;
+}
+const ASTNode *TypeCast::getValue() const {
+  return value.get();
+}

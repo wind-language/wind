@@ -48,6 +48,7 @@ private:
   void *visit(const Continue &node) override;
   void *visit(const GenericIndexing &node) override;
   void *visit(const PtrGuard &node) override;
+  void *visit(const TypeCast &node) override;
 };
 
 #endif // COMPILER_H

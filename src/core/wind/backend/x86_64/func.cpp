@@ -2,6 +2,7 @@
 #include <wind/backend/writer/writer.h>
 #include <wind/backend/x86_64/backend.h>
 #include <wind/bridge/opt_flags.h>
+#include <wind/backend/x86_64/expr_macros.h>
 
 #include <iostream>
 
@@ -23,7 +24,14 @@ unsigned align16(unsigned n) {
 }
 
 void WindEmitter::EmitFnPrologue(IRFunction *fn) {
-    this->current_fn = fn;
+    uint16_t metadata_ros_i=0;
+    if (!(fn->flags & PURE_STCHK)) {
+        this->rostrs.push_back(
+            fn->name() + "(...) [" + fn->metadata + "]"
+        );
+        metadata_ros_i = this->rostr_i++;
+    }
+    this->current_fn = new FunctionDesc({fn, metadata_ros_i});
     if ( fn->flags & PURE_LOGUE || (!fn->stack_size && !fn->isCallSub()) ) {}
     else {
         this->writer->push(x86::Gp::rbp);
@@ -33,7 +41,7 @@ void WindEmitter::EmitFnPrologue(IRFunction *fn) {
             align16(stack_size)
         );
     }
-    if (!(fn->flags & PURE_STCHK) && this->current_fn->canary_needed) {
+    if (!(fn->flags & PURE_STCHK) && this->current_fn->fn->canary_needed) {
         this->writer->rdtscp();
         this->writer->shl(x86::Gp::rdx, 32);
         this->writer->or_(x86::Gp::rdx, x86::Gp::rax);
@@ -57,7 +65,7 @@ void WindEmitter::EmitFnPrologue(IRFunction *fn) {
 }
 
 void WindEmitter::EmitFnEpilogue() {
-    if (!(this->current_fn->flags & PURE_STCHK) && this->current_fn->canary_needed) {
+    if (!(this->current_fn->fn->flags & PURE_STCHK) && this->current_fn->fn->canary_needed) {
         this->writer->mov(
             x86::Gp::rdx,
             this->writer->ptr(
@@ -75,10 +83,10 @@ void WindEmitter::EmitFnEpilogue() {
             )
         );
         this->writer->jne(
-            "." + this->current_fn->name() + "_stackfail"
+            "." + this->current_fn->fn->name() + "_stackfail"
         );
     }
-    if ( this->current_fn->flags & PURE_LOGUE || (!this->current_fn->stack_size && !this->current_fn->isCallSub()) ) {}
+    if ( this->current_fn->fn->flags & PURE_LOGUE || (!this->current_fn->fn->stack_size && !this->current_fn->fn->isCallSub()) ) {}
     else {
         this->writer->leave();
     }
@@ -112,14 +120,6 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
     }
     uint8_t fn_label =this->writer->NewLabel(func->name());
     this->writer->BindLabel(fn_label);
-    
-    uint8_t metadata_ros_i=0;
-    if (!(func->flags & PURE_STCHK)) {
-        this->rostrs.push_back(
-            func->name() + "(...) [" + func->metadata + "]"
-        );
-        metadata_ros_i = this->rostr_i++;
-    }
     
     this->EmitFnPrologue(func);
 
@@ -171,6 +171,20 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
         this->writer->jmp(
             "__WD_canary_fail"
         );
+    }
+    if (!(func->flags & PURE_STCHK)) {
+        std::string h_lab = "";
+        for (auto handle : this->current_fn->handlers) {
+            if (!handle.second.first) continue;
+            h_lab = HANDLER_LABEL(func->name(), handle.first);
+            this->writer->BindLabel(this->writer->NewLabel(h_lab));
+            this->writer->lea(x86::Gp::rdi, this->writer->ptr(
+                ".ros"+std::to_string(this->current_fn->metadata_l),
+                0,
+                8
+            ));
+            this->writer->jmp(handle.second.second);
+        }
     }
     this->current_fn = nullptr;
 }
