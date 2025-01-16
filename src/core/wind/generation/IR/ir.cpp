@@ -35,13 +35,13 @@ void IRRet::set(std::unique_ptr<IRNode> v) {
  * @param stack_offset The stack offset.
  * @param type The data type.
  */
-IRLocalRef::IRLocalRef(uint16_t stack_offset, DataType *type) : stack_offset(stack_offset), var_type(type) {}
+IRLocalRef::IRLocalRef(int16_t stack_offset, DataType *type) : stack_offset(stack_offset), var_type(type) {}
 
 /**
  * @brief Gets the stack offset.
  * @return The stack offset.
  */
-uint16_t IRLocalRef::offset() const {
+int16_t IRLocalRef::offset() const {
   return stack_offset;
 }
 
@@ -59,13 +59,13 @@ DataType* IRLocalRef::datatype() const {
  * @param type The data type.
  * @param index The index.
  */
-IRLocalAddrRef::IRLocalAddrRef(uint16_t stack_offset, DataType* type, IRNode *index) : stack_offset(stack_offset), var_type(type), index(index) {}
+IRLocalAddrRef::IRLocalAddrRef(int16_t stack_offset, DataType* type, IRNode *index) : stack_offset(stack_offset), var_type(type), index(index) {}
 
 /**
  * @brief Gets the stack offset.
  * @return The stack offset.
  */
-uint16_t IRLocalAddrRef::offset() const {
+int16_t IRLocalAddrRef::offset() const {
   return stack_offset;
 }
 
@@ -179,7 +179,7 @@ bool IRFunction::isStack() {
  * @brief Occupies a stack offset.
  * @param offset The stack offset to occupy.
  */
-void IRFunction::occupyOffset(uint16_t offset) {
+void IRFunction::occupyOffset(int16_t offset) {
   used_offsets.push_back(offset);
 }
 
@@ -237,10 +237,18 @@ IRFunction *IRFunction::clone() {
  * @param type The data type.
  * @return The new local variable.
  */
-IRLocalRef *IRFunction::NewLocal(std::string name, DataType *type) {
-  uint16_t offset = stack_size+0x10; // left for canary
-  offset += type->memSize();
-  stack_size += type->memSize();
+IRLocalRef *IRFunction::NewLocal(std::string name, DataType *type, bool positive_offset) {
+  int16_t offset=0;
+  if (positive_offset) {
+    this->plus_off += 8;
+    offset = this->plus_off;
+  } else {
+    stack_size += type->memSize();
+    offset = stack_size+0x10; // 0x10 left for canary
+  }
+  if (!positive_offset) {
+    offset = -offset;
+  }
   local_table.insert({name, new IRLocalRef(offset, type)});
   this->fn_locals.push_back(std::make_unique<IRLocalRef>(offset, type));
   return this->fn_locals.back().get();

@@ -56,7 +56,7 @@ Reg WindEmitter::RegisterAllocator::Allocate(uint8_t size, bool setDirty) {
  * @param offset The stack offset.
  * @param lifetime The lifetime of the variable.
  */
-void WindEmitter::RegisterAllocator::SetVar(Reg reg, uint16_t offset, RegValue::Lifetime lifetime) {
+void WindEmitter::RegisterAllocator::SetVar(Reg reg, int16_t offset, RegValue::Lifetime lifetime) {
     regs[reg.id].stack_offset = offset;
     regs[reg.id].lifetime = lifetime;
     regs[reg.id].isDirty = true;
@@ -111,7 +111,7 @@ void WindEmitter::RegisterAllocator::PostLoop() {
  * @param offset The stack offset of the variable.
  * @return The register containing the variable, or nullptr if not found.
  */
-Reg *WindEmitter::RegisterAllocator::FindLocalVar(uint16_t offset, uint16_t size) {
+Reg *WindEmitter::RegisterAllocator::FindLocalVar(int16_t offset, uint16_t size) {
     for (uint8_t i = 0; i < 16; i++) {
         if (regs[i].isDirty && regs[i].stack_offset == offset) {
             Reg freg = Reg({i, (uint8_t)size, Reg::GPR});

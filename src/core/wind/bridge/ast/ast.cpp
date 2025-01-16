@@ -290,3 +290,11 @@ const std::string &TypeCast::getType() const {
 const ASTNode *TypeCast::getValue() const {
   return value.get();
 }
+
+SizeOf::SizeOf(std::string t) : type(t) {}
+void *SizeOf::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const std::string &SizeOf::getType() const {
+  return type;
+}

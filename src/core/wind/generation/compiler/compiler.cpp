@@ -353,6 +353,7 @@ void *WindCompiler::visit(const VariableDecl &node) {
   }
   std::vector<IRVariableDecl*> *decls = new std::vector<IRVariableDecl*>();
   for (std::string name : node.getNames()) {
+    uint16_t decl_i = this->current_fn->locals().size();
     IRLocalRef *local = this->current_fn->NewLocal(name, this->ResolveDataType(node.getType()));
     if (local->datatype()->isArray()) {
       this->current_fn->canary_needed = true;
@@ -388,7 +389,7 @@ void *WindCompiler::visit(const GlobalDecl &node) {
  */
 void *WindCompiler::visit(const ArgDecl &node) {
   assert(this->current_fn != nullptr);
-  IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType()));
+  IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType()), this->current_fn->locals().size() >= 6);
   return new IRArgDecl(local);
 }
 
@@ -544,4 +545,9 @@ void *WindCompiler::visit(const TypeCast &node) {
   IRNode *value = (IRNode*)node.getValue()->accept(*this);
   DataType *type = this->ResolveDataType(node.getType());
   return new IRTypeCast(value, type);
+}
+
+void *WindCompiler::visit(const SizeOf &node) {
+  DataType *type = this->ResolveDataType(node.getType());
+  return new IRLiteral(type->moveSize());
 }

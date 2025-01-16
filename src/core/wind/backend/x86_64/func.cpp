@@ -93,9 +93,9 @@ void WindEmitter::EmitFnEpilogue() {
     this->writer->ret();
 }
 
-const Reg SYSVABI_CNV[8] = {
+const Reg SYSVABI_CNV[6] = {
     x86::Gp::rdi, x86::Gp::rsi, x86::Gp::rdx, x86::Gp::rcx, 
-    x86::Gp::r8, x86::Gp::r9, x86::Gp::r10, x86::Gp::r11
+    x86::Gp::r8, x86::Gp::r9
 };
 
 bool isFnDef(std::vector<std::string> def_fns, std::string name) {
@@ -131,29 +131,18 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
 
         if (last->type() == IRNode::NodeType::ARG_DECL) {
             IRArgDecl *arg = last->as<IRArgDecl>();
-            if (arg_i<8) {
+            if (arg_i<6) {
                 this->regalloc.SetVar(SYSVABI_CNV[arg_i], arg->local()->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
                 if (!func->ignore_stack_abi) {
                     this->writer->mov(
                         this->writer->ptr(
                             x86::Gp::rbp,
-                            -arg->local()->offset(),
+                            arg->local()->offset(),
                             arg->local()->datatype()->moveSize()
                         ),
                         CastReg(SYSVABI_CNV[arg_i], arg->local()->datatype()->moveSize())
                     );
                 }
-            } else {
-                /* this->writer->pop(x86::Gp::rax);
-                this->writer->mov(
-                    this->writer->ptr(
-                        x86::Gp::rbp,
-                        arg->local()->offset(),
-                        arg->local()->datatype()->moveSize()
-                    ),
-                    CastReg(x86::Gp::rax, arg->local()->datatype()->moveSize())
-                ); */
-                throw std::runtime_error(">8 fn args not supported");
             }
             arg_i++;
         }
@@ -196,15 +185,41 @@ Reg WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
         if (arg_i>=call->getRef()->ArgNum() && !(call->getRef()->flags & FN_VARIADIC)) {
             throw std::runtime_error("Too many arguments");
         }
-        if (arg_i<8) {
+        if (arg_i<6) {
             this->EmitExpr(call->args()[arg_i].get(), SYSVABI_CNV[arg_i]);
             this->regalloc.SetVar(SYSVABI_CNV[arg_i], 0, RegisterAllocator::RegValue::Lifetime::FN_CALL);
         } else {
-            /* Reg arg = this->regalloc.Allocate(8, false);
-            this->EmitExpr(call->args()[arg_i].get(), arg);
-            this->writer->push(arg);
-            this->regalloc.Free(arg); */
-            throw std::runtime_error(">8 fn args not supported");
+            IRNode *argv = call->args()[arg_i].get();
+            if (argv->is<IRLiteral>()) {
+                this->writer->push(argv->as<IRLiteral>()->get());
+            } else if (argv->is<IRGlobRef>()) {
+                this->writer->push(this->writer->ptr(
+                    argv->as<IRGlobRef>()->getName(),
+                    0,
+                    argv->as<IRGlobRef>()->getType()->moveSize()
+                ));
+            } else if (argv->is<IRStringLiteral>()) {
+                this->rostrs.push_back(argv->as<IRStringLiteral>()->get());
+                this->writer->push(this->writer->ptr(
+                    ".ros"+std::to_string(this->rostr_i++),
+                    0,
+                    8
+                ));
+            }
+            else if (argv->is<IRFnRef>()) {
+                this->writer->push(
+                    this->writer->ptr(
+                        argv->as<IRFnRef>()->name(),
+                        0,
+                        8
+                    )
+                );
+            } else {
+                Reg arg = this->regalloc.Allocate(8, false);
+                this->EmitExpr(argv, arg);
+                this->writer->push(arg);
+                this->regalloc.Free(arg);
+            }
         }
     }
 
@@ -213,6 +228,10 @@ Reg WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
     }
     this->regalloc.FreeAllRegs();
     this->writer->call(call->name());
+    uint16_t stack_args_size = (call->args().size() > 6 ? (call->args().size()-6)*8 : 0);
+    if (stack_args_size!=0) {
+        this->writer->add(x86::Gp::rsp, stack_args_size);
+    }
     if (dst.id != 0) {
         this->writer->mov(dst, this->CastReg(x86::Gp::rax, dst.size));
     }

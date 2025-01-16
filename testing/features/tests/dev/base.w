@@ -3,11 +3,12 @@
 ]
 //@import "#link"
 
+func t7(a: int, b: int, c: int, d:int, e: int, f: int, g: ptr<char>): int {
+    printf("g: %p\n", g);
+}
+
 func main(): int {
-    var u64ptr: ptr<uint64> = malloc(8*16);
-    u64ptr[0] = guard![malloc(90000000000000)];
-    (cast< ptr<char> >(u64ptr[0]))[0] = 'H';
-    printf("%p\n", u64ptr[0]);
-    printf("%s\n", u64ptr[0]);
+    var test_ptr: ptr<char> = malloc(sizeof<char>*32);
+    t7(1,2,3,4,5,6,test_ptr);
     return 0;
 }

@@ -229,13 +229,23 @@ ASTNode *WindParser::parseExprPrimary() {
         // type cast
         this->expect(Token::Type::IDENTIFIER, "cast");
         this->expect(Token::Type::LESS, "<");
-        std::string type = this->typeSignature(Token::Type::GREATER);
+        std::string type = this->typeSignature(Token::Type::GREATER, Token::Type::GREATER);
         this->expect(Token::Type::GREATER, ">");
         this->expect(Token::Type::LPAREN, "(");
         ASTNode *value = this->parseExpr(0);
         this->expect(Token::Type::RPAREN, ")");
         return new TypeCast(
           type, std::unique_ptr<ASTNode>(value)
+        );
+      }
+      else if (isKeyword(this->stream->current(), "sizeof") && this->stream->peek()->type == Token::Type::LESS) {
+        // sizeof
+        this->expect(Token::Type::IDENTIFIER, "sizeof");
+        this->expect(Token::Type::LESS, "<");
+        std::string type = this->typeSignature(Token::Type::GREATER, Token::Type::GREATER);
+        this->expect(Token::Type::GREATER, ">");
+        return new SizeOf(
+          type
         );
       }
       else if (

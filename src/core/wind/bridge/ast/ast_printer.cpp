@@ -185,3 +185,8 @@ void *ASTPrinter::visit(const TypeCast &node) {
   std::cout << ")";
   return nullptr;
 }
+
+void *ASTPrinter::visit(const SizeOf &node) {
+  std::cout << "sizeof<" << node.getType() << ">";
+  return nullptr;
+}

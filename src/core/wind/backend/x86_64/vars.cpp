@@ -47,7 +47,7 @@ void WindEmitter::EmitIntoLoc(IRLocalRef *ref, IRNode *value) {
     this->writer->mov(
         this->writer->ptr(
             x86::Gp::rbp,
-            -ref->offset(),
+            ref->offset(),
             ref->datatype()->moveSize()
         ),
         src
@@ -95,7 +95,7 @@ Reg WindEmitter::EmitLocRef(IRLocalRef *ref, Reg dst) {
             this->CastReg(dst, ref->datatype()->moveSize()),
             this->writer->ptr(
                 x86::Gp::rbp,
-                -(ref->offset()),
+                ref->offset(),
                 ref->datatype()->moveSize()
             )
         );
@@ -104,7 +104,7 @@ Reg WindEmitter::EmitLocRef(IRLocalRef *ref, Reg dst) {
             dst,
             this->writer->ptr(
                 x86::Gp::rbp,
-                -ref->offset(),
+                ref->offset(),
                 ref->datatype()->moveSize()
             )
         );

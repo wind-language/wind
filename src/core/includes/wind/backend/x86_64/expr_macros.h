@@ -22,7 +22,7 @@
 #define LOCAL_OP_RAW(op) \
     op(dst, this->writer->ptr( \
         x86::Gp::rbp, \
-        -binop->right()->as<IRLocalRef>()->offset(), \
+        binop->right()->as<IRLocalRef>()->offset(), \
         binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
     )); \
     return {dst.id, (uint8_t)binop->right()->as<IRLocalRef>()->datatype()->moveSize(), Reg::GPR, binop->right()->as<IRLocalRef>()->datatype()->isSigned()};
@@ -60,7 +60,7 @@
     this->writer->mov( \
         this->writer->ptr( \
             x86::Gp::rbp, \
-            -binop->left()->as<IRLocalRef>()->offset(), \
+            binop->left()->as<IRLocalRef>()->offset(), \
             binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
         ), \
         src \
@@ -80,7 +80,7 @@
     WRITER_ADD( \
         this->writer->ptr( \
             x86::Gp::rbp, \
-            -binop->left()->as<IRLocalRef>()->offset(), \
+            binop->left()->as<IRLocalRef>()->offset(), \
             binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
         ), \
         src \
@@ -100,7 +100,7 @@
     WRITER_SUB( \
         this->writer->ptr( \
             x86::Gp::rbp, \
-            -binop->left()->as<IRLocalRef>()->offset(), \
+            binop->left()->as<IRLocalRef>()->offset(), \
             binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
         ), \
         src \
@@ -124,7 +124,7 @@
             throw std::runtime_error("Cannot index non-array"); \
         } \
         if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) { \
-            uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
+            int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
             if (offset < 0) { \
                 throw std::runtime_error("Invalid offset"); \
             } \
@@ -132,7 +132,7 @@
             this->writer->mov( \
                 this->writer->ptr( \
                     x86::Gp::rbp, \
-                    -offset, \
+                    offset, \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -147,7 +147,7 @@
                 this->writer->ptr( \
                     x86::Gp::rbp, \
                     index, \
-                    -ref->offset(), \
+                    ref->offset(), \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -162,7 +162,7 @@
             throw std::runtime_error("Cannot index non-array"); \
         } \
         if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) { \
-            uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
+            int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
             if (offset < 0) { \
                 throw std::runtime_error("Invalid offset"); \
             } \
@@ -170,7 +170,7 @@
             this->writer->op( \
                 this->writer->ptr( \
                     x86::Gp::rbp, \
-                    -offset, \
+                    offset, \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -178,7 +178,7 @@
             this->writer->mov( \
                 this->writer->ptr( \
                     x86::Gp::rbp, \
-                    -offset, \
+                    offset, \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -193,7 +193,7 @@
                 this->writer->ptr( \
                     x86::Gp::rbp, \
                     index, \
-                    -ref->offset(), \
+                    ref->offset(), \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -202,7 +202,7 @@
                 this->writer->ptr( \
                     x86::Gp::rbp, \
                     index, \
-                    -ref->offset(), \
+                    ref->offset(), \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -217,14 +217,14 @@
             throw std::runtime_error("Cannot index non-array"); \
         } \
         if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) { \
-            uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
+            int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
             if (offset < 0) { \
                 throw std::runtime_error("Invalid offset"); \
             } \
             this->writer->mov( \
                 this->writer->ptr( \
                     x86::Gp::rbp, \
-                    -offset, \
+                    offset, \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -238,7 +238,7 @@
                 this->writer->ptr( \
                     x86::Gp::rbp, \
                     index, \
-                    -ref->offset(), \
+                    ref->offset(), \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -309,7 +309,7 @@
     dst.signed_value = binop->left()->as<IRLocalRef>()->datatype()->isSigned(); \
     CASTED_MOV(dst, this->writer->ptr( \
         x86::Gp::rbp, \
-        -binop->left()->as<IRLocalRef>()->offset(), \
+        binop->left()->as<IRLocalRef>()->offset(), \
         binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
     ));
 
@@ -365,7 +365,7 @@
     } else { \
         this->writer->mov(x86::Gp::r10, this->writer->ptr( \
             x86::Gp::rbp, \
-            -binop->right()->as<IRLocalRef>()->offset(), \
+            binop->right()->as<IRLocalRef>()->offset(), \
             binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
         )); \
         op(x86::Gp::r10); \
@@ -391,12 +391,12 @@
     if (freg) { \
         op(*freg); \
     } else { \
-        this->writer->mov(x86::Gp::r15, this->writer->ptr( \
+        this->writer->mov(x86::Gp::r10, this->writer->ptr( \
             binop->right()->as<IRGlobRef>()->getName(), \
             0, \
             binop->right()->as<IRGlobRef>()->getType()->moveSize() \
         )); \
-        op(x86::Gp::r15); \
+        op(x86::Gp::r10); \
     } \
 
 #define GLOBAL_DIV(type, op) \

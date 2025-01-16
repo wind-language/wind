@@ -138,12 +138,12 @@ public:
 };
 
 class IRLocalRef : public IRNode {
-  uint16_t stack_offset;
+  int16_t stack_offset;
   DataType *var_type;
 
 public:
-  IRLocalRef(uint16_t stack_offset, DataType *type);
-  uint16_t offset() const;
+  IRLocalRef(int16_t stack_offset, DataType *type);
+  int16_t offset() const;
   DataType *datatype() const;
   NodeType type() const override { return NodeType::LOCAL_REF; }
 
@@ -151,13 +151,13 @@ public:
 };
 
 class IRLocalAddrRef : public IRNode {
-  uint16_t stack_offset;
+  int16_t stack_offset;
   IRNode *index;
   DataType *var_type;
 
 public:
-  IRLocalAddrRef(uint16_t stack_offset, DataType *type, IRNode *index = nullptr);
-  uint16_t offset() const;
+  IRLocalAddrRef(int16_t stack_offset, DataType *type, IRNode *index = nullptr);
+  int16_t offset() const;
   IRNode *getIndex() const;
   bool isIndexed() const { return index != nullptr; }
   DataType *datatype() const;
@@ -199,7 +199,7 @@ public:
   std::unique_ptr<IRBody> fn_body;
   std::unordered_map<std::string, IRLocalRef*> local_table;
   uint16_t stack_size = 0;
-  std::vector<uint16_t> used_offsets;
+  std::vector<int16_t> used_offsets;
   FnFlags flags = 0;
   std::vector<DataType*> arg_types;
   bool call_sub = false;
@@ -215,7 +215,7 @@ public:
   void SetBody(std::unique_ptr<IRBody> body);
   bool isStack();
   bool isUsed(IRLocalRef *local);
-  void occupyOffset(uint16_t offset);
+  void occupyOffset(int16_t offset);
   IRFunction *clone();
   void copyArgTypes(std::vector<DataType*> &types);
   DataType *GetArgType(int index);
@@ -223,11 +223,14 @@ public:
   bool isVariadic() const { return flags & FN_VARIADIC; }
   bool isCallSub() const { return call_sub; }
 
-  IRLocalRef *NewLocal(std::string name, DataType *type);
+  IRLocalRef *NewLocal(std::string name, DataType *type, bool positive_offset = false);
   IRLocalRef* GetLocal(std::string name);
 
 
   NodeType type() const override { return NodeType::FUNCTION; }
+
+private: // temp data
+  uint16_t plus_off=8;
 };
 
 class IRBinOp : public IRNode {

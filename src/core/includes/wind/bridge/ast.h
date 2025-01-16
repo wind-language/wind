@@ -287,6 +287,15 @@ public:
   const ASTNode* getValue() const;
 };
 
+class SizeOf : public ASTNode {
+  std::string type;
+
+public:
+  SizeOf(std::string t);
+  void *accept(ASTVisitor &visitor) const;
+  const std::string& getType() const;
+};
+
 
 class ASTVisitor {
 public:
@@ -311,6 +320,7 @@ public:
   virtual void *visit(const GenericIndexing &node) = 0;
   virtual void *visit(const PtrGuard &node) = 0;
   virtual void *visit(const TypeCast &node) = 0;
+  virtual void *visit(const SizeOf &node) = 0;
 };
 
 #endif // AST_H

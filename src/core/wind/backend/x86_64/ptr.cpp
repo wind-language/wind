@@ -13,7 +13,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
                 CastReg(dst, 8),
                 this->writer->ptr(
                     x86::Gp::rbp,
-                    -ref->offset(),
+                    ref->offset(),
                     ref->datatype()->moveSize()
                 )
             );
@@ -51,7 +51,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
                 dst,
                 this->writer->ptr(
                     x86::Gp::rbp,
-                    -offset,
+                    offset,
                     ref->datatype()->rawSize()
                 )
             );
@@ -66,7 +66,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
                     this->writer->ptr(
                         x86::Gp::rbp,
                         index,
-                        -ref->offset(),
+                        ref->offset(),
                         ref->datatype()->rawSize()
                     )
                 );
@@ -78,7 +78,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
                     this->writer->ptr(
                         x86::Gp::rbp,
                         index,
-                        -ref->offset(),
+                        ref->offset(),
                         ref->datatype()->rawSize()
                     )
                 );
@@ -113,7 +113,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
             dst,
             this->writer->ptr(
                 x86::Gp::rbp,
-                -ref->offset(),
+                ref->offset(),
                 8
             )
         );
@@ -130,7 +130,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
                 x86::Gp::rbx,
                 this->writer->ptr(
                     x86::Gp::rbp,
-                    -ref->offset(),
+                    ref->offset(),
                     ref->datatype()->moveSize()
                 )
             )
@@ -181,7 +181,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
         this->writer->mov(
             this->writer->ptr(
                 x86::Gp::rbp,
-                -offset,
+                offset,
                 ref->datatype()->rawSize()
             ),
             src
@@ -197,7 +197,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
                 this->writer->ptr(
                     x86::Gp::rbp,
                     index,
-                    -ref->offset(),
+                    ref->offset(),
                     ref->datatype()->rawSize()
                 ),
                 src
@@ -210,7 +210,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
                 this->writer->ptr(
                     x86::Gp::rbp,
                     index,
-                    -ref->offset(),
+                    ref->offset(),
                     ref->datatype()->rawSize()
                 )
             );

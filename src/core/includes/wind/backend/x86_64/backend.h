@@ -42,7 +42,7 @@ private:
                 LOOP,
                 UNTIL_ALLOC
             } lifetime;
-            uint16_t stack_offset; // holding local stack offset
+            int16_t stack_offset; // holding local stack offset
             std::string label;     // holding label address
         };
         RegValue regs[16]; // 16 GP registers
@@ -51,14 +51,14 @@ private:
         void SetDirty(Reg reg); // Mark a register as dirty, all sizes
         Reg Allocate(uint8_t size, bool setDirty=true); // Find a free register
         bool Request(Reg reg); // Request a specific register
-        void SetVar(Reg reg, uint16_t stack_offset, RegValue::Lifetime lifetime); // Set a local to a register
+        void SetVar(Reg reg, int16_t stack_offset, RegValue::Lifetime lifetime); // Set a local to a register
         void SetLabel(Reg reg, std::string label, RegValue::Lifetime lifetime); // Set a label to a register
         void SetLifetime(Reg reg, RegValue::Lifetime lifetime); // Set a lifetime to a register
         void Free(Reg reg); // Free a register
         void FreeAllRegs();
         void PostExpression();
         void PostLoop();
-        Reg *FindLocalVar(uint16_t stack_offset, uint16_t size); // Find if a local is in a register
+        Reg *FindLocalVar(int16_t stack_offset, uint16_t size); // Find if a local is in a register
         Reg *FindLabel(std::string label, uint16_t size); // Find if a label is in a register
         void AllocRepr();
     } regalloc;
