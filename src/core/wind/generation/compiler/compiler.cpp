@@ -101,10 +101,23 @@ void* WindCompiler::visit(const BinaryExpr &node) {
   IRBinOp::Operation op;
   if (node.getOperator() == "+=") {
     if (left->type() == IRNode::NodeType::LOCAL_REF) {
-      op = IRBinOp::Operation::L_PLUS_ASSIGN;
-    } 
+      // discontinued as unsafe (unchecked overflow)
+      // op = IRBinOp::Operation::L_PLUS_ASSIGN;
+      op = IRBinOp::Operation::L_ASSIGN;
+      right = new IRBinOp(
+        std::unique_ptr<IRNode>(left),
+        std::unique_ptr<IRNode>(right),
+        IRBinOp::Operation::ADD
+      );
+    }
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
-      op = IRBinOp::Operation::G_PLUS_ASSIGN;
+      //op = IRBinOp::Operation::G_PLUS_ASSIGN;
+      op = IRBinOp::Operation::G_ASSIGN;
+      right = new IRBinOp(
+        std::unique_ptr<IRNode>(left),
+        std::unique_ptr<IRNode>(right),
+        IRBinOp::Operation::ADD
+      );
     }
     else {
       throw std::runtime_error("Left operand of += must be a variable reference (also not a pointer)");
@@ -112,10 +125,23 @@ void* WindCompiler::visit(const BinaryExpr &node) {
   }
   else if (node.getOperator() == "-=") {
     if (left->type() == IRNode::NodeType::LOCAL_REF) {
-      op = IRBinOp::Operation::L_MINUS_ASSIGN;
+      // discontinued as unsafe (unchecked overflow)
+      //op = IRBinOp::Operation::L_MINUS_ASSIGN;
+      op = IRBinOp::Operation::L_ASSIGN;
+      right = new IRBinOp(
+        std::unique_ptr<IRNode>(left),
+        std::unique_ptr<IRNode>(right),
+        IRBinOp::Operation::SUB
+      );
     } 
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
-      op = IRBinOp::Operation::G_MINUS_ASSIGN;
+      //op = IRBinOp::Operation::G_MINUS_ASSIGN;
+      op = IRBinOp::Operation::G_ASSIGN;
+      right = new IRBinOp(
+        std::unique_ptr<IRNode>(left),
+        std::unique_ptr<IRNode>(right),
+        IRBinOp::Operation::SUB
+      );
     }
     else {
       throw std::runtime_error("Left operand of -= must be a variable reference (also not a pointer)");
