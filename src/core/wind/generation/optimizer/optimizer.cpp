@@ -244,16 +244,20 @@ IRNode *WindOptimizer::OptimizeFnCall(IRFnCall *fn_call) {
 
 IRNode *WindOptimizer::OptimizeFunction(IRFunction *fn) {
   IRFunction *fn_copy = fn->clone();
-  bool has_loop=false;
+  bool can_inline=true;
 
   for (auto &node : fn->body()->get()) {
     if (node->is<IRLooping>()) {
-      has_loop = true;
+      can_inline = false;
+      break;
+    }
+    else if (node->is<IRFnCall>()) {
+      can_inline = false;
       break;
     }
   }
 
-  if (fn->ArgNum()==1 && !has_loop) {
+  if (fn->ArgNum()==1 && can_inline) {
     // clear stack usage
     fn_copy->stack_size -= fn->GetArgType(0)->memSize();
     fn_copy->ignore_stack_abi = true;
