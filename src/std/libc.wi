@@ -1,4 +1,4 @@
-@include "types.w"
+@include "types.wi"
 
 @extern func memcpy(dest: ptr<char>, src: ptr<char>, size: int) : ptr<char>;
 @extern func printf(str: string, ...) : int;

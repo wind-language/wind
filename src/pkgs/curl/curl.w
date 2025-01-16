@@ -1,5 +1,5 @@
 @include [
-    "#libc.w"
+    "#libc.wi"
     "curl.wi"
 ]
 
