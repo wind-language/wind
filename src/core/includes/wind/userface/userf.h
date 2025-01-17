@@ -8,8 +8,9 @@
 
 #define EMIT_OBJECT (1 << 0)
 #define SHOW_AST    (1 << 1)
-#define SHOW_IR     (1 << 2)
-#define SHOW_ASM    (1 << 3)
+#define SHOW_RAW_IR (1 << 2)
+#define SHOW_IR     (1 << 3)
+#define SHOW_ASM    (1 << 4)
 
 typedef uint16_t EmissionFlags;
 

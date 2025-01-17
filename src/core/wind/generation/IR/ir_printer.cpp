@@ -233,11 +233,11 @@ void IRPrinter::print_ret(const IRRet *node) {
 }
 
 void IRPrinter::print_ref(const IRLocalRef *node) {
-  std::cout << "loc" << node->offset();
+  std::cout << "loc" << std::abs(node->offset());
 }
 
 void IRPrinter::print_laddr(const IRLocalAddrRef *node) {
-  std::cout << "&loc" << node->offset();
+  std::cout << "&loc" << std::abs(node->offset());
   if (node->isIndexed() != -1) {
     std::cout << "[";
     this->print_node(node->getIndex());
@@ -254,13 +254,13 @@ void IRPrinter::print_lit(const IRLiteral *node) {
 }
 
 void IRPrinter::print_ldecl(const IRVariableDecl *node) {
-  std::cout << "alloc [" << node->local()->datatype()->memSize() << "] loc" << node->local()->offset();
+  std::cout << "alloc [" << node->local()->datatype()->memSize() << "] loc" << std::abs(node->local()->offset());
   if (node->value()) {
     std::cout << "\n";
     this->print_tabs();
     std::cout << "store ";
     this->print_node(node->value());
-    std::cout << " -> loc" << node->local()->offset();
+    std::cout << " -> loc" << std::abs(node->local()->offset());
   }
 }
 
@@ -273,7 +273,7 @@ void IRPrinter::print_gdecl(const IRGlobalDecl *node) {
 }
 
 void IRPrinter::print_argdecl(const IRArgDecl *node) {
-  std::cout << "  alloc [" << node->local()->datatype()->memSize() << "] loc" << node->local()->offset();
+  std::cout << "  alloc [" << node->local()->datatype()->memSize() << "] loc" << std::abs(node->local()->offset());
 }
 
 void IRPrinter::print_asm(const IRInlineAsm *node) {

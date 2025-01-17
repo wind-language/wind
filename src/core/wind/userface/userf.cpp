@@ -74,6 +74,9 @@ void WindUserInterface::parseArgument(std::string arg, int &i) {
   else if (arg == "-si") {
     this->flags |= SHOW_IR;
   }
+  else if (arg == "-sir") {
+    this->flags |= SHOW_RAW_IR;
+  }
   else if (arg == "-ss") {
     this->flags |= SHOW_ASM;
   }
@@ -107,6 +110,14 @@ void WindUserInterface::emitObject(std::string path) {
   }
 
   WindCompiler *ir = new WindCompiler(ast);
+
+  if (flags & SHOW_RAW_IR) {
+    std::cout << "[" << path << "] RAW IR:" << std::endl;
+    IRPrinter *ir_printer = new IRPrinter(ir->get());
+    ir_printer->print();
+    std::cout << "\n\n";
+  }
+
   WindOptimizer *opt = new WindOptimizer(ir->get());
   IRBody *optimized = opt->get();
 

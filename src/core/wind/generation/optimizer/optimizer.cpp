@@ -87,7 +87,8 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
     return new IRBinOp(std::unique_ptr<IRNode>(left), std::unique_ptr<IRNode>(right), op);
   }
   IRNode *opt_left = left;
-  if (op != IRBinOp::L_ASSIGN && op != IRBinOp::G_ASSIGN && op != IRBinOp::VA_ASSIGN) {
+
+  if (op != IRBinOp::L_ASSIGN) {
     opt_left = this->OptimizeExpr(left);
   }
   IRNode *opt_right = this->OptimizeExpr(right);
@@ -109,7 +110,9 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
     opt_left->is<IRLiteral>() &&
     opt_left->as<IRLiteral>()->get() == 0
   ) {
-    return opt_right;
+    if (op != IRBinOp::Operation::SUB) {
+      return opt_right;
+    }
   }
   else if (
     op == IRBinOp::Operation::MUL &&
@@ -381,6 +384,24 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
     if (this->GetLocalValue(node->as<IRLocalRef>()->offset())) {
       return this->GetLocalValue(node->as<IRLocalRef>()->offset());
     }
+  }
+  else if (node->is<IRLocalAddrRef>()) {
+    IRLocalAddrRef *addr = node->as<IRLocalAddrRef>();
+    if (addr->isIndexed()) {
+      return new IRLocalAddrRef(
+        addr->offset(),
+        addr->datatype(),
+        this->OptimizeExpr(addr->getIndex())
+      );
+    }
+    return node;
+  }
+  else if (node->is<IRGenericIndexing>()) {
+    IRGenericIndexing *indexing = node->as<IRGenericIndexing>();
+    return new IRGenericIndexing(
+      this->OptimizeExpr(indexing->getBase()),
+      this->OptimizeExpr(indexing->getIndex())
+    );
   }
   return node;
 }

@@ -294,7 +294,15 @@ ASTNode *WindParser::parseExprPrimary() {
     case Token::MINUS : {
       // a negative number
       this->expect(Token::Type::MINUS, "-");
-      return this->parseExprLiteral(true);
+      if (this->stream->peek()->type == Token::INTEGER) {
+        return this->parseExprLiteral(true);
+      } else {
+        return new BinaryExpr(
+          std::unique_ptr<ASTNode>(new Literal(0)),
+          std::unique_ptr<ASTNode>(this->parseExprPrimary()),
+          "-"
+        );
+      }
     }
   
     default:

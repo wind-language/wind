@@ -3,14 +3,9 @@
 ]
 //@import "#link"
 
-func t7(a: short, b: int, c: int, d:int, e: int, f: int, g: ptr<char>): int {
-    printf("g: %p\n", g);
-    return 0;
-}
-
 func main(): int {
-    var test_ptr: ptr<char> = guard![malloc(sizeof<char>*32)];
-    t7(30000,2,3,4,5,6,test_ptr);
-    var a: int = 5;
-    return a+1;
+    var test_ptr: ptr<ptr<char>> = guard![malloc(sizeof<ptr<char>>*32)];
+    test_ptr[test_ptr[0]] = "Hello";
+    printf("test_ptr[0]: %s\n", test_ptr[0]);
+    return 0;
 }
