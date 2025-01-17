@@ -74,6 +74,9 @@ void WindUserInterface::parseArgument(std::string arg, int &i) {
   else if (arg == "-si") {
     this->flags |= SHOW_IR;
   }
+  else if (arg == "-sir") {
+    this->flags |= SHOW_RAW_IR;
+  }
   else if (arg == "-ss") {
     this->flags |= SHOW_ASM;
   }
@@ -107,6 +110,14 @@ void WindUserInterface::emitObject(std::string path) {
   }
 
   WindCompiler *ir = new WindCompiler(ast);
+
+  if (flags & SHOW_RAW_IR) {
+    std::cout << "[" << path << "] RAW IR:" << std::endl;
+    IRPrinter *ir_printer = new IRPrinter(ir->get());
+    ir_printer->print();
+    std::cout << "\n\n";
+  }
+
   WindOptimizer *opt = new WindOptimizer(ir->get());
   IRBody *optimized = opt->get();
 
@@ -130,6 +141,17 @@ void WindUserInterface::emitObject(std::string path) {
     std::cout << backend->GetAsm() << std::endl;
   }
   this->objects.push_back(output);
+
+  std::vector<std::string> user_ld_flags = global_isc->getLdFlags();
+  for (std::string flag : user_ld_flags) {
+    this->user_ld_flags.push_back(flag);
+  }
+
+  std::vector<std::string> pending_src = global_isc->getImports();
+  for (std::string src : pending_src) {
+    global_isc->popImport();
+    this->emitObject(src);
+  }
   
   delete ir;
   delete opt;
@@ -138,6 +160,9 @@ void WindUserInterface::emitObject(std::string path) {
 
 void WindUserInterface::ldDefFlags(WindLdInterface *ld) {
   ld->addFlag("-m elf_x86_64");
+  for (std::string flag : this->user_ld_flags) {
+    ld->addFlag(flag);
+  }
 }
 
 void WindUserInterface::ldExecFlags(WindLdInterface *ld) {

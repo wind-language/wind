@@ -29,6 +29,10 @@ private:
   void print_asm(const IRInlineAsm *node);
   void print_branch(const IRBranching *node);
   void print_loop(const IRLooping *node);
+  void print_gen_index(const IRGenericIndexing *node);
+  void print_fnref(const IRFnRef *node);
+  void print_ptr_guard(const IRPtrGuard *node);
+  void print_typecast(const IRTypeCast *node);
 
   void print_tabs();
 };

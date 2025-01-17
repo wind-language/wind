@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <map>
 #include <wind/bridge/opt_flags.h>
 
 class ASTVisitor;
@@ -84,6 +85,8 @@ class Body : public ASTNode {
   std::vector<std::unique_ptr<ASTNode>> statements;
 
 public:
+  std::map<std::string, ASTNode*> consts_table;
+
   explicit Body(std::vector<std::unique_ptr<ASTNode>> s);
 
   Body(const Body&) = delete;
@@ -109,6 +112,7 @@ class Function : public ASTNode {
 public:
   Function(std::string name, std::string type, std::unique_ptr<Body> b);
   std::string metadata="";
+  bool isDefined = true;
 
   void *accept(ASTVisitor &visitor) const override;
 
@@ -253,6 +257,45 @@ public:
   void *accept(ASTVisitor &visitor) const;
 };
 
+class GenericIndexing : public ASTNode {
+  std::unique_ptr<ASTNode> index;
+  std::unique_ptr<ASTNode> base;
+
+public:
+  GenericIndexing(std::unique_ptr<ASTNode> i, std::unique_ptr<ASTNode> b);
+  void *accept(ASTVisitor &visitor) const;
+  const ASTNode* getIndex() const;
+  const ASTNode* getBase() const;
+};
+
+class PtrGuard : public ASTNode {
+  std::unique_ptr<ASTNode> value;
+
+public:
+  PtrGuard(std::unique_ptr<ASTNode> v);
+  void *accept(ASTVisitor &visitor) const;
+  const ASTNode* getValue() const;
+};
+
+class TypeCast : public ASTNode {
+  std::string type;
+  std::unique_ptr<ASTNode> value;
+public:
+  TypeCast(std::string t, std::unique_ptr<ASTNode> v);
+  void *accept(ASTVisitor &visitor) const;
+  const std::string& getType() const;
+  const ASTNode* getValue() const;
+};
+
+class SizeOf : public ASTNode {
+  std::string type;
+
+public:
+  SizeOf(std::string t);
+  void *accept(ASTVisitor &visitor) const;
+  const std::string& getType() const;
+};
+
 
 class ASTVisitor {
 public:
@@ -274,6 +317,10 @@ public:
   virtual void *visit(const Looping &node) = 0;
   virtual void *visit(const Break &node) = 0;
   virtual void *visit(const Continue &node) = 0;
+  virtual void *visit(const GenericIndexing &node) = 0;
+  virtual void *visit(const PtrGuard &node) = 0;
+  virtual void *visit(const TypeCast &node) = 0;
+  virtual void *visit(const SizeOf &node) = 0;
 };
 
 #endif // AST_H

@@ -1,0 +1,25 @@
+@linkflag("-lcurl")
+
+@type CURL = ptr<char>;
+@type CURLcode = int;
+
+@const CURLOPT_URL = 10002;
+@const CURLE_OK = 0;
+@const CURL_GLOBAL_ALL = 3;
+@const CURLOPT_WRITEFUNCTION = 20011;
+@const CURLOPT_WRITEDATA = 10001;
+@const CURLOPT_VERBOSE = 41;
+@const CURLOPT_PIPEWAIT = 237;
+@const CURLOPT_HTTP_VERSION = 84;
+
+@const CURL_HTTP_VERSION_2_0 = 3;
+
+@extern func curl_easy_init(): CURL;
+@extern func curl_easy_setopt(curl: CURL, option: CURLcode, param: uint64): CURLcode;
+@extern func curl_easy_perform(curl: CURL): CURLcode;
+@extern func curl_easy_strerror(res: int): string;
+@extern func curl_easy_cleanup(curl: CURL): void;
+@extern func curl_global_init(flags: int): CURLcode;
+@extern func curl_global_cleanup(): void;
+
+func curl_test(): void;

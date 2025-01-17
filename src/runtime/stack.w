@@ -1,5 +1,5 @@
 @include [
-    "#types.w"
+    "#types.wi"
 ]
 
 @extern func puts(str: string) : void;
@@ -15,7 +15,7 @@
   abort();
 }
 
-@pub func __builtin_copy(dst: ptr, src: ptr, size: uint64): void {
+@pub func __builtin_copy(dst: ptr<char>, src: ptr<char>, size: uint64): void {
   var i: uint64 = 0;
   loop [i < size] {
     dst[i] = src[i];
@@ -23,7 +23,7 @@
   }
 }
 
-@pub func __builtin_memset(dst: ptr, c: char, size: uint64): void {
+@pub func __builtin_memset(dst: ptr<char>, c: char, size: uint64): void {
   var i: uint64 = 0;
   loop [i < size] {
     dst[i] = c;

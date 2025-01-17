@@ -257,3 +257,44 @@ Continue::Continue() {}
 void *Continue::accept(ASTVisitor &visitor) const {
   return visitor.visit(*this);
 }
+
+GenericIndexing::GenericIndexing(std::unique_ptr<ASTNode> i, std::unique_ptr<ASTNode> b) {
+  index = std::move(i);
+  base = std::move(b);
+}
+void *GenericIndexing::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const ASTNode *GenericIndexing::getIndex() const {
+  return index.get();
+}
+const ASTNode *GenericIndexing::getBase() const {
+  return base.get();
+}
+
+PtrGuard::PtrGuard(std::unique_ptr<ASTNode> v) : value(std::move(v)) {}
+void *PtrGuard::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const ASTNode *PtrGuard::getValue() const {
+  return value.get();
+}
+
+TypeCast::TypeCast(std::string t, std::unique_ptr<ASTNode> v) : type(t), value(std::move(v)) {}
+void *TypeCast::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const std::string &TypeCast::getType() const {
+  return type;
+}
+const ASTNode *TypeCast::getValue() const {
+  return value.get();
+}
+
+SizeOf::SizeOf(std::string t) : type(t) {}
+void *SizeOf::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const std::string &SizeOf::getType() const {
+  return type;
+}

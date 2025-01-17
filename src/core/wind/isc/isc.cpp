@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <iostream>
+#include <filesystem>
 
 WindISC *global_isc;
 
@@ -62,6 +63,23 @@ int WindISC::workOnInclude(std::string path) {
   return 0;
 }
 
+int WindISC::workOnImport(std::string path) {
+  if (!std::filesystem::exists(path)) {
+    return 1;
+  }
+  std::string dir_name = std::filesystem::path(path).filename().string();
+  std::string interface_file = path + "/" + dir_name + ".wi";
+  if (!std::filesystem::exists(interface_file)) {
+    return 1;
+  }
+  std::string source_file = path + "/" + dir_name + ".w";
+  this->imp_toprocess.push_back(source_file);
+  if (this->workOnInclude(interface_file)) {
+    return 1;
+  }
+  return 0;
+}
+
 Body *sumAST(Body *a, Body *b) {
   Body *result = new Body({});
   for (auto &child : a->get()) {
@@ -78,6 +96,11 @@ Body *WindISC::commitAST(Body *ast) {
     return nullptr;
   }
   Body *resx = sumAST(ast, this->volatile_ast);
+  resx->consts_table = this->volatile_ast->consts_table;
+  for (auto &const_pair : ast->consts_table) {
+    resx->consts_table.insert({const_pair.first, const_pair.second});
+  }
+
   this->volatile_ast = nullptr;
   return resx;
 }

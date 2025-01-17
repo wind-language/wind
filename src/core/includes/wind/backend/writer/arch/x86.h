@@ -106,47 +106,53 @@ namespace x86 {
     }
 
 
-#define A_IRR_INSTR(name, handler) void name(Reg dst, Reg src) { this->Write(#name, dst, src); REG_INSTR_HANDLE(handler, dst) } // IRR stands for "Instruction Register-Register"
-#define A_IRM_INSTR(name, handler) void name(Reg dst, Mem src) { this->Write(#name, dst, src); REG_INSTR_HANDLE(handler, dst) } // IRM stands for "Instruction Register-Memory"
-#define A_IMR_INSTR(name, handler) void name(Mem dst, Reg src) { this->Write(#name, dst, src);  REG_INSTR_HANDLE(handler, src) } // IMR stands for "Instruction Memory-Register"
-#define A_IRI_INSTR(name, handler) void name(Reg dst, int64_t imm) { this->Write(#name, dst, imm); REG_INSTR_HANDLE(handler, dst) } // IRI stands for "Instruction Register-Immediate"
-#define A_IMI_INSTR(name, handler) void name(Mem dst, int64_t imm) { this->Write(#name, dst, imm); MEM_INSTR_HANDLE(handler) } // IMI stands for "Instruction Memory-Immediate"
-#define A_IIR_INSTR(name, handler) void name(int64_t imm, Reg src) { this->Write(#name, imm, src); } // IIR stands for "Instruction Immediate-Register"
-#define A_RROI_INSTR(name, handler) void name(Reg src, RegOffset offs) { this->Write(#name, src, offs); } // RROI stands for "Register Register Offset"
-#define A_IIM_INSTR(name, handler) void name(int64_t imm, Mem src) { this->Write(#name, imm, src); } // IIM stands for "Instruction Immediate-Memory"
-#define A_FIVE_INSTR(name, handler) \
-    A_IRR_INSTR(name, handler) \
-    A_IRM_INSTR(name, handler) \
-    A_IMR_INSTR(name, handler) \
-    A_IRI_INSTR(name, handler) \
-    A_IMI_INSTR(name, handler) // FIVE for (IRR IRM IMR)
+#define A_IRR_INSTR(name) void name(Reg dst, Reg src, const char *handler=nullptr) { this->Write(#name, dst, src); REG_INSTR_HANDLE(handler, dst) } // IRR stands for "Instruction Register-Register"
+#define A_IRM_INSTR(name) void name(Reg dst, Mem src, const char *handler=nullptr) { this->Write(#name, dst, src); REG_INSTR_HANDLE(handler, dst) } // IRM stands for "Instruction Register-Memory"
+#define A_IMR_INSTR(name) void name(Mem dst, Reg src, const char *handler=nullptr) { this->Write(#name, dst, src);  REG_INSTR_HANDLE(handler, src) } // IMR stands for "Instruction Memory-Register"
+#define A_IRI_INSTR(name) void name(Reg dst, int64_t imm, const char *handler=nullptr) { this->Write(#name, dst, imm); REG_INSTR_HANDLE(handler, dst) } // IRI stands for "Instruction Register-Immediate"
+#define A_IMI_INSTR(name) void name(Mem dst, int64_t imm, const char *handler=nullptr) { this->Write(#name, dst, imm); MEM_INSTR_HANDLE(handler) } // IMI stands for "Instruction Memory-Immediate"
+#define A_IIR_INSTR(name) void name(int64_t imm, Reg src, const char *handler=nullptr) { this->Write(#name, imm, src); } // IIR stands for "Instruction Immediate-Register"
+#define A_RROI_INSTR(name) void name(Reg src, RegOffset offs, const char *handler=nullptr) { this->Write(#name, src, offs); } // RROI stands for "Register Register Offset"
+#define A_IIM_INSTR(name) void name(int64_t imm, Mem src, const char *handler=nullptr) { this->Write(#name, imm, src); } // IIM stands for "Instruction Immediate-Memory"
+#define A_FIVE_INSTR(name) \
+    A_IRR_INSTR(name) \
+    A_IRM_INSTR(name) \
+    A_IMR_INSTR(name) \
+    A_IRI_INSTR(name) \
+    A_IMI_INSTR(name) // FIVE for (IRR IRM IMR)
+
+#define A_IMM_EX_INSTR(name) void name(Mem dst, Mem src, const char *handler=nullptr) { this->Write(#name, dst, src); MEM_INSTR_HANDLE(handler) } // IMM_EX stands for "Instruction Memory-Memory Extra"
 
 
 #define B_N_INSTR(name) void name() { this->Write(#name); } // N stands for "No"
 #define B_IR_INSTR(name) void name(Reg dst) { this->Write(#name, dst); } // IR stands for "Instruction Register"
 #define B_IM_INSTR(name) void name(Mem dst) { this->Write(#name, dst); } // IM stands for "Instruction Memory"
 #define B_IL_INSTR(name) void name(std::string label) { this->Write(#name, label); } // IL stands for "Instruction Label"
-#define B_TRIPLE_INSTR(name) \
+#define B_II_INSTR(name) void name(int64_t imm) { this->Write(#name, imm); } // II stands for "Instruction Immediate"
+#define B_QUAD_INSTR(name) \
     B_IR_INSTR(name) \
     B_IM_INSTR(name) \
+    B_II_INSTR(name) \
     B_IL_INSTR(name) // TRIPLE for (IR IM IL)
 
 
 #define C_SEVEN_INSTR(name) \
-    A_IRR_INSTR(name, 0) \
-    A_IRM_INSTR(name, 0) \
-    A_IMR_INSTR(name, 0) \
-    A_IRI_INSTR(name, 0) \
-    A_IMI_INSTR(name, 0) \
-    A_IIR_INSTR(name, 0) \
-    A_RROI_INSTR(name, 0) \
-    A_IIM_INSTR(name, 0) // SEVEN for (IRR IRM IMR IRI IMI IIR IIM)
+    A_IRR_INSTR(name) \
+    A_IRM_INSTR(name) \
+    A_IMR_INSTR(name) \
+    A_IRI_INSTR(name) \
+    A_IMI_INSTR(name) \
+    A_IIR_INSTR(name) \
+    A_RROI_INSTR(name) \
+    A_IIM_INSTR(name) // SEVEN for (IRR IRM IMR IRI IMI IIR IIM)
     
 // ----------------------------
 
 
-#define SPECIAL_ARITHMETIC(name, handler, sign)\
-    void name(Reg src) { this->Write(#name, src); REG_INSTR_HANDLE(handler, src) }
+#define SPECIAL_ARITHMETIC(name)\
+    void name(Reg src, const char *handler=nullptr) { this->Write(#name, src); REG_INSTR_HANDLE(handler, src) } \
+    void name(Mem src, const char *handler=nullptr) { this->Write(#name, src); MEM_INSTR_HANDLE(handler) } \
+    void name(int64_t imm, const char *handler=nullptr) { this->Write(#name, imm); }
 
 
 class Ax86_64 : public WindWriter {
@@ -163,63 +169,67 @@ public:
     bool OverflowChecks = true;
     Ax86_64() {}
     
-    A_FIVE_INSTR(mov, 0)
-    A_FIVE_INSTR(lea, 0)
-    A_FIVE_INSTR(add, "__WDH_sum_overflow")
-    A_FIVE_INSTR(sub, "__WDH_sub_overflow")
-    A_FIVE_INSTR(shr, 0)
-    A_FIVE_INSTR(shl, 0)
-    A_FIVE_INSTR(sar, 0)
-    A_FIVE_INSTR(sal, 0)
-    A_FIVE_INSTR(imul, "__WDH_mul_overflow")
-    A_FIVE_INSTR(mul, "__WDH_mul_overflow")
+    A_FIVE_INSTR(mov)
+    A_FIVE_INSTR(lea)
+    A_IMM_EX_INSTR(lea)
+    A_FIVE_INSTR(add)
+    A_FIVE_INSTR(sub)
+    A_FIVE_INSTR(shr)
+    A_FIVE_INSTR(shl)
+    A_FIVE_INSTR(sar)
+    A_FIVE_INSTR(sal)
+    A_FIVE_INSTR(imul)
+    A_FIVE_INSTR(mul)
 
-    A_FIVE_INSTR(inc, 0)
-    A_FIVE_INSTR(dec, 0)
+    A_FIVE_INSTR(inc)
+    A_FIVE_INSTR(dec)
 
-    SPECIAL_ARITHMETIC(div, "__WDH_div_overflow", false)
-    SPECIAL_ARITHMETIC(idiv, "__WDH_div_overflow", true)
+    SPECIAL_ARITHMETIC(div)
+    SPECIAL_ARITHMETIC(idiv)
 
 
-    A_FIVE_INSTR(movzx, 0)
-    A_FIVE_INSTR(movsx, 0)
+    A_FIVE_INSTR(movzx)
+    A_FIVE_INSTR(movsx)
 
-    B_TRIPLE_INSTR(jmp)
-    B_TRIPLE_INSTR(call)
-    B_TRIPLE_INSTR(push)
-    B_TRIPLE_INSTR(pop)
-    B_TRIPLE_INSTR(je)
-    B_TRIPLE_INSTR(jne)
-    B_TRIPLE_INSTR(jg)
-    B_TRIPLE_INSTR(jge)
-    B_TRIPLE_INSTR(jl)
-    B_TRIPLE_INSTR(jle)
-    B_TRIPLE_INSTR(ja)
-    B_TRIPLE_INSTR(jae)
-    B_TRIPLE_INSTR(jb)
-    B_TRIPLE_INSTR(jbe)
-    B_TRIPLE_INSTR(jnb)
-    B_TRIPLE_INSTR(jo)
-    B_TRIPLE_INSTR(jno)
-    B_TRIPLE_INSTR(js)
-    B_TRIPLE_INSTR(jns)
-    B_TRIPLE_INSTR(jp)
-    B_TRIPLE_INSTR(jnp)
-    B_TRIPLE_INSTR(sete)
-    B_TRIPLE_INSTR(setne)
-    B_TRIPLE_INSTR(setg)
-    B_TRIPLE_INSTR(setge)
-    B_TRIPLE_INSTR(setl)
-    B_TRIPLE_INSTR(setle)
-    B_TRIPLE_INSTR(seta)
-    B_TRIPLE_INSTR(setae)
-    B_TRIPLE_INSTR(setb)
-    B_TRIPLE_INSTR(setbe)
+    B_QUAD_INSTR(jmp)
+    B_QUAD_INSTR(call)
+    B_QUAD_INSTR(push)
+    B_QUAD_INSTR(pop)
+    B_QUAD_INSTR(je)
+    B_QUAD_INSTR(jz)
+    B_QUAD_INSTR(jne)
+    B_QUAD_INSTR(jg)
+    B_QUAD_INSTR(jge)
+    B_QUAD_INSTR(jl)
+    B_QUAD_INSTR(jle)
+    B_QUAD_INSTR(ja)
+    B_QUAD_INSTR(jae)
+    B_QUAD_INSTR(jb)
+    B_QUAD_INSTR(jbe)
+    B_QUAD_INSTR(jnb)
+    B_QUAD_INSTR(jo)
+    B_QUAD_INSTR(jno)
+    B_QUAD_INSTR(js)
+    B_QUAD_INSTR(jns)
+    B_QUAD_INSTR(jp)
+    B_QUAD_INSTR(jnp)
+    B_QUAD_INSTR(sete)
+    B_QUAD_INSTR(setne)
+    B_QUAD_INSTR(setg)
+    B_QUAD_INSTR(setge)
+    B_QUAD_INSTR(setl)
+    B_QUAD_INSTR(setle)
+    B_QUAD_INSTR(seta)
+    B_QUAD_INSTR(setae)
+    B_QUAD_INSTR(setb)
+    B_QUAD_INSTR(setbe)
 
     B_N_INSTR(leave)
     B_N_INSTR(ret)
     B_N_INSTR(rdtsc)
     B_N_INSTR(rdtscp)
+    B_N_INSTR(cdq)
+    B_N_INSTR(cqo)
 
     C_SEVEN_INSTR(cmp)
     C_SEVEN_INSTR(test)

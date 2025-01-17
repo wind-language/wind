@@ -6,6 +6,7 @@
 #include <wind/generation/IR.h>
 #include <algorithm>
 #include <stdexcept>
+#include <iostream>
 
 /**
  * @brief Constructor for IRRet.
@@ -34,13 +35,13 @@ void IRRet::set(std::unique_ptr<IRNode> v) {
  * @param stack_offset The stack offset.
  * @param type The data type.
  */
-IRLocalRef::IRLocalRef(uint16_t stack_offset, DataType *type) : stack_offset(stack_offset), var_type(type) {}
+IRLocalRef::IRLocalRef(int16_t stack_offset, DataType *type) : stack_offset(stack_offset), var_type(type) {}
 
 /**
  * @brief Gets the stack offset.
  * @return The stack offset.
  */
-uint16_t IRLocalRef::offset() const {
+int16_t IRLocalRef::offset() const {
   return stack_offset;
 }
 
@@ -58,13 +59,13 @@ DataType* IRLocalRef::datatype() const {
  * @param type The data type.
  * @param index The index.
  */
-IRLocalAddrRef::IRLocalAddrRef(uint16_t stack_offset, DataType* type, IRNode *index) : stack_offset(stack_offset), var_type(type), index(index) {}
+IRLocalAddrRef::IRLocalAddrRef(int16_t stack_offset, DataType* type, IRNode *index) : stack_offset(stack_offset), var_type(type), index(index) {}
 
 /**
  * @brief Gets the stack offset.
  * @return The stack offset.
  */
-uint16_t IRLocalAddrRef::offset() const {
+int16_t IRLocalAddrRef::offset() const {
   return stack_offset;
 }
 
@@ -178,7 +179,7 @@ bool IRFunction::isStack() {
  * @brief Occupies a stack offset.
  * @param offset The stack offset to occupy.
  */
-void IRFunction::occupyOffset(uint16_t offset) {
+void IRFunction::occupyOffset(int16_t offset) {
   used_offsets.push_back(offset);
 }
 
@@ -225,6 +226,7 @@ IRFunction *IRFunction::clone() {
   new_fn->return_type = return_type;
   new_fn->ignore_stack_abi = ignore_stack_abi;
   new_fn->metadata = metadata;
+  new_fn->isDefined = isDefined;
   new_fn->canary_needed = canary_needed;
   return new_fn;
 }
@@ -235,10 +237,18 @@ IRFunction *IRFunction::clone() {
  * @param type The data type.
  * @return The new local variable.
  */
-IRLocalRef *IRFunction::NewLocal(std::string name, DataType *type) {
-  uint16_t offset = stack_size+0x10; // left for canary
-  offset += type->memSize();
-  stack_size += type->memSize();
+IRLocalRef *IRFunction::NewLocal(std::string name, DataType *type, bool positive_offset) {
+  int16_t offset=0;
+  if (positive_offset) {
+    this->plus_off += 8;
+    offset = this->plus_off;
+  } else {
+    stack_size += type->memSize();
+    offset = stack_size+0x10; // 0x10 left for canary
+  }
+  if (!positive_offset) {
+    offset = -offset;
+  }
   local_table.insert({name, new IRLocalRef(offset, type)});
   this->fn_locals.push_back(std::make_unique<IRLocalRef>(offset, type));
   return this->fn_locals.back().get();
@@ -319,6 +329,16 @@ IRBinOp::Operation IRstr2op(std::string str) {
     return IRBinOp::MOD;
   } else if (str == "<=") {
     return IRBinOp::LESSEQ;
+  } else if (str == ">=") {
+    return IRBinOp::GREATEREQ;
+  } else if (str == "!=") {
+    return IRBinOp::NOTEQ;
+  } else if (str == "&") {
+    return IRBinOp::AND;
+  } else if (str == "|") {
+    return IRBinOp::OR;
+  } else if (str == "^") {
+    return IRBinOp::XOR;
   }
   else {
     throw std::runtime_error("Invalid operation");
@@ -558,4 +578,27 @@ void IRLooping::setCondition(IRNode *c) {
  */
 void IRLooping::setBody(IRBody *b) {
   body = b;
+}
+
+IRGenericIndexing::IRGenericIndexing(IRNode *b, IRNode *i) : base(b), index(i) {
+  this->infered_type = base->inferType();
+}
+IRNode *IRGenericIndexing::getBase() const {
+  return base;
+}
+IRNode *IRGenericIndexing::getIndex() const {
+  return index;
+}
+
+IRPtrGuard::IRPtrGuard(IRNode *v) : value(v) {}
+IRNode *IRPtrGuard::getValue() const {
+  return value;
+}
+
+IRTypeCast::IRTypeCast(IRNode *v, DataType *t) : value(v), cast_type(t) {}
+IRNode *IRTypeCast::getValue() const {
+  return value;
+}
+DataType *IRTypeCast::getType() const {
+  return cast_type;
 }

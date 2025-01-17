@@ -362,6 +362,14 @@ Token *WindLexer::Discriminate() {
     }
     return nullptr;
   }
+  else if ( this->stream.current() == '/' && this->stream.peek() == '*' ) {
+    this->stream.advance(2);
+    while (this->stream.current() != '*' && this->stream.peek() != '/') {
+      this->stream.advance();
+    }
+    this->stream.advance(2);
+    return nullptr;
+  }
   else if (this->stream.current() == '"') {
     return this->LexString();
   }

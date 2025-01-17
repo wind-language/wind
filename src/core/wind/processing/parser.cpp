@@ -14,6 +14,10 @@
 #define WIND_STD_PATH ""
 #endif
 
+#ifndef WIND_PKGS_PATH
+#define WIND_PKGS_PATH ""
+#endif
+
 ParserReport *GetReporter(Token *src) {
   return global_isc->getParserReport(src->srcId);
 }
@@ -39,12 +43,19 @@ std::string WindParser::typeSignature(Token::Type until, Token::Type oruntil) {
   bool first = true;
   while (!this->until(until) && !this->until(oruntil)) {
     Token *token = stream->pop();
-    if (first){
-      first=false;
+    if (isKeyword(token, "ptr") && this->stream->current()->type == Token::Type::LESS) {
+      signature += token->value;
+      signature += this->expect(Token::Type::LESS, "<")->value;
+      signature += this->typeSignature(Token::Type::IDENTIFIER);
+      signature += this->expect(Token::Type::GREATER, ">")->value;
     } else {
-      signature += " ";
+      if (first){
+        first=false;
+      } else {
+        signature += " ";
+      }
+      signature += token->value;
     }
-    signature += token->value;
   }
   return signature;
 }
@@ -60,6 +71,13 @@ std::string WindParser::typeSignature(Token::Type while_) {
       signature += this->expect(Token::Type::INTEGER, "array size")->value;
     }
     signature += this->expect(Token::Type::RBRACKET, "]")->value;
+    return signature;
+  }
+  else if (isKeyword(this->stream->current(), "ptr") && this->stream->peek()->type == Token::Type::LESS) {
+    signature += this->expect(Token::Type::IDENTIFIER, "ptr")->value;
+    signature += this->expect(Token::Type::LESS, "<")->value;
+    signature += this->typeSignature(Token::Type::IDENTIFIER);
+    signature += this->expect(Token::Type::GREATER, ">")->value;
     return signature;
   }
 
@@ -101,6 +119,7 @@ Function *WindParser::parseFn() {
   this->expect(Token::Type::RPAREN, ")");
   this->expect(Token::Type::COLON, ":");
   std::string ret_type = this->typeSignature(Token::Type::IDENTIFIER);
+  bool isDefined = this->stream->current()->type == Token::Type::LBRACE;
   if (this->stream->current()->type == Token::Type::LBRACE) {
     this->expect(Token::Type::LBRACE, "{");
     while (!this->until(Token::Type::RBRACE)) {
@@ -114,6 +133,7 @@ Function *WindParser::parseFn() {
     this->expect(Token::Type::SEMICOLON, ";");
   }
   Function *fn = new Function(name, ret_type, std::unique_ptr<Body>(fn_body));
+  fn->isDefined = isDefined;
   fn->metadata = std::filesystem::path(global_isc->getPath(fn_ref_tok->srcId)).filename().string();
   fn->copyArgTypes(arg_types);
   fn->flags = this->flag_holder;
@@ -136,7 +156,13 @@ static Token::Type TOK_OP_LIST[]={
   Token::Type::LESSEQ,
   Token::Type::LOGAND,
   Token::Type::INCREMENT,
-  Token::Type::DECREMENT
+  Token::Type::DECREMENT,
+  Token::Type::LOGOR,
+  Token::Type::GREATEREQ,
+  Token::Type::NOTEQ,
+  Token::Type::OR,
+  Token::Type::AND,
+  Token::Type::XOR
 };
 
 bool tokIsOperator(Token *tok) {
@@ -187,6 +213,53 @@ ASTNode *WindParser::parseExprPrimary() {
       return this->parseExprLiteral();
 
     case Token::IDENTIFIER: {
+      if (isKeyword(this->stream->current(), "true")) {
+        this->stream->pop();
+        return new Literal(1);
+      } else if (isKeyword(this->stream->current(), "false") || isKeyword(this->stream->current(), "Null")) {
+        this->stream->pop();
+        return new Literal(0);
+      }
+      else if (isKeyword(this->stream->current(), "guard") && this->stream->peek()->type == Token::Type::NOT) {
+        // ptr guard
+        this->expect(Token::Type::IDENTIFIER, "guard");
+        this->expect(Token::Type::NOT, "!");
+        this->expect(Token::Type::LBRACKET, "[");
+        ASTNode *value = this->parseExpr(0);
+        this->expect(Token::Type::RBRACKET, "]");
+        return new PtrGuard(
+          std::unique_ptr<ASTNode>(value)
+        );
+      }
+      else if (isKeyword(this->stream->current(), "cast") && this->stream->peek()->type == Token::Type::LESS) {
+        // type cast
+        this->expect(Token::Type::IDENTIFIER, "cast");
+        this->expect(Token::Type::LESS, "<");
+        std::string type = this->typeSignature(Token::Type::GREATER, Token::Type::GREATER);
+        this->expect(Token::Type::GREATER, ">");
+        this->expect(Token::Type::LPAREN, "(");
+        ASTNode *value = this->parseExpr(0);
+        this->expect(Token::Type::RPAREN, ")");
+        return new TypeCast(
+          type, std::unique_ptr<ASTNode>(value)
+        );
+      }
+      else if (isKeyword(this->stream->current(), "sizeof") && this->stream->peek()->type == Token::Type::LESS) {
+        // sizeof
+        this->expect(Token::Type::IDENTIFIER, "sizeof");
+        this->expect(Token::Type::LESS, "<");
+        std::string type = this->typeSignature(Token::Type::GREATER, Token::Type::GREATER);
+        this->expect(Token::Type::GREATER, ">");
+        return new SizeOf(
+          type
+        );
+      }
+      else if (
+        this->ast->consts_table.find(this->stream->current()->value) != this->ast->consts_table.end()
+      ) {
+        return this->ast->consts_table[this->stream->pop()->value];
+      }
+
       if (this->stream->peek()->type == Token::LPAREN) {
         return this->parseExprFnCall();
       } else if (this->stream->peek()->type == Token::LBRACKET) {
@@ -221,10 +294,17 @@ ASTNode *WindParser::parseExprPrimary() {
     case Token::MINUS : {
       // a negative number
       this->expect(Token::Type::MINUS, "-");
-      return this->parseExprLiteral(true);
+      if (this->stream->peek()->type == Token::INTEGER) {
+        return this->parseExprLiteral(true);
+      } else {
+        return new BinaryExpr(
+          std::unique_ptr<ASTNode>(new Literal(0)),
+          std::unique_ptr<ASTNode>(this->parseExprPrimary()),
+          "-"
+        );
+      }
     }
-
-
+  
     default:
       Token *token = this->stream->pop();
       GetReporter(token)->Report(ParserReport::PARSER_ERROR, new Token(
@@ -238,7 +318,20 @@ ASTNode *WindParser::parseExpr(int precedence) {
   if (!left) {
     return nullptr;
   }
-  return this->parseExprBinOp(left, precedence);
+  ASTNode *enode = this->parseExprBinOp(left, precedence);
+
+  while (this->stream->current()->type == Token::Type::LBRACKET) {
+    this->expect(Token::Type::LBRACKET, "[");
+    ASTNode *index = this->parseExpr(0);
+    this->expect(Token::Type::RBRACKET, "]");
+    enode = new GenericIndexing(
+      std::unique_ptr<ASTNode>(index),
+      std::unique_ptr<ASTNode>(enode)
+    );
+    enode = this->parseExprBinOp(enode, precedence);
+  }
+
+  return enode;
 }
 
 ASTNode *WindParser::parseExprSemi() {
@@ -383,7 +476,7 @@ FnFlags macroIntoFlag(std::string name) {
   return 0;
 }
 
-void WindParser::pathWork(std::string relative, Token *token_ref) {
+void WindParser::pathWorkInclude(std::string relative, Token *token_ref) {
   std::string path;
   if (relative[0] != '#') {
     std::string this_path = global_isc->getPath(token_ref->srcId);
@@ -399,7 +492,38 @@ void WindParser::pathWork(std::string relative, Token *token_ref) {
   if (srcId == -1) {
     if (global_isc->workOnInclude(path)) {
       GetReporter(token_ref)->Report(ParserReport::PARSER_ERROR, new Token(
-        token_ref->value, token_ref->type, "Nothing (Failed to include)", token_ref->range, token_ref->srcId
+        token_ref->value, token_ref->type, "Nothing Failed to include: " + path, token_ref->range, token_ref->srcId
+      ), token_ref);
+    }
+    Body *commit_diff = global_isc->commitAST(this->ast);
+    if (commit_diff != nullptr) {
+      this->ast = commit_diff;
+    }
+  }
+  else {
+    /* GetReporter(token_ref)->Report(ParserReport::PARSER_WARNING, new Token(
+      token_ref->value, token_ref->type, "Nothing (Already included)", token_ref->range, token_ref->srcId
+    ), token_ref); */
+  }
+}
+
+void WindParser::pathWorkImport(std::string relative, Token *token_ref) {
+  std::string path;
+  if (relative[0] != '#') {
+    std::string this_path = global_isc->getPath(token_ref->srcId);
+    std::string folder = std::filesystem::path(this_path).parent_path().string();
+    path = std::filesystem::path(folder).append(relative).string();
+  } else {
+    path = std::filesystem::path(WIND_PKGS_PATH).append(relative.substr(1)).string();
+    if (path[0] != '/') {
+      path = std::filesystem::path(getExeDir()).append(path).string();
+    }
+  }
+  int srcId = global_isc->getSrcId(path);
+  if (srcId == -1) {
+    if (global_isc->workOnImport(path)) {
+      GetReporter(token_ref)->Report(ParserReport::PARSER_ERROR, new Token(
+        token_ref->value, token_ref->type, "Nothing, Failed to import: " + path , token_ref->range, token_ref->srcId
       ), token_ref);
     }
     Body *commit_diff = global_isc->commitAST(this->ast);
@@ -442,15 +566,36 @@ ASTNode* WindParser::parseMacro() {
   else if (name == "include") {
     if (this->stream->current()->type != Token::Type::LBRACKET) {
       Token *path = this->expect(Token::Type::STRING, "include path");
-      this->pathWork(path->value, macro_tok);
+      this->pathWorkInclude(path->value, macro_tok);
     } else {
       this->expect(Token::Type::LBRACKET, "[");
       while (!this->until(Token::Type::RBRACKET)) {
         Token *path = this->expect(Token::Type::STRING, "include path");
-        this->pathWork(path->value, path);
+        this->pathWorkInclude(path->value, path);
       }
       this->expect(Token::Type::RBRACKET, "]");
     }
+  }
+  else if (name == "import") {
+    if (this->stream->current()->type != Token::Type::LBRACKET) {
+      Token *path = this->expect(Token::Type::STRING, "import path");
+      this->pathWorkImport(path->value, macro_tok);
+    } else {
+      this->expect(Token::Type::LBRACKET, "[");
+      while (!this->until(Token::Type::RBRACKET)) {
+        Token *path = this->expect(Token::Type::STRING, "import path");
+        this->pathWorkImport(path->value, path);
+      }
+      this->expect(Token::Type::RBRACKET, "]");
+    }
+  }
+  else if (name == "linkflag") {
+    this->expect(Token::Type::LPAREN, "(");
+    while (!this->until(Token::Type::RPAREN)) {
+      Token *flag = this->expect(Token::Type::STRING, "link flag");
+      global_isc->addLdFlag(flag->value);
+    }
+    this->expect(Token::Type::RPAREN, ")");
   }
   else if (name == "type") {
     std::string type = this->typeSignature(Token::Type::IDENTIFIER);
@@ -458,6 +603,12 @@ ASTNode* WindParser::parseMacro() {
     std::string value = this->typeSignature(Token::Type::IDENTIFIER);
     this->expect(Token::Type::SEMICOLON, ";");
     return new TypeDecl(type, value);
+  }
+  else if (name == "const") {
+    std::string c_name = this->expect(Token::Type::IDENTIFIER, "const name")->value;
+    this->expect(Token::Type::ASSIGN, "=");
+    ASTNode *expr = this->parseExprSemi();
+    this->ast->consts_table[c_name] = expr;
   }
   else {
     Token *token = stream->pop();

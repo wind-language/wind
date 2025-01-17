@@ -1,5 +1,5 @@
 @include [
-  "#libc.w"
+  "#libc.wi"
 ]
 
 func diff_even(n: long): long {

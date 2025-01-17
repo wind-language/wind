@@ -1,5 +1,5 @@
 @include[
-    "#libc.w"
+    "#libc.wi"
 ]
 
 @extern func clock(): int;

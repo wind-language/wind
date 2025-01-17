@@ -41,6 +41,55 @@ void WindCompiler::compile() {
   this->emission = (IRBody*)this->program->accept(*this);
 }
 
+DataType *typePriority(DataType *left, DataType *right) {
+  // always prefer pointer types over scalar types
+  if (left->isPointer()) {
+    return left;
+  } else if (right->isPointer()) {
+    return right;
+  }
+  // if both are arrays, prefer the one with the highest capacity
+  if (left->isArray() && right->isArray()) {
+    if (left->getCaps() > right->getCaps()) {
+      return left;
+    } else {
+      return right;
+    }
+  }
+  // if one is an array and the other is not, prefer the array
+  if (left->isArray()) {
+    return left;
+  } else if (right->isArray()) {
+    return right;
+  }
+  // if both are scalars, prefer the one with the highest size
+  if (left->moveSize() > right->moveSize()) {
+    return left;
+  } else {
+    return right;
+  }
+  // if all else fails, return the left type
+  return left;
+}
+
+DataType *findInferType(IRBinOp *binop) {
+  switch (binop->operation()) {
+    case IRBinOp::L_PLUS_ASSIGN:
+    case IRBinOp::L_MINUS_ASSIGN:
+    case IRBinOp::G_PLUS_ASSIGN:
+    case IRBinOp::G_MINUS_ASSIGN:
+    case IRBinOp::L_ASSIGN:
+    case IRBinOp::G_ASSIGN:
+    case IRBinOp::VA_ASSIGN:
+      return binop->left()->inferType();
+    default: {
+      DataType *left = binop->left()->inferType();
+      DataType *right = binop->right()->inferType();
+      return typePriority(left, right);
+    }
+  }
+}
+
 /**
  * @brief Visits a binary expression node.
  * @param node The binary expression node.
@@ -52,10 +101,23 @@ void* WindCompiler::visit(const BinaryExpr &node) {
   IRBinOp::Operation op;
   if (node.getOperator() == "+=") {
     if (left->type() == IRNode::NodeType::LOCAL_REF) {
-      op = IRBinOp::Operation::L_PLUS_ASSIGN;
-    } 
+      // discontinued as unsafe (unchecked overflow)
+      // op = IRBinOp::Operation::L_PLUS_ASSIGN;
+      op = IRBinOp::Operation::L_ASSIGN;
+      right = new IRBinOp(
+        std::unique_ptr<IRNode>(left),
+        std::unique_ptr<IRNode>(right),
+        IRBinOp::Operation::ADD
+      );
+    }
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
-      op = IRBinOp::Operation::G_PLUS_ASSIGN;
+      //op = IRBinOp::Operation::G_PLUS_ASSIGN;
+      op = IRBinOp::Operation::G_ASSIGN;
+      right = new IRBinOp(
+        std::unique_ptr<IRNode>(left),
+        std::unique_ptr<IRNode>(right),
+        IRBinOp::Operation::ADD
+      );
     }
     else {
       throw std::runtime_error("Left operand of += must be a variable reference (also not a pointer)");
@@ -63,10 +125,23 @@ void* WindCompiler::visit(const BinaryExpr &node) {
   }
   else if (node.getOperator() == "-=") {
     if (left->type() == IRNode::NodeType::LOCAL_REF) {
-      op = IRBinOp::Operation::L_MINUS_ASSIGN;
+      // discontinued as unsafe (unchecked overflow)
+      //op = IRBinOp::Operation::L_MINUS_ASSIGN;
+      op = IRBinOp::Operation::L_ASSIGN;
+      right = new IRBinOp(
+        std::unique_ptr<IRNode>(left),
+        std::unique_ptr<IRNode>(right),
+        IRBinOp::Operation::SUB
+      );
     } 
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
-      op = IRBinOp::Operation::G_MINUS_ASSIGN;
+      //op = IRBinOp::Operation::G_MINUS_ASSIGN;
+      op = IRBinOp::Operation::G_ASSIGN;
+      right = new IRBinOp(
+        std::unique_ptr<IRNode>(left),
+        std::unique_ptr<IRNode>(right),
+        IRBinOp::Operation::SUB
+      );
     }
     else {
       throw std::runtime_error("Left operand of -= must be a variable reference (also not a pointer)");
@@ -83,11 +158,15 @@ void* WindCompiler::visit(const BinaryExpr &node) {
     else if (left->type() == IRNode::NodeType::LADDR_REF) {
       op = IRBinOp::Operation::VA_ASSIGN;
     }
+    else if (left->type() == IRNode::NodeType::GENERIC_INDEXING) {
+      op = IRBinOp::Operation::GEN_INDEX_ASSIGN;
+    }
     else {
-      throw std::runtime_error("Left operand of assignment must be a variable reference (also not a pointer)");
+      throw std::runtime_error("Left operand of assignment must be a variable reference or an indexed pointer");
     }
   } else { op = IRstr2op(node.getOperator()); }
   IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(left), std::unique_ptr<IRNode>(right), op);
+  binop->setInferedType(findInferType(binop));
   return binop;
 }
 
@@ -106,6 +185,9 @@ void* WindCompiler::visit(const VariableRef &node) {
   if (this->global_table.find(node.getName()) != this->global_table.end()) {
     return this->global_table[node.getName()];
   }
+  else if (this->fn_table.find(node.getName()) != this->fn_table.end()) {
+    return new IRFnRef(node.getName());
+  }
   throw std::runtime_error("Variable " + node.getName() + " not found");
 }
 
@@ -119,6 +201,9 @@ void *WindCompiler::visit(const VarAddressing &node) {
   IRLocalRef *local = this->current_fn->GetLocal(node.getName());
   if (local == nullptr) {
     throw std::runtime_error("Variable " + node.getName() + " not found");
+  }
+  if (!local->datatype()->isPointer() && !local->datatype()->isArray()) {
+    throw std::runtime_error("Variable " + node.getName() + " is not a pointer or array");
   }
   this->current_fn->occupyOffset(local->offset());
   IRNode *index = nullptr;
@@ -186,6 +271,9 @@ void* WindCompiler::visit(const Body &node) {
       }
     } else {
       if (child_node != nullptr) {
+        if (child_node->type() == IRNode::NodeType::FUNCTION && child_node->as<IRFunction>()->isDefined) {
+          body->addDefFn(child_node->as<IRFunction>()->fn_name);
+        }
         *body += std::unique_ptr<IRNode>(child_node);
       }
     }
@@ -201,17 +289,18 @@ void* WindCompiler::visit(const Body &node) {
 void* WindCompiler::visit(const Function &node) {
   IRFunction *fn = new IRFunction(node.getName(), {}, std::unique_ptr<IRBody>(new IRBody({})));
   fn->metadata = node.metadata;
-  if (std::find(this->fn_names.begin(), this->fn_names.end(), node.getName()) != this->fn_names.end()) {
+  fn->isDefined = node.isDefined;
+  auto found_fn = fn_table.find(node.getName());
+  if (found_fn != this->fn_table.end() && found_fn->second->isDefined) {
     throw std::runtime_error("Function " + node.getName() + " already defined");
   }
-  this->fn_names.push_back(node.getName());
+  this->current_fn = fn;
   fn->return_type = this->ResolveDataType(node.getType());
   std::vector<DataType*> arg_types;
   for (std::string type : node.getArgTypes()) {
     arg_types.push_back(this->ResolveDataType(type));
   }
   fn->copyArgTypes(arg_types);
-  this->current_fn = fn;
   this->fn_table[node.getName()] = fn;
   fn->flags = node.flags;
   IRBody *body = (IRBody*)node.getBody()->accept(*this);
@@ -242,6 +331,11 @@ DataType *WindCompiler::ResolveDataType(const std::string &n_type) {
     }
     return new DataType(size, intype);
   }
+  else if (n_type.substr(0, 4) == "ptr<") {
+    std::string inner = n_type.substr(4, n_type.size()-5);
+    DataType *intype = this->ResolveDataType(inner);
+    return new DataType(intype);
+  }
   bool unsigned_type = n_type.find("unsigned") != std::string::npos;
   size_t sf = n_type.find(" ");
   std::string type = n_type.substr((sf!=std::string::npos) ? sf+1 : 0);
@@ -265,7 +359,11 @@ DataType *WindCompiler::ResolveDataType(const std::string &n_type) {
     return this->userdef_types_map[type];
   }
 
-  throw std::runtime_error("Invalid type " +type);
+  std::string fn_name;
+  if (this->current_fn) {
+    fn_name = " in function: " + this->current_fn->name();
+  }
+  throw std::runtime_error("Invalid type " +type + fn_name);
 }
 
 /**
@@ -281,6 +379,7 @@ void *WindCompiler::visit(const VariableDecl &node) {
   }
   std::vector<IRVariableDecl*> *decls = new std::vector<IRVariableDecl*>();
   for (std::string name : node.getNames()) {
+    uint16_t decl_i = this->current_fn->locals().size();
     IRLocalRef *local = this->current_fn->NewLocal(name, this->ResolveDataType(node.getType()));
     if (local->datatype()->isArray()) {
       this->current_fn->canary_needed = true;
@@ -316,7 +415,7 @@ void *WindCompiler::visit(const GlobalDecl &node) {
  */
 void *WindCompiler::visit(const ArgDecl &node) {
   assert(this->current_fn != nullptr);
-  IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType()));
+  IRLocalRef *local = this->current_fn->NewLocal(node.getName(), this->ResolveDataType(node.getType()), this->current_fn->locals().size() >= 6);
   return new IRArgDecl(local);
 }
 
@@ -452,4 +551,29 @@ void *WindCompiler::visit(const Break &node) {
  */
 void *WindCompiler::visit(const Continue &node) {
   return new IRContinue();
+}
+
+void *WindCompiler::visit(const GenericIndexing &node) {
+  IRNode *base = (IRNode*)node.getBase()->accept(*this);
+  IRNode *index = (IRNode*)node.getIndex()->accept(*this);
+  if (!base->inferType()->isPointer()) {
+    throw std::runtime_error("Base of indexing must be a pointer");
+  }
+  return new IRGenericIndexing(base, index);
+}
+
+void *WindCompiler::visit(const PtrGuard &node) {
+  IRNode *value = (IRNode*)node.getValue()->accept(*this);
+  return new IRPtrGuard(value);
+}
+
+void *WindCompiler::visit(const TypeCast &node) {
+  IRNode *value = (IRNode*)node.getValue()->accept(*this);
+  DataType *type = this->ResolveDataType(node.getType());
+  return new IRTypeCast(value, type);
+}
+
+void *WindCompiler::visit(const SizeOf &node) {
+  DataType *type = this->ResolveDataType(node.getType());
+  return new IRLiteral(type->moveSize());
 }

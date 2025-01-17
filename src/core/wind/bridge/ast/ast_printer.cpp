@@ -7,7 +7,6 @@ void ASTPrinter::print_tabs() {
 }
 
 void *ASTPrinter::visit(const BinaryExpr &node) {
-  this->print_tabs();
   this->in_expr=true;
   std::cout << "(";
   node.getLeft()->accept(*this);
@@ -24,7 +23,14 @@ void *ASTPrinter::visit(const VariableRef &node) {
 }
 
 void *ASTPrinter::visit(const VarAddressing &node) {
-  std::cout << "&" << node.getName();
+  if (node.getIndex()) {
+    std::cout << node.getName() << "[";
+    node.getIndex()->accept(*this);
+    std::cout << "]";
+    return nullptr;
+  } else {
+    std::cout << "&" << node.getName();
+  }
   return nullptr;
 }
 
@@ -34,21 +40,18 @@ void *ASTPrinter::visit(const Literal &node) {
 }
 
 void *ASTPrinter::visit(const Return &node) {
-  this->print_tabs();
-  std::cout << "return\n";
-  this->tabs++;
-  this->print_tabs();
+  std::cout << "return ";
   const ASTNode *val = node.get();
   if (val) {
     val->accept(*this);
   }
-  this->tabs--;
   return nullptr;
 }
 
 void *ASTPrinter::visit(const Body &node) {
   this->tabs++;
   for (const auto &child : node.get()) {
+    this->print_tabs();
     child->accept(*this);
     std::cout << std::endl;
   }
@@ -63,7 +66,6 @@ void *ASTPrinter::visit(const Function &node) {
 }
 
 void *ASTPrinter::visit(const VariableDecl &node) {
-  this->print_tabs();
   std::cout << "decl [" << node.getType() << "] " << node.getNames()[0];
   if (node.getValue()) {
     std::cout << " = ";
@@ -73,13 +75,11 @@ void *ASTPrinter::visit(const VariableDecl &node) {
 }
 
 void *ASTPrinter::visit(const ArgDecl &node) {
-  this->print_tabs();
   std::cout << "arg [" << node.getType() << "] " << node.getName();
   return nullptr;
 }
 
 void *ASTPrinter::visit(const InlineAsm &node) {
-  this->print_tabs();
   std::string code = node.getCode();
   std::regex newline("\n");
   code = std::regex_replace(code, newline, "\n    ");
@@ -88,9 +88,6 @@ void *ASTPrinter::visit(const InlineAsm &node) {
 }
 
 void *ASTPrinter::visit(const FnCall &node) {
-  if (!this->in_expr) {
-    this->print_tabs();
-  }
   std::cout << node.getName() << "(";
   for (const auto &arg : node.getArgs()) {
     arg->accept(*this);
@@ -112,7 +109,6 @@ void *ASTPrinter::visit(const TypeDecl &node) {
 }
 
 void *ASTPrinter::visit(const Branching &node) {
-  this->print_tabs();
   std::cout << "branch [\n";
   this->tabs++;
   for (const auto &branch : node.getBranches()) {
@@ -142,7 +138,6 @@ void *ASTPrinter::visit(const Branching &node) {
 }
 
 void *ASTPrinter::visit(const Looping &node) {
-  this->print_tabs();
   std::cout << "loop [";
   node.getCondition()->accept(*this);
   std::cout << "] {\n";
@@ -155,19 +150,43 @@ void *ASTPrinter::visit(const Looping &node) {
 }
 
 void *ASTPrinter::visit(const GlobalDecl &node) {
-  this->print_tabs();
   std::cout << "global " << node.getName() << " [" << node.getType() << "]" << std::endl;
   return nullptr;
 }
 
 void *ASTPrinter::visit(const Break &node) {
-  this->print_tabs();
   std::cout << "break";
   return nullptr;
 }
 
 void *ASTPrinter::visit(const Continue &node) {
-  this->print_tabs();
   std::cout << "continue";
+  return nullptr;
+}
+
+void *ASTPrinter::visit(const GenericIndexing &node) {
+  node.getBase()->accept(*this);
+  std::cout << "[";
+  node.getIndex()->accept(*this);
+  std::cout << "]";
+  return nullptr;
+}
+
+void *ASTPrinter::visit(const PtrGuard &node) {
+  this->print_tabs();
+  std::cout << "guard ";
+  node.getValue()->accept(*this);
+  return nullptr;
+}
+
+void *ASTPrinter::visit(const TypeCast &node) {
+  std::cout << "<" << node.getType() << ">(";
+  node.getValue()->accept(*this);
+  std::cout << ")";
+  return nullptr;
+}
+
+void *ASTPrinter::visit(const SizeOf &node) {
+  std::cout << "sizeof<" << node.getType() << ">";
   return nullptr;
 }

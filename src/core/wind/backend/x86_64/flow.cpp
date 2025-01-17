@@ -11,7 +11,7 @@ void WindEmitter::EmitReturn(IRRet *ret) {
             val,
             this->CastReg(
                 x86::Gp::rax,
-                this->current_fn->return_type->moveSize()
+                this->current_fn->fn->return_type->moveSize()
             )
         );
     }

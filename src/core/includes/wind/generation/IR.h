@@ -1,3 +1,5 @@
+#include <iostream>
+#include <algorithm>
 #ifndef IR_H
 #define IR_H
 
@@ -7,6 +9,63 @@
 #include <unordered_map>
 #include <stdint.h>
 #include <wind/bridge/opt_flags.h>
+
+class DataType {
+  private:
+    DataType *array;
+    DataType *ptr;
+    uint16_t type_size;
+    uint16_t capacity;
+    bool signed_type = true;
+
+  public:
+    DataType(uint16_t size, bool is_signed) : type_size(size), capacity(1), array(nullptr), signed_type(is_signed) {}
+    DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr) {}
+    DataType(uint16_t size, DataType *arr) : type_size(size), capacity(UINT16_MAX), array(arr) {}
+    DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr) {}
+    DataType(DataType *ptr): type_size(ptr->moveSize()), capacity(UINT16_MAX), array(nullptr), ptr(ptr), signed_type(false) {}
+    bool isArray() const { return array != nullptr; }
+    bool isSigned() const { return signed_type; }
+    uint16_t moveSize() const {
+      if (isArray() || isPointer()) return QWORD;
+      else return type_size;
+    }
+    uint16_t index2offset(uint16_t index) const {
+      if (isArray() || isPointer()) { return index * type_size; }
+      return index;
+    }
+    uint16_t memSize() const {
+      uint32_t bytes = 0;
+      if (isPointer()) {
+        return QWORD;
+      }
+      if (!isArray()) {
+        return type_size;
+      }
+      if (capacity != UINT16_MAX) {
+        bytes = array->memSize() * capacity;
+      } else {
+        bytes = array->memSize() + Sizes::QWORD;
+      }
+      return bytes;
+    }
+    uint16_t rawSize() const { return type_size; }
+    DataType *getArrayType() const { return array; }
+    bool isVoid() const { return type_size == 0; }
+    bool hasCapacity() const { return capacity != UINT16_MAX; }
+    uint16_t getCaps() const { return capacity; }
+
+    bool isPointer() const { return ptr != nullptr; }
+    DataType *getPtrType() const { return ptr; }
+
+    enum Sizes {
+      BYTE = 1,
+      WORD = 2,
+      DWORD = 4,
+      QWORD = 8,
+      VOID = 0
+    };
+};
 
 class IRNode {
 public:
@@ -28,11 +87,17 @@ public:
     BRANCH,
     LOOP,
     BREAK,
-    CONTINUE
+    CONTINUE,
+    FN_REF,
+    GENERIC_INDEXING,
+    PTR_GUARD,
+    TYPE_CAST
   };
 
   virtual ~IRNode() = default;
   virtual NodeType type() const = 0;
+
+  virtual DataType *inferType() const { return new DataType(DataType::QWORD, false); }
 
   template <typename T>
   bool is() const {
@@ -50,53 +115,6 @@ public:
   }
 };
 
-class DataType {
-  private:
-    DataType *array;
-    uint16_t type_size;
-    uint16_t capacity;
-    bool signed_type = true;
-
-  public:
-    DataType(uint16_t size, bool is_signed) : type_size(size), capacity(1), array(nullptr), signed_type(is_signed) {}
-    DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr) {}
-    DataType(uint16_t size, DataType *arr) : type_size(size), capacity(UINT16_MAX), array(arr) {}
-    DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr) {}
-    bool isArray() const { return array != nullptr; }
-    bool isSigned() const { return signed_type; }
-    uint16_t moveSize() const { if (!isArray()) return type_size; return 8; }
-    uint16_t index2offset(uint16_t index) const {
-      if (isArray()) { return index * type_size; }
-      return index;
-    }
-    uint16_t memSize() const {
-      uint32_t bytes = 0;
-      if (!isArray()) {
-        return type_size;
-      }
-      if (capacity != UINT16_MAX) {
-        bytes = array->memSize() * capacity;
-      } else {
-        bytes = array->memSize() + Sizes::QWORD;
-      }
-      return bytes;
-    }
-    uint16_t rawSize() const { return type_size; }
-    DataType *getArrayType() const { return array; }
-    bool isVoid() const { return type_size == 0; }
-    bool hasCapacity() const { return capacity != UINT16_MAX; }
-    uint16_t getCaps() const { return capacity; }
-
-
-    enum Sizes {
-      BYTE = 1,
-      WORD = 2,
-      DWORD = 4,
-      QWORD = 8,
-      VOID = 0
-    };
-};
-
 
 class IRRet : public IRNode {
   std::unique_ptr<IRNode> value;
@@ -107,33 +125,58 @@ public:
   NodeType type() const override { return NodeType::RET; }
 };
 
+class IRFnRef : public IRNode {
+  std::string fn_name;
+public:
+  explicit IRFnRef(std::string name) : fn_name(name) {}
+  const std::string& name() const { return fn_name; }
+  NodeType type() const override { return NodeType::FN_REF; }
+
+  DataType *inferType() const override { 
+    return new DataType(DataType::QWORD, false);
+  }
+};
+
 class IRLocalRef : public IRNode {
-  uint16_t stack_offset;
+  int16_t stack_offset;
   DataType *var_type;
 
 public:
-  IRLocalRef(uint16_t stack_offset, DataType *type);
-  uint16_t offset() const;
+  IRLocalRef(int16_t stack_offset, DataType *type);
+  int16_t offset() const;
   DataType *datatype() const;
   NodeType type() const override { return NodeType::LOCAL_REF; }
+
+  DataType *inferType() const override { return var_type; }
 };
 
 class IRLocalAddrRef : public IRNode {
-  uint16_t stack_offset;
+  int16_t stack_offset;
   IRNode *index;
   DataType *var_type;
 
 public:
-  IRLocalAddrRef(uint16_t stack_offset, DataType *type, IRNode *index = nullptr);
-  uint16_t offset() const;
+  IRLocalAddrRef(int16_t stack_offset, DataType *type, IRNode *index = nullptr);
+  int16_t offset() const;
   IRNode *getIndex() const;
   bool isIndexed() const { return index != nullptr; }
   DataType *datatype() const;
   NodeType type() const override { return NodeType::LADDR_REF; }
+
+  DataType *inferType() const override {
+    if (isIndexed()) {
+      if (var_type->isArray()) {
+        return var_type->getArrayType();
+      }
+      return var_type->getPtrType();
+    } 
+    return new DataType(DataType::QWORD, false);
+  }
 };
 
 class IRBody : public IRNode {
   std::vector<std::unique_ptr<IRNode>> statements;
+  std::vector<std::string> def_fn_names;
 
 public:
   explicit IRBody(std::vector<std::unique_ptr<IRNode>> s);
@@ -142,17 +185,21 @@ public:
   IRBody& operator + (std::unique_ptr<IRNode> statement);
   IRBody& operator += (std::unique_ptr<IRNode> statement);
   NodeType type() const override { return NodeType::BODY; }
+  void addDefFn(std::string name) { def_fn_names.push_back(name); }
+  bool hasDefFn(std::string name) { return std::find(def_fn_names.begin(), def_fn_names.end(), name) != def_fn_names.end(); }
+  std::vector<std::string> getDefFns() { return def_fn_names; }
 };
 
 class IRFunction : public IRNode {
 public:
   std::string fn_name;
   std::string metadata;
+  bool isDefined = true;
   std::vector<std::unique_ptr<IRLocalRef>> fn_locals;
   std::unique_ptr<IRBody> fn_body;
   std::unordered_map<std::string, IRLocalRef*> local_table;
   uint16_t stack_size = 0;
-  std::vector<uint16_t> used_offsets;
+  std::vector<int16_t> used_offsets;
   FnFlags flags = 0;
   std::vector<DataType*> arg_types;
   bool call_sub = false;
@@ -168,7 +215,7 @@ public:
   void SetBody(std::unique_ptr<IRBody> body);
   bool isStack();
   bool isUsed(IRLocalRef *local);
-  void occupyOffset(uint16_t offset);
+  void occupyOffset(int16_t offset);
   IRFunction *clone();
   void copyArgTypes(std::vector<DataType*> &types);
   DataType *GetArgType(int index);
@@ -176,11 +223,14 @@ public:
   bool isVariadic() const { return flags & FN_VARIADIC; }
   bool isCallSub() const { return call_sub; }
 
-  IRLocalRef *NewLocal(std::string name, DataType *type);
+  IRLocalRef *NewLocal(std::string name, DataType *type, bool positive_offset = false);
   IRLocalRef* GetLocal(std::string name);
 
 
   NodeType type() const override { return NodeType::FUNCTION; }
+
+private: // temp data
+  uint16_t plus_off=8;
 };
 
 class IRBinOp : public IRNode {
@@ -193,10 +243,14 @@ public:
     SHL,
     SHR,
     AND,
+    OR,
+    XOR,
     EQ,
+    NOTEQ,
     LESS,
     GREATER,
     LESSEQ,
+    GREATEREQ,
     L_ASSIGN,
     G_ASSIGN,
     VA_ASSIGN,
@@ -206,21 +260,26 @@ public:
     L_MINUS_ASSIGN,
     G_PLUS_ASSIGN,
     G_MINUS_ASSIGN,
-    VA_PLUS_ASSIGN,
-    VA_MINUS_ASSIGN
+    GEN_INDEX_ASSIGN,
   };
 
 private:
   std::unique_ptr<IRNode> expr_left;
   std::unique_ptr<IRNode> expr_right;
   Operation op;
+  DataType *infered_type = nullptr;
 
 public:
   IRBinOp(std::unique_ptr<IRNode> l, std::unique_ptr<IRNode> r, Operation o);
+  void setInferedType(DataType *type) { infered_type = type; }
   const IRNode* left() const;
   const IRNode* right() const;
   Operation operation() const;
   NodeType type() const override { return NodeType::BIN_OP; }
+
+  DataType *inferType() const override {
+    return infered_type;
+  }
 };
 
 IRBinOp::Operation IRstr2op(std::string str);
@@ -232,6 +291,10 @@ public:
   explicit IRLiteral(long long v);
   long long get() const;
   NodeType type() const override { return NodeType::LITERAL; }
+
+  DataType *inferType() const override {
+    return new DataType(DataType::Sizes::QWORD, true);
+  }
 };
 
 class IRStringLiteral : public IRNode {
@@ -241,6 +304,10 @@ public:
   explicit IRStringLiteral(std::string v);
   const std::string& get() const;
   NodeType type() const override { return NodeType::STRING; }
+
+  DataType *inferType() const override {
+    return new DataType(DataType::Sizes::QWORD, false);
+  }
 };
 
 class IRVariableDecl : public IRNode {
@@ -263,6 +330,8 @@ public:
   const std::string& getName() const;
   DataType *getType() const;
   NodeType type() const override { return NodeType::GLOBAL_REF; }
+
+  DataType *inferType() const override { return g_type; }
 };
 
 class IRGlobalDecl : public IRNode {
@@ -298,6 +367,8 @@ public:
   void replaceArg(int index, std::unique_ptr<IRNode> arg);
   IRFunction *getRef() const;
   NodeType type() const override { return NodeType::FUNCTION_CALL; }
+
+  DataType *inferType() const override { return ref->return_type; }
 };
 
 
@@ -347,6 +418,44 @@ public:
 class IRContinue : public IRNode {
 public:
   NodeType type() const override { return NodeType::CONTINUE; }
+};
+
+class IRGenericIndexing : public IRNode {
+  IRNode *base;
+  IRNode *index;
+  DataType *infered_type;
+
+public:
+  IRGenericIndexing(IRNode *b, IRNode *i);
+  IRNode* getIndex() const;
+  IRNode* getBase() const;
+  NodeType type() const override { return NodeType::GENERIC_INDEXING; }
+
+  DataType *inferType() const override { return infered_type; }
+};
+
+class IRPtrGuard : public IRNode {
+  IRNode *value;
+
+public:
+  IRPtrGuard(IRNode *value);
+  IRNode *getValue() const;
+  NodeType type() const override { return NodeType::PTR_GUARD; }
+
+  DataType *inferType() const override { return value->inferType(); }
+};
+
+class IRTypeCast : public IRNode {
+  IRNode *value;
+  DataType *cast_type;
+
+public:
+  IRTypeCast(IRNode *value, DataType *type);
+  IRNode *getValue() const;
+  DataType *getType() const;
+  NodeType type() const override { return NodeType::TYPE_CAST; }
+
+  DataType *inferType() const override { return cast_type; }
 };
 
 #endif // IR_H

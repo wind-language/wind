@@ -1,4 +1,5 @@
 #include <wind/generation/IR.h>
+#include <map>
 
 #ifndef OPTIMIZER_H
 #define OPTIMIZER_H
@@ -28,7 +29,10 @@ public:
 private:
   IRBody *program;
   IRBody *emission;
-  IRFunction *current_fn;
+  struct FunctionDesc {
+    IRFunction *fn;
+    std::map<int16_t, IRNode*> lkv; // local known values
+  } *current_fn=nullptr;
 
   /**
    * @brief Runs the optimization process on the program.
@@ -104,6 +108,13 @@ private:
    * @return A new IRLiteral node with the optimized result.
    */
   IRLiteral *OptimizeConstFold(IRBinOp *node);
+
+  IRNode *OptimizeGenIndexing(IRGenericIndexing *indexing);
+  IRNode *OptimizePtrGuard(IRPtrGuard *ptr_guard);
+  IRNode *OptimizeTypeCast(IRTypeCast *type_cast);
+
+  void NewLocalValue(int16_t local, IRNode *value);
+  IRNode *GetLocalValue(int16_t local);
 };
 
 #endif

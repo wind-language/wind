@@ -1,5 +1,5 @@
 @include [
-  "#libc.w"
+  "#libc.wi"
 ]
 
 global maxRes:int64=-1;

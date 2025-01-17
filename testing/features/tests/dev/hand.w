@@ -1,5 +1,5 @@
 @include[
-    "#libc.w"
+    "#libc.wi"
 ]
 
 func square(n: int): int {

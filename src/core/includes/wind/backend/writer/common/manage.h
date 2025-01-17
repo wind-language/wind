@@ -59,35 +59,35 @@ class WindWriter {
     class Content {
     public:
         std::vector<Section> sections;
-        uint8_t cs_id;
-        uint8_t cl_id;
+        uint16_t cs_id;
+        uint16_t cl_id;
         
-        uint8_t NewSection(std::string name);
-        void BindSection(uint8_t id);
+        uint16_t NewSection(std::string name);
+        void BindSection(uint16_t id);
         void WriteHdr(std::string content);
         
-        uint8_t NewLabel(std::string name);
-        void BindLabel(uint8_t id);
+        uint16_t NewLabel(std::string name);
+        void BindLabel(uint16_t id);
         void WriteLabel(std::string content);
 
-        std::string LabelById(uint8_t id) { return sections[cs_id].labels[id].name; }
+        std::string LabelById(uint16_t id) { return sections[cs_id].labels[id].name; }
     } content;
 
 public:
     // Section management
-    uint8_t NewSection(std::string name) { return content.NewSection(name); }
-    void BindSection(uint8_t id) { content.BindSection(id); }
+    uint16_t NewSection(std::string name) { return content.NewSection(name); }
+    void BindSection(uint16_t id) { content.BindSection(id); }
     void WriteHdr(std::string content) { this->content.WriteHdr(content+"\n"); }
 
     // Label management
-    uint8_t NewLabel(std::string name) { return content.NewLabel(name); }
-    void BindLabel(uint8_t id) { content.BindLabel(id); }
+    uint16_t NewLabel(std::string name) { return content.NewLabel(name); }
+    void BindLabel(uint16_t id) { content.BindLabel(id); }
     void Write(std::string content) { this->content.WriteLabel(content + "\n"); }
-    std::string LabelById(uint8_t id) { return content.LabelById(id); }
+    std::string LabelById(uint16_t id) { return content.LabelById(id); }
 
     void Global(std::string name) { this->WriteHdr(".global " + name); }
     void Extern(std::string name) { this->WriteHdr(".extern " + name); }
-    void Align(uint8_t size) { this->Write(".align " + std::to_string(size)); }
+    void Align(uint16_t size) { this->Write(".align " + std::to_string(size)); }
 
     virtual std::string ResolveReg(Reg &reg) { return ""; }
     virtual std::string ResolveMem(Mem &mem) { return ""; }
@@ -110,6 +110,8 @@ public:
     void Write(std::string instr, int64_t imm) { this->Write(instr + " " + std::to_string(imm)); }
 
     void Write(std::string instr, Reg src, RegOffset offs) { this->Write(instr + " " + ResolveReg(src) + ", " + ResolveRegOff(offs)); }
+
+    void Write(std::string instr, Mem dst, Mem src) { this->Write(instr + " " + ResolveMem(dst) + ", " + ResolveMem(src)); }
 
     // Memory
     Mem ptr(Reg base, int64_t offset, uint16_t size) { return Mem(base, offset, size); }

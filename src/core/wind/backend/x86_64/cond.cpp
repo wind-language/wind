@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <iostream>
 
-void WindEmitter::EmitCJump(IRNode *node, uint8_t label, bool invert) {
+void WindEmitter::EmitCJump(IRNode *node, uint16_t label, bool invert) {
     Reg rinfo = this->EmitExpr(node, x86::Gp::rax, true);
     if (node->type() != IRNode::NodeType::BIN_OP) {
         this->writer->test(x86::Gp::rax, x86::Gp::rax);

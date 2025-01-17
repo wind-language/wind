@@ -1,19 +1,11 @@
 @include[
-    "#libc.w"
-    "#types.w"
+    "#libc.wi"
 ]
+//@import "#link"
 
 func main(): int {
-    var buff: [char;32];
-    __builtin_memset(buff, 0, 32);
-    
-    var user_i: int32;
-    printf("name: ");
-    scanf("%s", buff);
-    printf("index: ");
-    scanf("%d", &user_i);
-    var user_c: char = buff[user_i];
-    var square: int32 = user_i * user_i;
-    printf("buff[%d] = %c ; Squared i = %d\n", user_i, user_c, square);
+    var test_ptr: ptr<ptr<char>> = guard![malloc(sizeof<ptr<char>>*32)];
+    test_ptr[test_ptr[0]] = "Hello";
+    printf("test_ptr[0]: %s\n", test_ptr[0]);
     return 0;
 }

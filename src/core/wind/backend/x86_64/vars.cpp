@@ -2,6 +2,7 @@
 #include <wind/backend/writer/writer.h>
 #include <wind/backend/x86_64/backend.h>
 #include <wind/bridge/opt_flags.h>
+#include <wind/backend/x86_64/expr_macros.h>
 #include <iostream>
 
 void WindEmitter::ProcessGlobalDecl(IRGlobalDecl *decl) {
@@ -46,7 +47,7 @@ void WindEmitter::EmitIntoLoc(IRLocalRef *ref, IRNode *value) {
     this->writer->mov(
         this->writer->ptr(
             x86::Gp::rbp,
-            -ref->offset(),
+            ref->offset(),
             ref->datatype()->moveSize()
         ),
         src
@@ -58,15 +59,15 @@ Reg WindEmitter::EmitGlobRef(IRGlobRef *ref, Reg dst) {
     Reg *freg = this->regalloc.FindLabel(ref->getName(), ref->getType()->moveSize());
     if (freg) {
         if (freg->id != dst.id) {
-            this->writer->mov(
-                this->CastReg(dst, ref->getType()->moveSize()),
-                *freg
+            CASTED_MOV(
+                dst,
+                (*freg)
             );
         }
         return {dst.id, (uint8_t)ref->getType()->moveSize(), Reg::GPR, ref->getType()->isSigned()};
     }
-    this->writer->mov(
-        this->CastReg(dst, ref->getType()->moveSize()),
+    CASTED_MOV(
+        dst,
         this->writer->ptr(
             ref->getName(),
             0,
@@ -81,10 +82,11 @@ Reg WindEmitter::EmitLocRef(IRLocalRef *ref, Reg dst) {
     Reg *freg = this->regalloc.FindLocalVar(ref->offset(), ref->datatype()->moveSize());
     if (freg) {
         if (freg->id != dst.id) {
-            this->writer->mov(
-                this->CastReg(dst, ref->datatype()->moveSize()),
-                *freg
+            CASTED_MOV(
+                dst,
+                (*freg)
             );
+            
         }
         return {dst.id, (uint8_t)ref->datatype()->moveSize(), Reg::GPR, ref->datatype()->isSigned()};
     }
@@ -93,16 +95,16 @@ Reg WindEmitter::EmitLocRef(IRLocalRef *ref, Reg dst) {
             this->CastReg(dst, ref->datatype()->moveSize()),
             this->writer->ptr(
                 x86::Gp::rbp,
-                -(ref->offset()),
+                ref->offset(),
                 ref->datatype()->moveSize()
             )
         );
     } else {
-        this->writer->mov(
-            this->CastReg(dst, ref->datatype()->moveSize()),
+        CASTED_MOV(
+            dst,
             this->writer->ptr(
                 x86::Gp::rbp,
-                -ref->offset(),
+                ref->offset(),
                 ref->datatype()->moveSize()
             )
         );

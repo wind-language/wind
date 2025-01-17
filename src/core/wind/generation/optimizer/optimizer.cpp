@@ -61,30 +61,14 @@ IRLiteral *WindOptimizer::OptimizeConstFold(IRBinOp *node) {
       return new IRLiteral(right);
     case IRBinOp::Operation::MOD:
       return new IRLiteral(left % right);
-    /* case IRBinOp::Operation::MOD:
-      return new IRLiteral(left % right);
-    case IRBinOp::Operation::AND:
-      return new IRLiteral(left & right);
     case IRBinOp::Operation::OR:
       return new IRLiteral(left | right);
     case IRBinOp::Operation::XOR:
       return new IRLiteral(left ^ right);
-    case IRBinOp::Operation::SHL:
-      return new IRLiteral(left << right);
-    case IRBinOp::Operation::SHR:
-      return new IRLiteral(left >> right);
-    case IRBinOp::Operation::EQ:
-      return new IRLiteral(left == right);
-    case IRBinOp::Operation::NE:
+    case IRBinOp::Operation::NOTEQ:
       return new IRLiteral(left != right);
-    case IRBinOp::Operation::LT:
-      return new IRLiteral(left < right);
-    case IRBinOp::Operation::GT:
-      return new IRLiteral(left > right);
-    case IRBinOp::Operation::LE:
-      return new IRLiteral(left <= right);
-    case IRBinOp::Operation::GE:
-      return new IRLiteral(left >= right); */
+    case IRBinOp::Operation::GREATEREQ:
+      return new IRLiteral(left >= right);
     default:
       return nullptr;
   }
@@ -99,14 +83,20 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
   IRNode *left = (IRNode*)node->left();
   IRNode *right = (IRNode*)node->right();
   IRBinOp::Operation op = node->operation();
-  if (this->current_fn->flags & PURE_EXPR) {
+  if (this->current_fn->fn->flags & PURE_EXPR) {
     return new IRBinOp(std::unique_ptr<IRNode>(left), std::unique_ptr<IRNode>(right), op);
   }
-  IRNode *opt_left = this->OptimizeExpr(left);
+  IRNode *opt_left = left;
+
+  if (op != IRBinOp::L_ASSIGN) {
+    opt_left = this->OptimizeExpr(left);
+  }
   IRNode *opt_right = this->OptimizeExpr(right);
-  
+
   if (opt_left->is<IRLiteral>() && opt_right->is<IRLiteral>()) {
-    return this->OptimizeConstFold(node);
+    return this->OptimizeConstFold(
+      new IRBinOp(std::unique_ptr<IRNode>(opt_left), std::unique_ptr<IRNode>(opt_right), op)
+    );
   }
   else if (
     UselessZeroTable.find(op) != UselessZeroTable.end() &&
@@ -120,7 +110,9 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
     opt_left->is<IRLiteral>() &&
     opt_left->as<IRLiteral>()->get() == 0
   ) {
-    return opt_right;
+    if (op != IRBinOp::Operation::SUB) {
+      return opt_right;
+    }
   }
   else if (
     op == IRBinOp::Operation::MUL &&
@@ -193,6 +185,17 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
       );
     }
   }
+
+  if (op == IRBinOp::Operation::L_ASSIGN && opt_left->is<IRLocalRef>()) {
+    if (opt_right->is<IRLiteral>()) {
+      this->NewLocalValue(opt_left->as<IRLocalRef>()->offset(), opt_right);
+    } else if (opt_right->is<IRStringLiteral>()) {
+      this->NewLocalValue(opt_left->as<IRLocalRef>()->offset(), opt_right);
+    } else {
+      this->current_fn->lkv.erase(opt_left->as<IRLocalRef>()->offset());
+    }
+  }
+
   IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(opt_left), std::unique_ptr<IRNode>(opt_right), op);
   return binop;
 }
@@ -201,16 +204,16 @@ IRNode *WindOptimizer::OptimizeExpr(IRNode *node) {
   if (node->is<IRBinOp>()) {
     return this->OptimizeBinOp(node->as<IRBinOp>());
   }
-  return node;
+  return this->OptimizeNode(node);
 }
 
 IRNode *WindOptimizer::OptimizeLDecl(IRVariableDecl *local_decl) {
-  if (this->current_fn->flags & PURE_STACK) {
+  if (this->current_fn->fn->flags & PURE_STACK) {
     return local_decl;
   }
   assert (this->current_fn != nullptr);
-  if (!this->current_fn->isUsed(local_decl->local())) {
-    this->current_fn->stack_size -= local_decl->local()->datatype()->memSize();
+  if (!this->current_fn->fn->isUsed(local_decl->local())) {
+    this->current_fn->fn->stack_size -= local_decl->local()->datatype()->memSize();
     return nullptr;
   }
   IRNode *opt_value = nullptr;
@@ -219,7 +222,10 @@ IRNode *WindOptimizer::OptimizeLDecl(IRVariableDecl *local_decl) {
   }
   if (local_decl->local()->datatype()->isArray()) {
     // whenever an array is declared, a canary is needed to prevent buffer overflows
-    this->current_fn->canary_needed = true;
+    this->current_fn->fn->canary_needed = true;
+  }
+  if (opt_value->is<IRLiteral>() || opt_value->is<IRStringLiteral>()) {
+    this->NewLocalValue(local_decl->local()->offset(), opt_value);
   }
   IRVariableDecl *opt_local_decl = new IRVariableDecl(
     local_decl->local(),
@@ -229,27 +235,35 @@ IRNode *WindOptimizer::OptimizeLDecl(IRVariableDecl *local_decl) {
 }
 
 IRNode *WindOptimizer::OptimizeFnCall(IRFnCall *fn_call) {
-  std::vector<IRNode*> opt_args;
+  std::vector<std::unique_ptr<IRNode>> opt_args;
   for (int i=0;i<fn_call->args().size();i++) {
     std::unique_ptr<IRNode> opt_arg = std::unique_ptr<IRNode>(this->OptimizeExpr(fn_call->args()[i].get()));
-    fn_call->replaceArg(i, std::move(opt_arg));
-    std::cerr << (int)fn_call->args()[i]->type() << std::endl;
+    opt_args.push_back(std::move(opt_arg));
   }
-  return fn_call;
+  IRFnCall *opt_fn_call = new IRFnCall(
+    fn_call->name(),
+    std::move(opt_args),
+    fn_call->getRef()
+  );
+  return opt_fn_call;
 }
 
 IRNode *WindOptimizer::OptimizeFunction(IRFunction *fn) {
   IRFunction *fn_copy = fn->clone();
-  bool has_loop=false;
+  bool can_inline=true;
 
   for (auto &node : fn->body()->get()) {
     if (node->is<IRLooping>()) {
-      has_loop = true;
+      can_inline = false;
+      break;
+    }
+    else if (node->is<IRFnCall>()) {
+      can_inline = false;
       break;
     }
   }
 
-  if (fn->ArgNum()==1 && !has_loop) {
+  if (fn->ArgNum()==1 && can_inline) {
     // clear stack usage
     fn_copy->stack_size -= fn->GetArgType(0)->memSize();
     fn_copy->ignore_stack_abi = true;
@@ -309,6 +323,31 @@ IRNode *WindOptimizer::OptimizeLooping(IRLooping *loop) {
   return opt_loop;
 }
 
+IRNode *WindOptimizer::OptimizeGenIndexing(IRGenericIndexing *indexing) {
+  IRNode *opt_base = this->OptimizeExpr(indexing->getBase());
+  IRNode *opt_index = this->OptimizeExpr(indexing->getIndex());
+  IRGenericIndexing *opt_indexing = new IRGenericIndexing(
+    opt_base,
+    opt_index
+  );
+  return opt_indexing;
+}
+
+IRNode *WindOptimizer::OptimizePtrGuard(IRPtrGuard *ptr_guard) {
+  IRNode *opt_value = this->OptimizeExpr(ptr_guard->getValue());
+  IRPtrGuard *opt_ptr_guard = new IRPtrGuard(opt_value);
+  return opt_ptr_guard;
+}
+
+IRNode *WindOptimizer::OptimizeTypeCast(IRTypeCast *type_cast) {
+  IRNode *opt_value = this->OptimizeExpr(type_cast->getValue());
+  IRTypeCast *opt_type_cast = new IRTypeCast(
+    opt_value,
+    type_cast->inferType()
+  );
+  return opt_type_cast;
+}
+
 IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   if (node->is<IRRet>()) {
     IRRet *ret = node->as<IRRet>();
@@ -329,9 +368,41 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   else if (node->is<IRBinOp>()) {
     return this->OptimizeBinOp(node->as<IRBinOp>());
   }
-  /* else if (node->is<IRFnCall>()) {
+  else if (node->is<IRFnCall>()) {
     return this->OptimizeFnCall(node->as<IRFnCall>());
-  } */
+  }
+  else if (node->is<IRGenericIndexing>()) {
+    return this->OptimizeGenIndexing(node->as<IRGenericIndexing>());
+  }
+  else if (node->is<IRPtrGuard>()) {
+    return this->OptimizePtrGuard(node->as<IRPtrGuard>());
+  }
+  else if (node->is<IRTypeCast>()) {
+    return this->OptimizeTypeCast(node->as<IRTypeCast>());
+  }
+  else if (node->is<IRLocalRef>()) {
+    if (this->GetLocalValue(node->as<IRLocalRef>()->offset())) {
+      return this->GetLocalValue(node->as<IRLocalRef>()->offset());
+    }
+  }
+  else if (node->is<IRLocalAddrRef>()) {
+    IRLocalAddrRef *addr = node->as<IRLocalAddrRef>();
+    if (addr->isIndexed()) {
+      return new IRLocalAddrRef(
+        addr->offset(),
+        addr->datatype(),
+        this->OptimizeExpr(addr->getIndex())
+      );
+    }
+    return node;
+  }
+  else if (node->is<IRGenericIndexing>()) {
+    IRGenericIndexing *indexing = node->as<IRGenericIndexing>();
+    return new IRGenericIndexing(
+      this->OptimizeExpr(indexing->getBase()),
+      this->OptimizeExpr(indexing->getIndex())
+    );
+  }
   return node;
 }
 
@@ -346,12 +417,16 @@ void WindOptimizer::OptimizeBody(IRBody *body, IRFunction *parent) {
 }
 
 void WindOptimizer::optimize() {
+  for (std::string &fn_name : this->program->getDefFns()) {
+    this->emission->addDefFn(fn_name);
+  }
   for (auto &node : this->program->get()) {
     if (node->is<IRFunction>()) {
       IRFunction *fn = (IRFunction*)node->as<IRFunction>();
       IRFunction *fn_copy = (IRFunction*)this->OptimizeFunction(fn);
       *this->emission += std::unique_ptr<IRNode>(fn_copy);
-      this->current_fn = fn_copy;
+      this->current_fn = new WindOptimizer::FunctionDesc({});
+      this->current_fn->fn = fn_copy;
       this->OptimizeBody(fn->body(), fn_copy);
     } else {
       *this->emission += std::unique_ptr<IRNode>(this->OptimizeNode(node.get()));
@@ -361,4 +436,15 @@ void WindOptimizer::optimize() {
 
 IRBody *WindOptimizer::get() {
   return this->emission;
+}
+
+void WindOptimizer::NewLocalValue(int16_t local, IRNode *value) {
+  this->current_fn->lkv[local] = value;
+}
+
+IRNode *WindOptimizer::GetLocalValue(int16_t local) {
+  if (this->current_fn->lkv.find(local) != this->current_fn->lkv.end()) {
+    return this->current_fn->lkv[local];
+  }
+  return nullptr;
 }

@@ -11,7 +11,7 @@
  * @param name The name of the section.
  * @return The ID of the new section.
  */
-uint8_t WindWriter::Content::NewSection(std::string name) {
+uint16_t WindWriter::Content::NewSection(std::string name) {
     sections.push_back({name, {}, ""});
     return sections.size() - 1;
 }
@@ -20,7 +20,7 @@ uint8_t WindWriter::Content::NewSection(std::string name) {
  * @brief Binds the current section to the given ID.
  * @param id The ID of the section to bind.
  */
-void WindWriter::Content::BindSection(uint8_t id) { cs_id = id; }
+void WindWriter::Content::BindSection(uint16_t id) { cs_id = id; }
 
 /**
  * @brief Writes header content to the current section.
@@ -33,7 +33,7 @@ void WindWriter::Content::WriteHdr(std::string content) { sections[cs_id].header
  * @param name The name of the label.
  * @return The ID of the new label.
  */
-uint8_t WindWriter::Content::NewLabel(std::string name) {
+uint16_t WindWriter::Content::NewLabel(std::string name) {
     sections[cs_id].labels.push_back({name, ""});
     return sections[cs_id].labels.size() - 1;
 }
@@ -42,7 +42,7 @@ uint8_t WindWriter::Content::NewLabel(std::string name) {
  * @brief Binds the current label to the given ID.
  * @param id The ID of the label to bind.
  */
-void WindWriter::Content::BindLabel(uint8_t id) { cl_id = id; }
+void WindWriter::Content::BindLabel(uint16_t id) { cl_id = id; }
 
 /**
  * @brief Writes content to the current label.

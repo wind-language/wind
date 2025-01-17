@@ -19,7 +19,6 @@ private:
   Body *program;
   IRBody *emission;
   IRFunction *current_fn;
-  std::vector<std::string> fn_names;
   std::map<std::string, DataType*> userdef_types_map;
   std::map<std::string, IRGlobRef*> global_table;
   std::map<std::string, IRFunction*> fn_table;
@@ -47,6 +46,10 @@ private:
   void *visit(const Looping &node) override;
   void *visit(const Break &node) override;
   void *visit(const Continue &node) override;
+  void *visit(const GenericIndexing &node) override;
+  void *visit(const PtrGuard &node) override;
+  void *visit(const TypeCast &node) override;
+  void *visit(const SizeOf &node) override;
 };
 
 #endif // COMPILER_H

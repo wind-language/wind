@@ -14,14 +14,15 @@
 
 #define LITERAL_OP(type, op) \
     case type: { \
-        this->writer->op(dst, binop->right()->as<IRLiteral>()->get()); \
+        op(dst, binop->right()->as<IRLiteral>()->get()); \
         return dst; \
     }
 
+
 #define LOCAL_OP_RAW(op) \
-    this->writer->op(dst, this->writer->ptr( \
+    op(dst, this->writer->ptr( \
         x86::Gp::rbp, \
-        -binop->right()->as<IRLocalRef>()->offset(), \
+        binop->right()->as<IRLocalRef>()->offset(), \
         binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
     )); \
     return {dst.id, (uint8_t)binop->right()->as<IRLocalRef>()->datatype()->moveSize(), Reg::GPR, binop->right()->as<IRLocalRef>()->datatype()->isSigned()};
@@ -29,7 +30,7 @@
 #define OPT_LOCAL_OP(type, op) \
     case type: { \
         if (freg) { \
-            this->writer->op(dst, *freg); \
+            op(dst, *freg); \
             dst.signed_value = binop->right()->as<IRLocalRef>()->datatype()->isSigned(); \
             return dst; \
         } else { \
@@ -38,7 +39,7 @@
     }
 
 #define GLOB_OP_RAW(op) \
-    this->writer->op(dst, this->writer->ptr( \
+    op(dst, this->writer->ptr( \
         binop->right()->as<IRGlobRef>()->getName(), \
         0, \
         binop->right()->as<IRGlobRef>()->getType()->moveSize() \
@@ -48,7 +49,7 @@
 #define GLOBAL_OP(type, op) \
     case type: { \
         if (freg) { \
-            this->writer->op(dst, *freg); \
+            op(dst, *freg); \
             return dst; \
         } else { \
             GLOB_OP_RAW(op) \
@@ -59,7 +60,7 @@
     this->writer->mov( \
         this->writer->ptr( \
             x86::Gp::rbp, \
-            -binop->left()->as<IRLocalRef>()->offset(), \
+            binop->left()->as<IRLocalRef>()->offset(), \
             binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
         ), \
         src \
@@ -76,17 +77,17 @@
     ); \
 
 #define L_PLUS_ASSIGN_OP(src) \
-    this->writer->add( \
+    WRITER_ADD( \
         this->writer->ptr( \
             x86::Gp::rbp, \
-            -binop->left()->as<IRLocalRef>()->offset(), \
+            binop->left()->as<IRLocalRef>()->offset(), \
             binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
         ), \
         src \
     ); \
 
 #define G_PLUS_ASSIGN_OP(src) \
-    this->writer->add( \
+    WRITER_ADD( \
         this->writer->ptr( \
             binop->left()->as<IRGlobRef>()->getName(), \
             0, \
@@ -96,10 +97,10 @@
     ); \
 
 #define L_MINUS_ASSIGN_OP(src) \
-    this->writer->sub( \
+    WRITER_SUB( \
         this->writer->ptr( \
             x86::Gp::rbp, \
-            -binop->left()->as<IRLocalRef>()->offset(), \
+            binop->left()->as<IRLocalRef>()->offset(), \
             binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
         ), \
         src \
@@ -123,7 +124,7 @@
             throw std::runtime_error("Cannot index non-array"); \
         } \
         if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) { \
-            uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
+            int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
             if (offset < 0) { \
                 throw std::runtime_error("Invalid offset"); \
             } \
@@ -131,7 +132,7 @@
             this->writer->mov( \
                 this->writer->ptr( \
                     x86::Gp::rbp, \
-                    -offset, \
+                    offset, \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -146,7 +147,7 @@
                 this->writer->ptr( \
                     x86::Gp::rbp, \
                     index, \
-                    -ref->offset(), \
+                    ref->offset(), \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -161,7 +162,7 @@
             throw std::runtime_error("Cannot index non-array"); \
         } \
         if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) { \
-            uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
+            int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
             if (offset < 0) { \
                 throw std::runtime_error("Invalid offset"); \
             } \
@@ -169,7 +170,7 @@
             this->writer->op( \
                 this->writer->ptr( \
                     x86::Gp::rbp, \
-                    -offset, \
+                    offset, \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -177,7 +178,7 @@
             this->writer->mov( \
                 this->writer->ptr( \
                     x86::Gp::rbp, \
-                    -offset, \
+                    offset, \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -192,7 +193,7 @@
                 this->writer->ptr( \
                     x86::Gp::rbp, \
                     index, \
-                    -ref->offset(), \
+                    ref->offset(), \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -201,7 +202,7 @@
                 this->writer->ptr( \
                     x86::Gp::rbp, \
                     index, \
-                    -ref->offset(), \
+                    ref->offset(), \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -216,14 +217,14 @@
             throw std::runtime_error("Cannot index non-array"); \
         } \
         if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) { \
-            uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
+            int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
             if (offset < 0) { \
                 throw std::runtime_error("Invalid offset"); \
             } \
             this->writer->mov( \
                 this->writer->ptr( \
                     x86::Gp::rbp, \
-                    -offset, \
+                    offset, \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
@@ -237,66 +238,13 @@
                 this->writer->ptr( \
                     x86::Gp::rbp, \
                     index, \
-                    -ref->offset(), \
+                    ref->offset(), \
                     ref->datatype()->rawSize() \
                 ), \
                 src \
             ); \
         } \
     }
-
-#define RAW_VALIT_OPASSIGN(src, op) \
-    const IRLocalAddrRef *ref = binop->left()->as<IRLocalAddrRef>(); \
-    if (ref->isIndexed()) { \
-        if (!ref->datatype()->isArray()) { \
-            throw std::runtime_error("Cannot index non-array"); \
-        } \
-        if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) { \
-            uint16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get()); \
-            if (offset < 0) { \
-                throw std::runtime_error("Invalid offset"); \
-            } \
-            this->writer->op( \
-                this->writer->ptr( \
-                    x86::Gp::rbp, \
-                    -offset, \
-                    ref->datatype()->rawSize() \
-                ), \
-                src \
-            ); \
-            this->writer->mov( \
-                this->writer->ptr( \
-                    x86::Gp::rbp, \
-                    -offset, \
-                    ref->datatype()->rawSize() \
-                ), \
-                src \
-            ); \
-        } \
-        else { \
-            Reg r_index = this->EmitValue(ref->getIndex(), dst); \
-            Reg index = {r_index.id, 8, Reg::GPR, false}; \
-            this->TryCast(index, r_index); \
-            this->writer->op( \
-                this->writer->ptr( \
-                    x86::Gp::rbp, \
-                    index, \
-                    -ref->offset(), \
-                    ref->datatype()->rawSize() \
-                ), \
-                src \
-            ); \
-            this->writer->mov( \
-                this->writer->ptr( \
-                    x86::Gp::rbp, \
-                    index, \
-                    -ref->offset(), \
-                    ref->datatype()->rawSize() \
-                ), \
-                src \
-            ); \
-        } \
-    } \
 
 #define LIT_VA_ASSIGN(type) \
     case type: { \
@@ -304,11 +252,6 @@
         return dst; \
     }
 
-#define LIT_VA_OPASSIGN(type, op) \
-    case type: { \
-        RAW_VALIT_OPASSIGN(binop->right()->as<IRLiteral>()->get(), op); \
-        return dst; \
-    }
 
 #define LIT_CMP_OP(type, op) \
     case type: { \
@@ -327,7 +270,7 @@
             this->writer->cmp(dst, *freg); \
             return dst; \
         } else { \
-            LOCAL_OP_RAW(cmp) \
+            LOCAL_OP_RAW(WRITER_CMP) \
         } \
         dst.size = binop->right()->as<IRLocalRef>()->datatype()->moveSize(); \
         dst.signed_value = binop->right()->as<IRLocalRef>()->datatype()->isSigned(); \
@@ -366,7 +309,7 @@
     dst.signed_value = binop->left()->as<IRLocalRef>()->datatype()->isSigned(); \
     CASTED_MOV(dst, this->writer->ptr( \
         x86::Gp::rbp, \
-        -binop->left()->as<IRLocalRef>()->offset(), \
+        binop->left()->as<IRLocalRef>()->offset(), \
         binop->left()->as<IRLocalRef>()->datatype()->moveSize() \
     ));
 
@@ -394,11 +337,31 @@
         return dst; \
     }
 
+#define CQ_GEN(reg) \
+    if (!reg.signed_value)  { \
+        this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    } \
+    if (reg.size == 8) { \
+        this->writer->cqo(); \
+    } else if (reg.size == 4) { \
+        this->writer->cdq(); \
+    } else { \
+        this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    }
+
 #define LIT_RAW_DIV(op) \
     this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
-    this->writer->mov(x86::Gp::r10, binop->right()->as<IRLiteral>()->get()); \
-    this->writer->op(x86::Gp::r10); \
+    Reg saved_rdx; bool d_rdx = this->regalloc.isDirty(x86::Gp::rdx); \
+    if (d_rdx) { \
+        saved_rdx = this->regalloc.Allocate(8, true); \
+        this->writer->mov(saved_rdx, x86::Gp::rdx); \
+    } \
+    CQ_GEN(dst) \
+    op(binop->right()->as<IRLiteral>()->get()); \
+    if (d_rdx) { \
+        this->writer->mov(x86::Gp::rdx, saved_rdx); \
+        this->regalloc.Free(saved_rdx); \
+    } \
 
 #define LIT_DIV(type, op) \
     case type: { \
@@ -416,16 +379,26 @@
 
 #define LOC_RAW_DIV(op) \
     this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    Reg saved_rdx; bool d_rdx = this->regalloc.isDirty(x86::Gp::rdx); \
+    if (d_rdx) { \
+        saved_rdx = this->regalloc.Allocate(8, true); \
+        this->writer->mov(saved_rdx, x86::Gp::rdx); \
+    } \
+    CQ_GEN(dst) \
     if (freg) { \
-        this->writer->op(*freg); \
+        op(*freg); \
     } else { \
-        this->writer->mov(x86::Gp::r10, this->writer->ptr( \
-            x86::Gp::rbp, \
-            -binop->right()->as<IRLocalRef>()->offset(), \
-            binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
-        )); \
-        this->writer->op(x86::Gp::r10); \
+        op( \
+            this->writer->ptr( \
+                x86::Gp::rbp, \
+                binop->right()->as<IRLocalRef>()->offset(), \
+                binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
+            ) \
+        ) \
+    } \
+    if (d_rdx) { \
+        this->writer->mov(x86::Gp::rdx, saved_rdx); \
+        this->regalloc.Free(saved_rdx); \
     } \
 
 #define LOCAL_DIV(type, op) \
@@ -444,16 +417,26 @@
 
 #define GLOBAL_DIV_RAW(op) \
     this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    Reg saved_rdx; bool d_rdx = this->regalloc.isDirty(x86::Gp::rdx); \
+    if (d_rdx) { \
+        saved_rdx = this->regalloc.Allocate(8, true); \
+        this->writer->mov(saved_rdx, x86::Gp::rdx); \
+    } \
+    CQ_GEN(dst) \
     if (freg) { \
-        this->writer->op(*freg); \
+        op(*freg); \
     } else { \
-        this->writer->mov(x86::Gp::r15, this->writer->ptr( \
-            binop->right()->as<IRGlobRef>()->getName(), \
-            0, \
-            binop->right()->as<IRGlobRef>()->getType()->moveSize() \
-        )); \
-        this->writer->op(x86::Gp::r15); \
+        op( \
+            this->writer->ptr( \
+                binop->right()->as<IRGlobRef>()->getName(), \
+                0, \
+                binop->right()->as<IRGlobRef>()->getType()->moveSize() \
+            ) \
+        ) \
+    } \
+    if (d_rdx) { \
+        this->writer->mov(x86::Gp::rdx, saved_rdx); \
+        this->regalloc.Free(saved_rdx); \
     } \
 
 #define GLOBAL_DIV(type, op) \
@@ -472,24 +455,78 @@
 
 #define REGS_RAW_DIV(op) \
     this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    Reg saved_rdx; bool d_rdx = this->regalloc.isDirty(x86::Gp::rdx); \
+    if (d_rdx) { \
+        saved_rdx = this->regalloc.Allocate(8, true); \
+        this->writer->mov(saved_rdx, x86::Gp::rdx); \
+    } \
+    CQ_GEN(dst) \
     this->TryCast(x86::Gp::rdx, tmp); \
-    this->writer->op(tmp); \
+    op(tmp); \
+    if (d_rdx) { \
+        this->writer->mov(x86::Gp::rdx, saved_rdx); \
+        this->regalloc.Free(saved_rdx); \
+    } \
 
 #define REGS_DIV() \
     if (dst.signed_value) { \
-        REGS_RAW_DIV(idiv) \
+        REGS_RAW_DIV(WRITER_IDIV) \
     } else { \
-        REGS_RAW_DIV(div) \
+        REGS_RAW_DIV(WRITER_DIV) \
     } \
     this->TryCast(dst, x86::Gp::rax); \
 
 #define REGS_MOD() \
     if (dst.signed_value) { \
-        REGS_RAW_DIV(idiv) \
+        REGS_RAW_DIV(WRITER_IDIV) \
     } else { \
-        REGS_RAW_DIV(div) \
+        REGS_RAW_DIV(WRITER_DIV) \
     } \
     this->TryCast(dst, x86::Gp::rdx); \
+
+#define HANDLER_LABEL(fn_name, op) \
+    (".L__"+fn_name+"_"+op+".handler")
+
+#define HANDLED_2OP(op, id, rdst, rsrc) \
+    if (!this->current_fn->handlers[#op].first) { \
+        this->current_fn->handlers[#op].first = true; \
+    } \
+    this->writer->op(rdst, rsrc, HANDLER_LABEL(this->current_fn->fn->name(), #op).c_str());
+
+#define HANDLED_1OP(op, id, rsrc) \
+    if (!this->current_fn->handlers[#op].first) { \
+        this->current_fn->handlers[#op].first = true; \
+    } \
+    this->writer->op(rsrc, HANDLER_LABEL(this->current_fn->fn->name(), #op).c_str());
+
+#define WRITER_ADD(rdst, rsrc) HANDLED_2OP(add, add, rdst, rsrc)
+#define WRITER_SUB(rdst, rsrc) HANDLED_2OP(sub, sub, rdst, rsrc)
+#define WRITER_MUL(rdst, rsrc) HANDLED_2OP(imul, mul, rdst, rsrc)
+#define WRITER_IMUL(rdst, rsrc) HANDLED_2OP(imul, imul, rdst, rsrc)
+#define WRITER_DIV(rsrc) HANDLED_1OP(div, div, rsrc)
+#define WRITER_IDIV(rsrc) HANDLED_1OP(idiv, idiv, rsrc)
+#define WRITER_MOD(rdst, rsrc) HANDLED_2OP(idiv, div, rdst, rsrc)
+
+
+#define WRITER_AND(rdst, rsrc) this->writer->and_(rdst, rsrc);
+#define WRITER_OR(rdst, rsrc) this->writer->or_(rdst, rsrc);
+#define WRITER_XOR(rdst, rsrc) this->writer->xor_(rdst, rsrc);
+#define WRITER_SHL(rdst, rsrc) this->writer->shl(rdst, rsrc);
+#define WRITER_SHR(rdst, rsrc) this->writer->shr(rdst, rsrc);
+#define WRITER_SAL(rdst, rsrc) this->writer->sal(rdst, rsrc);
+#define WRITER_SAR(rdst, rsrc) this->writer->sar(rdst, rsrc);
+#define WRITER_CMP(rdst, rsrc) this->writer->cmp(rdst, rsrc);
+
+#define WRITER_JBOUNDS() \
+    if (!this->current_fn->handlers["bounds"].first) { \
+        this->current_fn->handlers["bounds"].first = true; \
+    } \
+    this->writer->jge(HANDLER_LABEL(this->current_fn->fn->name(), "bounds"));
+
+#define WRITER_JGUARD() \
+    if (!this->current_fn->handlers["guard"].first) { \
+        this->current_fn->handlers["guard"].first = true; \
+    } \
+    this->writer->jz(HANDLER_LABEL(this->current_fn->fn->name(), "guard"));
 
 #endif

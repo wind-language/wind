@@ -26,7 +26,7 @@ Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
         case IRNode::NodeType::LITERAL: {
             int64_t val = value->as<IRLiteral>()->get();
             if (val==0) {
-                this->writer->xor_(CastReg(dst, 8), CastReg(dst, 8));
+                this->writer->xor_(dst, dst);
             } else {
                 this->writer->mov(dst, val);
             }
@@ -43,6 +43,18 @@ Reg WindEmitter::EmitValue(IRNode *value, Reg dst) {
         }
         case IRNode::NodeType::LADDR_REF: {
             return this->EmitLocAddrRef(value->as<IRLocalAddrRef>(), dst);
+        }
+        case IRNode::NodeType::GENERIC_INDEXING: {
+            return this->EmitGenAddrRef(value->as<IRGenericIndexing>(), dst);
+        }
+        case IRNode::NodeType::FN_REF: {
+            return this->EmitFnRef(value->as<IRFnRef>(), dst);
+        }
+        case IRNode::NodeType::PTR_GUARD: {
+            return this->EmitPtrGuard(value->as<IRPtrGuard>(), dst);
+        }
+        case IRNode::NodeType::TYPE_CAST: {
+            return this->EmitTypeCast(value->as<IRTypeCast>(), dst);
         }
         default: {
             throw std::runtime_error("Unknown value type(" + std::to_string((uint8_t)value->type()) + "): Report to maintainer!");
@@ -76,9 +88,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
         || binop->operation() == IRBinOp::Operation::G_PLUS_ASSIGN
         || binop->operation() == IRBinOp::Operation::G_MINUS_ASSIGN) {
         tmp_size = binop->left()->as<IRGlobRef>()->getType()->moveSize();
-    } else if (binop->operation() == IRBinOp::Operation::VA_ASSIGN
-        || binop->operation() == IRBinOp::Operation::VA_PLUS_ASSIGN
-        || binop->operation() == IRBinOp::Operation::VA_MINUS_ASSIGN) {
+    } else if (binop->operation() == IRBinOp::Operation::VA_ASSIGN) {
         tmp_size = binop->left()->as<IRLocalAddrRef>()->datatype()->moveSize();
     }
     else {
@@ -90,42 +100,45 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
     switch (binop->right()->type()) {
         case IRNode::NodeType::LITERAL: {
             switch (binop->operation()) {
-                LITERAL_OP(IRBinOp::ADD, add)
-                LITERAL_OP(IRBinOp::SUB, sub)
-                LITERAL_OP(IRBinOp::AND, and_)
+                LITERAL_OP(IRBinOp::ADD, WRITER_ADD)
+                LITERAL_OP(IRBinOp::SUB, WRITER_SUB)
+                LITERAL_OP(IRBinOp::AND, WRITER_AND)
+                LITERAL_OP(IRBinOp::XOR, WRITER_XOR)
+                LITERAL_OP(IRBinOp::OR, WRITER_OR)
                 LIT_CMP_OP(IRBinOp::EQ, sete)
+                LIT_CMP_OP(IRBinOp::NOTEQ, setne)
                 GEN_ASSIGN_LIT(IRBinOp::L_ASSIGN, L_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::G_ASSIGN, G_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::L_PLUS_ASSIGN, L_PLUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::G_PLUS_ASSIGN, G_PLUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::L_MINUS_ASSIGN, L_MINUS_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::G_MINUS_ASSIGN, G_MINUS_ASSIGN_OP)
-                LIT_VA_ASSIGN(IRBinOp::VA_ASSIGN)
-                LIT_VA_ASSIGN(IRBinOp::VA_PLUS_ASSIGN)
-                LIT_VA_ASSIGN(IRBinOp::VA_MINUS_ASSIGN)
+                //LIT_VA_ASSIGN(IRBinOp::VA_ASSIGN) // TODO
                 default: {}
             }
             if (dst.signed_value) {
                 switch (binop->operation()) {
-                    LITERAL_OP(IRBinOp::SHL, sal)
-                    LITERAL_OP(IRBinOp::SHR, sar)
-                    LITERAL_OP(IRBinOp::MUL, imul)
-                    LIT_DIV(IRBinOp::DIV, idiv)
-                    LIT_MOD(IRBinOp::MOD, idiv)
+                    LITERAL_OP(IRBinOp::SHL, WRITER_SAL)
+                    LITERAL_OP(IRBinOp::SHR, WRITER_SAR)
+                    LITERAL_OP(IRBinOp::MUL, WRITER_IMUL)
+                    LIT_DIV(IRBinOp::DIV, WRITER_DIV)
+                    LIT_MOD(IRBinOp::MOD, WRITER_IDIV)
                     LIT_CMP_OP(IRBinOp::LESS, setl)
                     LIT_CMP_OP(IRBinOp::GREATER, setg)
                     LIT_CMP_OP(IRBinOp::LESSEQ, setle)
+                    LIT_CMP_OP(IRBinOp::GREATEREQ, setge)
                 }
             } else {
                 switch (binop->operation()) {
-                    LITERAL_OP(IRBinOp::MUL, mul)
-                    LITERAL_OP(IRBinOp::SHL, shl)
-                    LITERAL_OP(IRBinOp::SHR, shr)
-                    LIT_DIV(IRBinOp::DIV, div)
-                    LIT_MOD(IRBinOp::MOD, div)
+                    LITERAL_OP(IRBinOp::MUL, WRITER_MUL)
+                    LITERAL_OP(IRBinOp::SHL, WRITER_SHL)
+                    LITERAL_OP(IRBinOp::SHR, WRITER_SHR)
+                    LIT_DIV(IRBinOp::DIV, WRITER_DIV)
+                    LIT_MOD(IRBinOp::MOD, WRITER_DIV)
                     LIT_CMP_OP(IRBinOp::LESS, setb)
                     LIT_CMP_OP(IRBinOp::GREATER, seta)
                     LIT_CMP_OP(IRBinOp::LESSEQ, setbe)
+                    LIT_CMP_OP(IRBinOp::GREATEREQ, setae)
                 }
             }
             break;
@@ -134,33 +147,38 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             Reg *freg = this->regalloc.FindLocalVar(binop->right()->as<IRLocalRef>()->offset(), binop->right()->as<IRLocalRef>()->datatype()->moveSize());
             dst = this->CastReg(dst, binop->right()->as<IRLocalRef>()->datatype()->moveSize());
             switch (binop->operation()) {
-                OPT_LOCAL_OP(IRBinOp::ADD, add)
-                OPT_LOCAL_OP(IRBinOp::SUB, sub)
-                OPT_LOCAL_OP(IRBinOp::AND, and_)
+                OPT_LOCAL_OP(IRBinOp::ADD, WRITER_ADD)
+                OPT_LOCAL_OP(IRBinOp::SUB, WRITER_SUB)
+                OPT_LOCAL_OP(IRBinOp::AND, WRITER_AND)
+                OPT_LOCAL_OP(IRBinOp::XOR, WRITER_XOR)
+                OPT_LOCAL_OP(IRBinOp::OR, WRITER_OR)
                 LOC_CMP_OP(IRBinOp::EQ, sete)
+                LOC_CMP_OP(IRBinOp::NOTEQ, setne)
                 default: {}
             }
             if (dst.signed_value) {
                 switch (binop->operation()) {
-                    OPT_LOCAL_OP(IRBinOp::SHL, sal)
-                    OPT_LOCAL_OP(IRBinOp::SHR, sar)
-                    OPT_LOCAL_OP(IRBinOp::MUL, imul)
-                    LOCAL_DIV(IRBinOp::DIV, idiv)
-                    LOCAL_MOD(IRBinOp::MOD, idiv)
+                    OPT_LOCAL_OP(IRBinOp::SHL, WRITER_SAL)
+                    OPT_LOCAL_OP(IRBinOp::SHR, WRITER_SAR)
+                    OPT_LOCAL_OP(IRBinOp::MUL, WRITER_IMUL)
+                    LOCAL_DIV(IRBinOp::DIV, WRITER_IDIV)
+                    LOCAL_MOD(IRBinOp::MOD, WRITER_IDIV)
                     LOC_CMP_OP(IRBinOp::LESS, setl)
                     LOC_CMP_OP(IRBinOp::GREATER, setg)
                     LOC_CMP_OP(IRBinOp::LESSEQ, setle)
+                    LOC_CMP_OP(IRBinOp::GREATEREQ, setge)
                 }
             } else {
                 switch (binop->operation()) {
-                    OPT_LOCAL_OP(IRBinOp::SHL, shl)
-                    OPT_LOCAL_OP(IRBinOp::SHR, shr)
-                    OPT_LOCAL_OP(IRBinOp::MUL, mul)
-                    LOCAL_DIV(IRBinOp::DIV, div)
-                    LOCAL_MOD(IRBinOp::MOD, div)
+                    OPT_LOCAL_OP(IRBinOp::SHL, WRITER_SHL)
+                    OPT_LOCAL_OP(IRBinOp::SHR, WRITER_SHR)
+                    OPT_LOCAL_OP(IRBinOp::MUL, WRITER_MUL)
+                    LOCAL_DIV(IRBinOp::DIV, WRITER_DIV)
+                    LOCAL_MOD(IRBinOp::MOD, WRITER_DIV)
                     LOC_CMP_OP(IRBinOp::LESS, setb)
                     LOC_CMP_OP(IRBinOp::GREATER, seta)
                     LOC_CMP_OP(IRBinOp::LESSEQ, setbe)
+                    LOC_CMP_OP(IRBinOp::GREATEREQ, setae)
                 }
             }
             break;
@@ -169,33 +187,38 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             Reg *freg = this->regalloc.FindLabel(binop->right()->as<IRGlobRef>()->getName(), binop->right()->as<IRGlobRef>()->getType()->moveSize());
             dst = this->CastReg(dst, binop->right()->as<IRGlobRef>()->getType()->moveSize());
             switch (binop->operation()) {
-                GLOBAL_OP(IRBinOp::ADD, add)
-                GLOBAL_OP(IRBinOp::SUB, sub)
-                GLOBAL_OP(IRBinOp::AND, and_)
+                GLOBAL_OP(IRBinOp::ADD, WRITER_ADD)
+                GLOBAL_OP(IRBinOp::SUB, WRITER_SUB)
+                GLOBAL_OP(IRBinOp::AND, WRITER_AND)
+                GLOBAL_OP(IRBinOp::XOR, WRITER_XOR)
+                GLOBAL_OP(IRBinOp::OR, WRITER_OR)
                 GLB_CMP_OP(IRBinOp::EQ, sete)
+                GLB_CMP_OP(IRBinOp::NOTEQ, setne)
                 default: {}
             }
             if (dst.signed_value) {
                 switch (binop->operation()) {
-                    GLOBAL_OP(IRBinOp::SHL, sal)
-                    GLOBAL_OP(IRBinOp::SHR, sar)
-                    GLOBAL_OP(IRBinOp::MUL, imul)
-                    GLOBAL_DIV(IRBinOp::DIV, idiv)
-                    GLOBAL_MOD(IRBinOp::MOD, idiv)
+                    GLOBAL_OP(IRBinOp::SHL, WRITER_SAL)
+                    GLOBAL_OP(IRBinOp::SHR, WRITER_SAR)
+                    GLOBAL_OP(IRBinOp::MUL, WRITER_IMUL)
+                    GLOBAL_DIV(IRBinOp::DIV, WRITER_IDIV)
+                    GLOBAL_MOD(IRBinOp::MOD, WRITER_IDIV)
                     GLB_CMP_OP(IRBinOp::LESS, setl)
                     GLB_CMP_OP(IRBinOp::GREATER, setg)
                     GLB_CMP_OP(IRBinOp::LESSEQ, setle)
+                    GLB_CMP_OP(IRBinOp::GREATEREQ, setge)
                 }
             } else {
                 switch (binop->operation()) {
-                    GLOBAL_OP(IRBinOp::SHL, shl)
-                    GLOBAL_OP(IRBinOp::SHR, shr)
-                    GLOBAL_OP(IRBinOp::MUL, mul)
-                    GLOBAL_DIV(IRBinOp::DIV, div)
-                    GLOBAL_MOD(IRBinOp::MOD, div)
+                    GLOBAL_OP(IRBinOp::SHL, WRITER_SHL)
+                    GLOBAL_OP(IRBinOp::SHR, WRITER_SHR)
+                    GLOBAL_OP(IRBinOp::MUL, WRITER_MUL)
+                    GLOBAL_DIV(IRBinOp::DIV, WRITER_DIV)
+                    GLOBAL_MOD(IRBinOp::MOD, WRITER_DIV)
                     GLB_CMP_OP(IRBinOp::LESS, setb)
                     GLB_CMP_OP(IRBinOp::GREATER, seta)
                     GLB_CMP_OP(IRBinOp::LESSEQ, setbe)
+                    GLB_CMP_OP(IRBinOp::GREATEREQ, setae)
                 }
             }
             break;
@@ -208,79 +231,121 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
     this->regalloc.SetDirty(tmp);
 
     switch (binop->operation()) {
-        case IRBinOp::ADD:
-            this->writer->add(dst, tmp);
+        case IRBinOp::ADD: {
+            WRITER_ADD(dst, tmp);
             break;
-        case IRBinOp::SUB:
-            this->writer->sub(dst, tmp);
+        }
+        case IRBinOp::SUB: {
+            WRITER_SUB(dst, tmp);
             break;
-        case IRBinOp::SHL:
+        }
+        case IRBinOp::SHL: {
             if (dst.signed_value) { this->writer->sal(dst, tmp); }
             else { this->writer->shl(dst, tmp); }
             break;
-        case IRBinOp::SHR:
+        }
+        case IRBinOp::SHR: {
             if (dst.signed_value) { this->writer->sar(dst, tmp); }
             else { this->writer->shr(dst, tmp); }
             break;
-        case IRBinOp::MUL:
-            if (dst.signed_value) { this->writer->imul(dst, tmp); }
-            else { this->writer->mul(dst, tmp); }
+        }
+        case IRBinOp::MUL: {
+            if (dst.signed_value) { WRITER_IMUL(dst, tmp); }
+            else { WRITER_MUL(dst, tmp); }
             break;
-        case IRBinOp::DIV:
+        }
+        case IRBinOp::DIV: {
             REGS_DIV()
             break;
-        case IRBinOp::MOD:
+        }
+        case IRBinOp::MOD: {
             REGS_MOD()
             break;
-        case IRBinOp::AND:
+        }
+        case IRBinOp::AND: {
             this->writer->and_(dst, tmp);
             break;
-        case IRBinOp::L_ASSIGN:
+        }
+        case IRBinOp::XOR: {
+            this->writer->xor_(dst, tmp);
+            break;
+        }
+        case IRBinOp::OR: {
+            this->writer->or_(dst, tmp);
+            break;
+        }
+        case IRBinOp::L_ASSIGN: {
             L_ASSIGN_OP(tmp)
             break;
-        case IRBinOp::G_ASSIGN:
+        }
+        case IRBinOp::G_ASSIGN: {
             G_ASSIGN_OP(tmp)
             break;
-        case IRBinOp::L_PLUS_ASSIGN:
+        }
+        case IRBinOp::L_PLUS_ASSIGN: {
             L_PLUS_ASSIGN_OP(tmp)
             break;
-        case IRBinOp::G_PLUS_ASSIGN:
+        }
+        case IRBinOp::G_PLUS_ASSIGN: {
             G_PLUS_ASSIGN_OP(tmp)
             break;
-        case IRBinOp::L_MINUS_ASSIGN:
+        }
+        case IRBinOp::L_MINUS_ASSIGN: {
             L_MINUS_ASSIGN_OP(tmp)
             break;
-        case IRBinOp::G_MINUS_ASSIGN:
+        }
+        case IRBinOp::G_MINUS_ASSIGN: {
             G_MINUS_ASSIGN_OP(tmp)
             break;
+        }
         case IRBinOp::VA_ASSIGN: {
             this->EmitIntoLocAddrRef((IRLocalAddrRef*)binop->left()->as<IRLocalAddrRef>(), tmp);
             break;
         }
-        case IRBinOp::EQ:
+        case IRBinOp::GEN_INDEX_ASSIGN: {
+            this->EmitIntoGenAddrRef((IRGenericIndexing*)binop->left()->as<IRGenericIndexing>(), tmp);
+            break;
+        }
+        case IRBinOp::EQ: {
             EL_CMP_OP(sete)
             break;
-        case IRBinOp::LESS:
+        }
+        case IRBinOp::NOTEQ: {
+            EL_CMP_OP(setne)
+            break;
+        }
+        case IRBinOp::LESS: {
             if (dst.signed_value) {
                 EL_CMP_OP(setl)
             } else {
                 EL_CMP_OP(setb)
             }
             break;
-        case IRBinOp::GREATER:
+        }
+        case IRBinOp::GREATER: {
             if (dst.signed_value) {
                 EL_CMP_OP(setg)
             } else {
                 EL_CMP_OP(seta)
             }
             break;
-        case IRBinOp::LESSEQ:
+        }
+        case IRBinOp::LESSEQ: {
             if (dst.signed_value) {
                 EL_CMP_OP(setle)
             } else {
                 EL_CMP_OP(setbe)
             }
             break;
+        }
+        case IRBinOp::GREATEREQ: {
+            if (dst.signed_value) {
+                EL_CMP_OP(setge)
+            } else {
+                EL_CMP_OP(setae)
+            }
+            break;
+        }
         default:
             throw std::runtime_error("Unsupported binop (" + std::to_string((uint8_t)binop->operation()) + "): Report to maintainer!");
     }

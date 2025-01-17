@@ -35,15 +35,21 @@ public:
     STRING,
     VARDC,
     AND,
+    OR,
+    XOR,
     LOGAND, // &&
+    LOGOR, // ||
     EQ,
     LESS,
     GREATER,
     LESSEQ,
+    GREATEREQ,
     PLUS_ASSIGN,
     MINUS_ASSIGN,
     INCREMENT,
-    DECREMENT
+    DECREMENT,
+    NOTEQ,
+    NOT,
   };
   
   std::string value;
@@ -65,11 +71,14 @@ std::vector<std::pair<std::string, Token::Type>> const SymbolTable = {
   // double char symbols
   {"==", Token::Type::EQ},
   {"&&", Token::Type::LOGAND},
+  {"||", Token::Type::LOGOR},
   {"<=", Token::Type::LESSEQ},
+  {">=", Token::Type::GREATEREQ},
   {"+=", Token::Type::PLUS_ASSIGN},
   {"-=", Token::Type::MINUS_ASSIGN},
   {"++", Token::Type::INCREMENT},
   {"--", Token::Type::DECREMENT},
+  {"!=", Token::Type::NOTEQ},
   
   {"+", Token::Type::PLUS},
   {"-", Token::Type::MINUS},
@@ -92,6 +101,9 @@ std::vector<std::pair<std::string, Token::Type>> const SymbolTable = {
   {"?", Token::Type::QMARK},
   {"...", Token::Type::VARDC},
   {"&", Token::Type::AND},
+  {"|", Token::Type::OR},
+  {"^", Token::Type::XOR},
+  {"!", Token::Type::NOT}
 };
 
 #endif
