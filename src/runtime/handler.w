@@ -1,4 +1,4 @@
-@include "#types.w"
+@include "#types.wi"
 
 @extern func puts(str: string) : void;
 @extern func printf(fmt: string, ...) : void;

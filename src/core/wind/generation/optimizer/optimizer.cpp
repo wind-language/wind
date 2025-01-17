@@ -99,14 +99,19 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
   IRNode *left = (IRNode*)node->left();
   IRNode *right = (IRNode*)node->right();
   IRBinOp::Operation op = node->operation();
-  if (this->current_fn->flags & PURE_EXPR) {
+  if (this->current_fn->fn->flags & PURE_EXPR) {
     return new IRBinOp(std::unique_ptr<IRNode>(left), std::unique_ptr<IRNode>(right), op);
   }
-  IRNode *opt_left = this->OptimizeExpr(left);
+  IRNode *opt_left = left;
+  if (op != IRBinOp::L_ASSIGN && op != IRBinOp::G_ASSIGN && op != IRBinOp::VA_ASSIGN) {
+    opt_left = this->OptimizeExpr(left);
+  }
   IRNode *opt_right = this->OptimizeExpr(right);
-  
+
   if (opt_left->is<IRLiteral>() && opt_right->is<IRLiteral>()) {
-    return this->OptimizeConstFold(node);
+    return this->OptimizeConstFold(
+      new IRBinOp(std::unique_ptr<IRNode>(opt_left), std::unique_ptr<IRNode>(opt_right), op)
+    );
   }
   else if (
     UselessZeroTable.find(op) != UselessZeroTable.end() &&
@@ -193,6 +198,17 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node) {
       );
     }
   }
+
+  if (op == IRBinOp::Operation::L_ASSIGN && opt_left->is<IRLocalRef>()) {
+    if (opt_right->is<IRLiteral>()) {
+      this->NewLocalValue(opt_left->as<IRLocalRef>()->offset(), opt_right);
+    } else if (opt_right->is<IRStringLiteral>()) {
+      this->NewLocalValue(opt_left->as<IRLocalRef>()->offset(), opt_right);
+    } else {
+      this->current_fn->lkv.erase(opt_left->as<IRLocalRef>()->offset());
+    }
+  }
+
   IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(opt_left), std::unique_ptr<IRNode>(opt_right), op);
   return binop;
 }
@@ -205,12 +221,12 @@ IRNode *WindOptimizer::OptimizeExpr(IRNode *node) {
 }
 
 IRNode *WindOptimizer::OptimizeLDecl(IRVariableDecl *local_decl) {
-  if (this->current_fn->flags & PURE_STACK) {
+  if (this->current_fn->fn->flags & PURE_STACK) {
     return local_decl;
   }
   assert (this->current_fn != nullptr);
-  if (!this->current_fn->isUsed(local_decl->local())) {
-    this->current_fn->stack_size -= local_decl->local()->datatype()->memSize();
+  if (!this->current_fn->fn->isUsed(local_decl->local())) {
+    this->current_fn->fn->stack_size -= local_decl->local()->datatype()->memSize();
     return nullptr;
   }
   IRNode *opt_value = nullptr;
@@ -219,7 +235,10 @@ IRNode *WindOptimizer::OptimizeLDecl(IRVariableDecl *local_decl) {
   }
   if (local_decl->local()->datatype()->isArray()) {
     // whenever an array is declared, a canary is needed to prevent buffer overflows
-    this->current_fn->canary_needed = true;
+    this->current_fn->fn->canary_needed = true;
+  }
+  if (opt_value->is<IRLiteral>() || opt_value->is<IRStringLiteral>()) {
+    this->NewLocalValue(local_decl->local()->offset(), opt_value);
   }
   IRVariableDecl *opt_local_decl = new IRVariableDecl(
     local_decl->local(),
@@ -374,6 +393,13 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
   else if (node->is<IRTypeCast>()) {
     return this->OptimizeTypeCast(node->as<IRTypeCast>());
   }
+  else if (node->is<IRLocalRef>()) {
+    std::cerr << "Searching " << node->as<IRLocalRef>()->offset() << "\n";
+    if (this->GetLocalValue(node->as<IRLocalRef>()->offset())) {
+      std::cerr << "HERE\n";
+      return this->GetLocalValue(node->as<IRLocalRef>()->offset());
+    }
+  }
   return node;
 }
 
@@ -396,7 +422,8 @@ void WindOptimizer::optimize() {
       IRFunction *fn = (IRFunction*)node->as<IRFunction>();
       IRFunction *fn_copy = (IRFunction*)this->OptimizeFunction(fn);
       *this->emission += std::unique_ptr<IRNode>(fn_copy);
-      this->current_fn = fn_copy;
+      this->current_fn = new WindOptimizer::FunctionDesc({});
+      this->current_fn->fn = fn_copy;
       this->OptimizeBody(fn->body(), fn_copy);
     } else {
       *this->emission += std::unique_ptr<IRNode>(this->OptimizeNode(node.get()));
@@ -406,4 +433,15 @@ void WindOptimizer::optimize() {
 
 IRBody *WindOptimizer::get() {
   return this->emission;
+}
+
+void WindOptimizer::NewLocalValue(int16_t local, IRNode *value) {
+  this->current_fn->lkv[local] = value;
+}
+
+IRNode *WindOptimizer::GetLocalValue(int16_t local) {
+  if (this->current_fn->lkv.find(local) != this->current_fn->lkv.end()) {
+    return this->current_fn->lkv[local];
+  }
+  return nullptr;
 }

@@ -1,5 +1,5 @@
 @include [
-    "#types.w"
+    "#types.wi"
 ]
 
 @extern func puts(str: string) : void;

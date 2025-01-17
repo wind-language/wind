@@ -12,5 +12,6 @@ func t7(a: short, b: int, c: int, d:int, e: int, f: int, g: ptr<char>): int {
 func main(): int {
     var test_ptr: ptr<char> = guard![malloc(sizeof<char>*32)];
     t7(30000,2,3,4,5,6,test_ptr);
-    return 0;
+    var a: int = 5;
+    return a+1;
 }
