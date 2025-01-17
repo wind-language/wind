@@ -337,11 +337,31 @@
         return dst; \
     }
 
+#define CQ_GEN(reg) \
+    if (!reg.signed_value)  { \
+        this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    } \
+    if (reg.size == 8) { \
+        this->writer->cqo(); \
+    } else if (reg.size == 4) { \
+        this->writer->cdq(); \
+    } else { \
+        this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    }
+
 #define LIT_RAW_DIV(op) \
     this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
-    this->writer->mov(x86::Gp::r10, binop->right()->as<IRLiteral>()->get()); \
-    op(x86::Gp::r10); \
+    Reg saved_rdx; bool d_rdx = this->regalloc.isDirty(x86::Gp::rdx); \
+    if (d_rdx) { \
+        saved_rdx = this->regalloc.Allocate(8, true); \
+        this->writer->mov(saved_rdx, x86::Gp::rdx); \
+    } \
+    CQ_GEN(dst) \
+    op(binop->right()->as<IRLiteral>()->get()); \
+    if (d_rdx) { \
+        this->writer->mov(x86::Gp::rdx, saved_rdx); \
+        this->regalloc.Free(saved_rdx); \
+    } \
 
 #define LIT_DIV(type, op) \
     case type: { \
@@ -359,16 +379,26 @@
 
 #define LOC_RAW_DIV(op) \
     this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    Reg saved_rdx; bool d_rdx = this->regalloc.isDirty(x86::Gp::rdx); \
+    if (d_rdx) { \
+        saved_rdx = this->regalloc.Allocate(8, true); \
+        this->writer->mov(saved_rdx, x86::Gp::rdx); \
+    } \
+    CQ_GEN(dst) \
     if (freg) { \
         op(*freg); \
     } else { \
-        this->writer->mov(x86::Gp::r10, this->writer->ptr( \
-            x86::Gp::rbp, \
-            binop->right()->as<IRLocalRef>()->offset(), \
-            binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
-        )); \
-        op(x86::Gp::r10); \
+        op( \
+            this->writer->ptr( \
+                x86::Gp::rbp, \
+                binop->right()->as<IRLocalRef>()->offset(), \
+                binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
+            ) \
+        ) \
+    } \
+    if (d_rdx) { \
+        this->writer->mov(x86::Gp::rdx, saved_rdx); \
+        this->regalloc.Free(saved_rdx); \
     } \
 
 #define LOCAL_DIV(type, op) \
@@ -387,16 +417,26 @@
 
 #define GLOBAL_DIV_RAW(op) \
     this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    Reg saved_rdx; bool d_rdx = this->regalloc.isDirty(x86::Gp::rdx); \
+    if (d_rdx) { \
+        saved_rdx = this->regalloc.Allocate(8, true); \
+        this->writer->mov(saved_rdx, x86::Gp::rdx); \
+    } \
+    CQ_GEN(dst) \
     if (freg) { \
         op(*freg); \
     } else { \
-        this->writer->mov(x86::Gp::r10, this->writer->ptr( \
-            binop->right()->as<IRGlobRef>()->getName(), \
-            0, \
-            binop->right()->as<IRGlobRef>()->getType()->moveSize() \
-        )); \
-        op(x86::Gp::r10); \
+        op( \
+            this->writer->ptr( \
+                binop->right()->as<IRGlobRef>()->getName(), \
+                0, \
+                binop->right()->as<IRGlobRef>()->getType()->moveSize() \
+            ) \
+        ) \
+    } \
+    if (d_rdx) { \
+        this->writer->mov(x86::Gp::rdx, saved_rdx); \
+        this->regalloc.Free(saved_rdx); \
     } \
 
 #define GLOBAL_DIV(type, op) \
@@ -415,9 +455,18 @@
 
 #define REGS_RAW_DIV(op) \
     this->TryCast(x86::Gp::rax, dst); \
-    this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx); \
+    Reg saved_rdx; bool d_rdx = this->regalloc.isDirty(x86::Gp::rdx); \
+    if (d_rdx) { \
+        saved_rdx = this->regalloc.Allocate(8, true); \
+        this->writer->mov(saved_rdx, x86::Gp::rdx); \
+    } \
+    CQ_GEN(dst) \
     this->TryCast(x86::Gp::rdx, tmp); \
     op(tmp); \
+    if (d_rdx) { \
+        this->writer->mov(x86::Gp::rdx, saved_rdx); \
+        this->regalloc.Free(saved_rdx); \
+    } \
 
 #define REGS_DIV() \
     if (dst.signed_value) { \

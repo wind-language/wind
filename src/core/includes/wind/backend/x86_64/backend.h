@@ -60,6 +60,7 @@ private:
         void PostLoop();
         Reg *FindLocalVar(int16_t stack_offset, uint16_t size); // Find if a local is in a register
         Reg *FindLabel(std::string label, uint16_t size); // Find if a label is in a register
+        bool isDirty(Reg reg) { return regs[reg.id].isDirty; }
         void AllocRepr();
     } regalloc;
 

@@ -150,7 +150,9 @@ namespace x86 {
 
 
 #define SPECIAL_ARITHMETIC(name)\
-    void name(Reg src, const char *handler=nullptr) { this->Write(#name, src); REG_INSTR_HANDLE(handler, src) }
+    void name(Reg src, const char *handler=nullptr) { this->Write(#name, src); REG_INSTR_HANDLE(handler, src) } \
+    void name(Mem src, const char *handler=nullptr) { this->Write(#name, src); MEM_INSTR_HANDLE(handler) } \
+    void name(int64_t imm, const char *handler=nullptr) { this->Write(#name, imm); }
 
 
 class Ax86_64 : public WindWriter {
@@ -226,6 +228,8 @@ public:
     B_N_INSTR(ret)
     B_N_INSTR(rdtsc)
     B_N_INSTR(rdtscp)
+    B_N_INSTR(cdq)
+    B_N_INSTR(cqo)
 
     C_SEVEN_INSTR(cmp)
     C_SEVEN_INSTR(test)
