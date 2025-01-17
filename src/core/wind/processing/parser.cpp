@@ -156,7 +156,13 @@ static Token::Type TOK_OP_LIST[]={
   Token::Type::LESSEQ,
   Token::Type::LOGAND,
   Token::Type::INCREMENT,
-  Token::Type::DECREMENT
+  Token::Type::DECREMENT,
+  Token::Type::LOGOR,
+  Token::Type::GREATEREQ,
+  Token::Type::NOTEQ,
+  Token::Type::OR,
+  Token::Type::AND,
+  Token::Type::XOR
 };
 
 bool tokIsOperator(Token *tok) {

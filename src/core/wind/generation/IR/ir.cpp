@@ -329,6 +329,16 @@ IRBinOp::Operation IRstr2op(std::string str) {
     return IRBinOp::MOD;
   } else if (str == "<=") {
     return IRBinOp::LESSEQ;
+  } else if (str == ">=") {
+    return IRBinOp::GREATEREQ;
+  } else if (str == "!=") {
+    return IRBinOp::NOTEQ;
+  } else if (str == "&") {
+    return IRBinOp::AND;
+  } else if (str == "|") {
+    return IRBinOp::OR;
+  } else if (str == "^") {
+    return IRBinOp::XOR;
   }
   else {
     throw std::runtime_error("Invalid operation");

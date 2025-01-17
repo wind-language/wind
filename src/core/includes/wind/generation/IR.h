@@ -243,10 +243,14 @@ public:
     SHL,
     SHR,
     AND,
+    OR,
+    XOR,
     EQ,
+    NOTEQ,
     LESS,
     GREATER,
     LESSEQ,
+    GREATEREQ,
     L_ASSIGN,
     G_ASSIGN,
     VA_ASSIGN,
@@ -256,7 +260,7 @@ public:
     L_MINUS_ASSIGN,
     G_PLUS_ASSIGN,
     G_MINUS_ASSIGN,
-    GEN_INDEX_ASSIGN
+    GEN_INDEX_ASSIGN,
   };
 
 private:

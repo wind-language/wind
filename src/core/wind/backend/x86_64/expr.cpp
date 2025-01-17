@@ -103,7 +103,10 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 LITERAL_OP(IRBinOp::ADD, WRITER_ADD)
                 LITERAL_OP(IRBinOp::SUB, WRITER_SUB)
                 LITERAL_OP(IRBinOp::AND, WRITER_AND)
+                LITERAL_OP(IRBinOp::XOR, WRITER_XOR)
+                LITERAL_OP(IRBinOp::OR, WRITER_OR)
                 LIT_CMP_OP(IRBinOp::EQ, sete)
+                LIT_CMP_OP(IRBinOp::NOTEQ, setne)
                 GEN_ASSIGN_LIT(IRBinOp::L_ASSIGN, L_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::G_ASSIGN, G_ASSIGN_OP)
                 GEN_ASSIGN_LIT(IRBinOp::L_PLUS_ASSIGN, L_PLUS_ASSIGN_OP)
@@ -123,6 +126,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                     LIT_CMP_OP(IRBinOp::LESS, setl)
                     LIT_CMP_OP(IRBinOp::GREATER, setg)
                     LIT_CMP_OP(IRBinOp::LESSEQ, setle)
+                    LIT_CMP_OP(IRBinOp::GREATEREQ, setge)
                 }
             } else {
                 switch (binop->operation()) {
@@ -134,6 +138,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                     LIT_CMP_OP(IRBinOp::LESS, setb)
                     LIT_CMP_OP(IRBinOp::GREATER, seta)
                     LIT_CMP_OP(IRBinOp::LESSEQ, setbe)
+                    LIT_CMP_OP(IRBinOp::GREATEREQ, setae)
                 }
             }
             break;
@@ -145,7 +150,10 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 OPT_LOCAL_OP(IRBinOp::ADD, WRITER_ADD)
                 OPT_LOCAL_OP(IRBinOp::SUB, WRITER_SUB)
                 OPT_LOCAL_OP(IRBinOp::AND, WRITER_AND)
+                OPT_LOCAL_OP(IRBinOp::XOR, WRITER_XOR)
+                OPT_LOCAL_OP(IRBinOp::OR, WRITER_OR)
                 LOC_CMP_OP(IRBinOp::EQ, sete)
+                LOC_CMP_OP(IRBinOp::NOTEQ, setne)
                 default: {}
             }
             if (dst.signed_value) {
@@ -158,6 +166,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                     LOC_CMP_OP(IRBinOp::LESS, setl)
                     LOC_CMP_OP(IRBinOp::GREATER, setg)
                     LOC_CMP_OP(IRBinOp::LESSEQ, setle)
+                    LOC_CMP_OP(IRBinOp::GREATEREQ, setge)
                 }
             } else {
                 switch (binop->operation()) {
@@ -169,6 +178,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                     LOC_CMP_OP(IRBinOp::LESS, setb)
                     LOC_CMP_OP(IRBinOp::GREATER, seta)
                     LOC_CMP_OP(IRBinOp::LESSEQ, setbe)
+                    LOC_CMP_OP(IRBinOp::GREATEREQ, setae)
                 }
             }
             break;
@@ -180,7 +190,10 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 GLOBAL_OP(IRBinOp::ADD, WRITER_ADD)
                 GLOBAL_OP(IRBinOp::SUB, WRITER_SUB)
                 GLOBAL_OP(IRBinOp::AND, WRITER_AND)
+                GLOBAL_OP(IRBinOp::XOR, WRITER_XOR)
+                GLOBAL_OP(IRBinOp::OR, WRITER_OR)
                 GLB_CMP_OP(IRBinOp::EQ, sete)
+                GLB_CMP_OP(IRBinOp::NOTEQ, setne)
                 default: {}
             }
             if (dst.signed_value) {
@@ -193,6 +206,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                     GLB_CMP_OP(IRBinOp::LESS, setl)
                     GLB_CMP_OP(IRBinOp::GREATER, setg)
                     GLB_CMP_OP(IRBinOp::LESSEQ, setle)
+                    GLB_CMP_OP(IRBinOp::GREATEREQ, setge)
                 }
             } else {
                 switch (binop->operation()) {
@@ -204,6 +218,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                     GLB_CMP_OP(IRBinOp::LESS, setb)
                     GLB_CMP_OP(IRBinOp::GREATER, seta)
                     GLB_CMP_OP(IRBinOp::LESSEQ, setbe)
+                    GLB_CMP_OP(IRBinOp::GREATEREQ, setae)
                 }
             }
             break;
@@ -251,6 +266,14 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             this->writer->and_(dst, tmp);
             break;
         }
+        case IRBinOp::XOR: {
+            this->writer->xor_(dst, tmp);
+            break;
+        }
+        case IRBinOp::OR: {
+            this->writer->or_(dst, tmp);
+            break;
+        }
         case IRBinOp::L_ASSIGN: {
             L_ASSIGN_OP(tmp)
             break;
@@ -287,6 +310,10 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             EL_CMP_OP(sete)
             break;
         }
+        case IRBinOp::NOTEQ: {
+            EL_CMP_OP(setne)
+            break;
+        }
         case IRBinOp::LESS: {
             if (dst.signed_value) {
                 EL_CMP_OP(setl)
@@ -308,6 +335,14 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
                 EL_CMP_OP(setle)
             } else {
                 EL_CMP_OP(setbe)
+            }
+            break;
+        }
+        case IRBinOp::GREATEREQ: {
+            if (dst.signed_value) {
+                EL_CMP_OP(setge)
+            } else {
+                EL_CMP_OP(setae)
             }
             break;
         }

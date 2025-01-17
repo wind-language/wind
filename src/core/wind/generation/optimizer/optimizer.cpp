@@ -61,30 +61,14 @@ IRLiteral *WindOptimizer::OptimizeConstFold(IRBinOp *node) {
       return new IRLiteral(right);
     case IRBinOp::Operation::MOD:
       return new IRLiteral(left % right);
-    /* case IRBinOp::Operation::MOD:
-      return new IRLiteral(left % right);
-    case IRBinOp::Operation::AND:
-      return new IRLiteral(left & right);
     case IRBinOp::Operation::OR:
       return new IRLiteral(left | right);
     case IRBinOp::Operation::XOR:
       return new IRLiteral(left ^ right);
-    case IRBinOp::Operation::SHL:
-      return new IRLiteral(left << right);
-    case IRBinOp::Operation::SHR:
-      return new IRLiteral(left >> right);
-    case IRBinOp::Operation::EQ:
-      return new IRLiteral(left == right);
-    case IRBinOp::Operation::NE:
+    case IRBinOp::Operation::NOTEQ:
       return new IRLiteral(left != right);
-    case IRBinOp::Operation::LT:
-      return new IRLiteral(left < right);
-    case IRBinOp::Operation::GT:
-      return new IRLiteral(left > right);
-    case IRBinOp::Operation::LE:
-      return new IRLiteral(left <= right);
-    case IRBinOp::Operation::GE:
-      return new IRLiteral(left >= right); */
+    case IRBinOp::Operation::GREATEREQ:
+      return new IRLiteral(left >= right);
     default:
       return nullptr;
   }
@@ -394,9 +378,7 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node) {
     return this->OptimizeTypeCast(node->as<IRTypeCast>());
   }
   else if (node->is<IRLocalRef>()) {
-    std::cerr << "Searching " << node->as<IRLocalRef>()->offset() << "\n";
     if (this->GetLocalValue(node->as<IRLocalRef>()->offset())) {
-      std::cerr << "HERE\n";
       return this->GetLocalValue(node->as<IRLocalRef>()->offset());
     }
   }

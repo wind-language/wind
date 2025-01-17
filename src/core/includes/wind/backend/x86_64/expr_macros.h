@@ -460,6 +460,8 @@
 
 
 #define WRITER_AND(rdst, rsrc) this->writer->and_(rdst, rsrc);
+#define WRITER_OR(rdst, rsrc) this->writer->or_(rdst, rsrc);
+#define WRITER_XOR(rdst, rsrc) this->writer->xor_(rdst, rsrc);
 #define WRITER_SHL(rdst, rsrc) this->writer->shl(rdst, rsrc);
 #define WRITER_SHR(rdst, rsrc) this->writer->shr(rdst, rsrc);
 #define WRITER_SAL(rdst, rsrc) this->writer->sal(rdst, rsrc);

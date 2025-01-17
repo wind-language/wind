@@ -5,7 +5,6 @@
 
 func t7(a: short, b: int, c: int, d:int, e: int, f: int, g: ptr<char>): int {
     printf("g: %p\n", g);
-    a += 9000;
     return 0;
 }
 
