@@ -51,35 +51,35 @@ private:
    * @param node The node to be optimized.
    * @return An optimized IRNode.
    */
-  IRNode *OptimizeNode(IRNode *node);
+  IRNode *OptimizeNode(IRNode *node, bool canLocFold);
 
   /**
    * @brief Optimizes binary operations.
    * @param node The binary operation node to be optimized.
    * @return An optimized IRNode.
    */
-  IRNode *OptimizeBinOp(IRBinOp *node);
+  IRNode *OptimizeBinOp(IRBinOp *node, bool canLocFold);
 
   /**
    * @brief Optimizes expressions.
    * @param node The expression node to be optimized.
    * @return An optimized IRNode.
    */
-  IRNode *OptimizeExpr(IRNode *node);
+  IRNode *OptimizeExpr(IRNode *node, bool canLocFold);
 
   /**
    * @brief Optimizes local variable declarations.
    * @param local_decl The local variable declaration node to be optimized.
    * @return An optimized IRNode.
    */
-  IRNode *OptimizeLDecl(IRVariableDecl *local_decl);
+  IRNode *OptimizeLDecl(IRVariableDecl *local_decl, bool canLocFold);
 
   /**
    * @brief Optimizes function calls.
    * @param fn_call The function call node to be optimized.
    * @return An optimized IRNode.
    */
-  IRNode *OptimizeFnCall(IRFnCall *fn_call);
+  IRNode *OptimizeFnCall(IRFnCall *fn_call, bool canLocFold);
 
   /**
    * @brief Optimizes functions.
@@ -109,9 +109,9 @@ private:
    */
   IRLiteral *OptimizeConstFold(IRBinOp *node);
 
-  IRNode *OptimizeGenIndexing(IRGenericIndexing *indexing);
-  IRNode *OptimizePtrGuard(IRPtrGuard *ptr_guard);
-  IRNode *OptimizeTypeCast(IRTypeCast *type_cast);
+  IRNode *OptimizeGenIndexing(IRGenericIndexing *indexing, bool canLocFold);
+  IRNode *OptimizePtrGuard(IRPtrGuard *ptr_guard, bool canLocFold);
+  IRNode *OptimizeTypeCast(IRTypeCast *type_cast, bool canLocFold);
 
   void NewLocalValue(int16_t local, IRNode *value);
   IRNode *GetLocalValue(int16_t local);
