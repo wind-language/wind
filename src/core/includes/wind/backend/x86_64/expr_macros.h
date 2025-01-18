@@ -356,8 +356,11 @@
         saved_rdx = this->regalloc.Allocate(8, true); \
         this->writer->mov(saved_rdx, x86::Gp::rdx); \
     } \
+    this->regalloc.SetDirty(x86::Gp::rdx); \
+    Reg tmp = this->EmitExpr((IRNode*)binop->right(), this->regalloc.Allocate(8, false)); \
     CQ_GEN(dst) \
-    op(binop->right()->as<IRLiteral>()->get()); \
+    op(tmp); \
+    this->regalloc.Free(tmp); \
     if (d_rdx) { \
         this->writer->mov(x86::Gp::rdx, saved_rdx); \
         this->regalloc.Free(saved_rdx); \

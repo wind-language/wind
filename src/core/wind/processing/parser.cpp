@@ -294,7 +294,7 @@ ASTNode *WindParser::parseExprPrimary() {
     case Token::MINUS : {
       // a negative number
       this->expect(Token::Type::MINUS, "-");
-      if (this->stream->peek()->type == Token::INTEGER) {
+      if (this->stream->current()->type == Token::INTEGER) {
         return this->parseExprLiteral(true);
       } else {
         return new BinaryExpr(

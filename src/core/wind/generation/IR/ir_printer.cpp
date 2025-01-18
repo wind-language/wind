@@ -238,7 +238,7 @@ void IRPrinter::print_ref(const IRLocalRef *node) {
 
 void IRPrinter::print_laddr(const IRLocalAddrRef *node) {
   std::cout << "&loc" << std::abs(node->offset());
-  if (node->isIndexed() != -1) {
+  if (node->isIndexed()) {
     std::cout << "[";
     this->print_node(node->getIndex());
     std::cout << "]";
