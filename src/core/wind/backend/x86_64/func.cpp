@@ -163,8 +163,8 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
     }
     if (!(func->flags & PURE_STCHK)) {
         std::string h_lab = "";
-        for (auto handle : this->current_fn->handlers) {
-            if (!handle.second.first) continue;
+        for (auto handle : this->current_fn->base_handlers) {
+            if (!handle.second.needEmit) continue;
             h_lab = HANDLER_LABEL(func->name(), handle.first);
             this->writer->BindLabel(this->writer->NewLabel(h_lab));
             this->writer->lea(x86::Gp::rdi, this->writer->ptr(
@@ -172,7 +172,17 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
                 0,
                 8
             ));
-            this->writer->jmp(handle.second.second);
+            this->writer->jmp(handle.second.handler_fn);
+        }
+        for (auto handle : this->current_fn->user_handlers) {
+            this->writer->BindLabel(this->writer->NewLabel(handle.handler_label));
+            this->current_fn->active_handlers = handle.handler_ctx; // restore context
+            for (auto &stmt : handle.body->get()) {
+                this->ProcessStatement(stmt.get());
+            }
+            this->writer->jmp(
+                ".L"+std::to_string(handle.lj_label_callback)
+            );
         }
     }
     this->current_fn = nullptr;

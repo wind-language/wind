@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
+#include <map>
 
 /**
  * @brief Constructor for IRRet.
@@ -601,4 +602,16 @@ IRNode *IRTypeCast::getValue() const {
 }
 DataType *IRTypeCast::getType() const {
   return cast_type;
+}
+
+
+IRTryCatch::IRTryCatch(IRBody *try_body, std::map<HandlerType, IRBody*> handlers) : try_body(try_body), handlers(std::move(handlers)) {}
+IRBody *IRTryCatch::getTryBody() const {
+  return try_body;
+}
+IRBody *IRTryCatch::getHandler(HandlerType type) const {
+  return handlers.at(type);
+}
+std::map<HandlerType, IRBody*> IRTryCatch::getHandlerMap() const {
+  return handlers;
 }
