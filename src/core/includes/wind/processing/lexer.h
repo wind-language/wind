@@ -30,7 +30,7 @@ public:
   Token *pop();
   void reset();
   Token *current() const;
-  void advance();
+  void advance(int16_t index=1);
   Token *peek(u_int16_t offset=1) const;
   bool end() const;
   Token *last() const;

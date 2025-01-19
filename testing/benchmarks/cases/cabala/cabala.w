@@ -2,8 +2,8 @@
   "#libc.wi"
 ]
 
-global maxRes:int64=-1;
-func occrec(N: int, last: int64, M: int64, i: int): void {
+global maxRes:s64=-1;
+func occrec(N: int, last: s64, M: s64, i: int): void {
     branch[
         N==i: return;
     ]
@@ -12,8 +12,8 @@ func occrec(N: int, last: int64, M: int64, i: int): void {
         branch[
             digit == (last%10): {}
             else : {
-                var newLast: int64 = (last*10)+digit;
-                var modc: int64 = newLast%M;
+                var newLast: s64 = (last*10)+digit;
+                var modc: s64 = newLast%M;
                 branch [
                     modc > maxRes: {
                         maxRes = modc;
@@ -26,7 +26,7 @@ func occrec(N: int, last: int64, M: int64, i: int): void {
     }
 }
 
-func occulta(N: int, M: int): int64 {
+func occulta(N: int, M: int): s64 {
     maxRes=-1;
     occrec(N,0,M,-1);
     return maxRes;

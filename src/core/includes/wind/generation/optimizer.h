@@ -102,6 +102,8 @@ private:
    */
   IRNode *OptimizeLooping(IRLooping *loop);
 
+  IRNode *OptimizeTryCatch(IRTryCatch *try_catch, bool canLocFold);
+
   /**
    * @brief Optimizes constant folding for binary operations.
    * @param node The binary operation node to be optimized.

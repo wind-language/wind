@@ -33,6 +33,7 @@ private:
   void print_fnref(const IRFnRef *node);
   void print_ptr_guard(const IRPtrGuard *node);
   void print_typecast(const IRTypeCast *node);
+  void print_trycatch(const IRTryCatch *node);
 
   void print_tabs();
 };

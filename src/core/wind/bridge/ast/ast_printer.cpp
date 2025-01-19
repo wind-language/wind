@@ -190,3 +190,31 @@ void *ASTPrinter::visit(const SizeOf &node) {
   std::cout << "sizeof<" << node.getType() << ">";
   return nullptr;
 }
+
+void *ASTPrinter::visit(const TryCatch &node) {
+  std::cout << "try {\n";
+  this->tabs++;
+  node.getTryBody()->accept(*this);
+  this->tabs--;
+  this->print_tabs();
+  std::cout << "}";
+  for (const auto &catch_block : node.getCatchBlocks()) {
+    std::cout << " [" << catch_block.first << "] {\n";
+    this->tabs++;
+    catch_block.second->accept(*this);
+    this->tabs--;
+    this->print_tabs();
+    std::cout << "}";
+  }
+  std::cout << "\n";
+  if (node.getFinallyBlock()) {
+    this->print_tabs();
+    std::cout << "finally {\n";
+    this->tabs++;
+    node.getFinallyBlock()->accept(*this);
+    this->tabs--;
+    this->print_tabs();
+    std::cout << "}\n";
+  }
+  return nullptr;
+}

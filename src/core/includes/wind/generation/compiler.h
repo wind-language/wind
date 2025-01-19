@@ -50,6 +50,7 @@ private:
   void *visit(const PtrGuard &node) override;
   void *visit(const TypeCast &node) override;
   void *visit(const SizeOf &node) override;
+  void *visit(const TryCatch &node) override;
 };
 
 #endif // COMPILER_H

@@ -6,7 +6,7 @@
 #include <wind/generation/IR.h>
 #include <wind/backend/writer/writer.h>
 #include <wind/backend/x86_64/backend.h>
-#include <wind/bridge/opt_flags.h>
+#include <wind/bridge/flags.h>
 #include <wind/processing/utils.h>
 #include <wind/backend/interface/gas.h>
 #include <stdexcept>
@@ -66,6 +66,9 @@ void WindEmitter::ProcessStatement(IRNode *node) {
             break;
         case IRNode::NodeType::CONTINUE:
             this->writer->jmp(this->writer->LabelById(this->c_flow_desc->start));
+            break;
+        case IRNode::NodeType::TRY_CATCH:
+            this->EmitTryCatch(node->as<IRTryCatch>());
             break;
         default:
             this->EmitExpr(node, Reg({0, 8, Reg::GPR}));

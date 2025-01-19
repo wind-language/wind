@@ -6,6 +6,20 @@
 #ifndef x86_64_BACKEND_H
 #define x86_64_BACKEND_H
 
+#define HANDLER_LABEL(fn_name, op) \
+    (".L__"+fn_name+"_"+op+".handler")
+
+struct BaseHandlerDesc {
+    bool needEmit;
+    const char *handler_fn;
+};
+struct UserHandlerDesc {
+    const char *handler_label;
+    uint16_t lj_label_callback;
+    IRBody *body;
+    std::map<std::string, UserHandlerDesc> handler_ctx;
+};
+
 class WindEmitter {
 private:
     IRBody *program;
@@ -106,6 +120,8 @@ private:
     void EmitBranch(IRBranching *branch);
     void EmitLoop(IRLooping *loop);
 
+    void EmitTryCatch(IRTryCatch *trycatch);
+
     Reg EmitFnCall(IRFnCall *call, Reg dst);
 
     Reg EmitValue(IRNode *value, Reg dst);
@@ -135,7 +151,7 @@ private:
     struct FunctionDesc {
         IRFunction *fn;
         uint16_t metadata_l=0;
-        std::map<std::string, std::pair<bool, const char *>> handlers = {
+        std::map<std::string, BaseHandlerDesc> base_handlers = {
             {"add", {false, "__WDH_sum_overflow"}},
             {"sub", {false, "__WDH_sub_overflow"}},
             {"mul", {false, "__WDH_mul_overflow"}},
@@ -145,8 +161,31 @@ private:
             {"bounds", {false, "__WDH_out_of_bounds"}},
             {"guard", {false, "__WDH_guard_failed"}}
         };
+        std::map<std::string, UserHandlerDesc> active_handlers;
+        std::vector<UserHandlerDesc> user_handlers;
     } *current_fn=nullptr;
 
+    const char *GetHandlerLabel(std::string instruction) {
+        if (current_fn->active_handlers.find(instruction) != current_fn->active_handlers.end()) {
+            return current_fn->active_handlers[instruction].handler_label;
+        }
+        if (current_fn->base_handlers.find(instruction) != current_fn->base_handlers.end()) {
+            current_fn->base_handlers[instruction].needEmit = true;
+            static std::string handler_str = HANDLER_LABEL(current_fn->fn->fn_name, instruction);
+            return handler_str.c_str();
+        }
+        return "";
+    }
+
+};
+
+const std::map<HandlerType, std::vector<std::string>> HANDLER_INSTR_MAP = {
+    {HandlerType::SUM_HANDLER, {"add"}},
+    {HandlerType::SUB_HANDLER, {"sub"}},
+    {HandlerType::MUL_HANDLER, {"mul", "imul"}},
+    {HandlerType::DIV_HANDLER, {"div", "idiv"}},
+    {HandlerType::BOUNDS_HANDLER, {"bounds"}},
+    {HandlerType::GUARD_HANDLER, {"guard"}}
 };
 
 #endif

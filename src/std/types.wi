@@ -1,16 +1,16 @@
-@type uint8 = unsigned byte;
-@type int8 = signed byte;
+@type u8 = unsigned byte;
+@type s8 = signed byte;
 
-@type uint16 = unsigned short;
-@type int16 = signed short;
+@type u16 = unsigned short;
+@type s16 = signed short;
 
-@type uint32 = unsigned int;
-@type int32 = signed int;
+@type u32 = unsigned int;
+@type s32 = signed int;
 
-@type uint64 = unsigned long;
-@type int64 = signed long;
+@type u64 = unsigned long;
+@type s64 = signed long;
 
-@type char = uint8;
-@type bool = uint8;
+@type char = u8;
+@type bool = u8;
 
 @type string = ptr<char>;

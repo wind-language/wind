@@ -1,7 +1,7 @@
 #include <stdint.h>
 
-#ifndef OPT_FLAGS
-#define OPT_FLAGS
+#ifndef BRIDGE_FLAGS
+#define BRIDGE_FLAGS
 
 #define PURE_STACK  (1 << 0)
 #define PURE_ABI    (1 << 1)

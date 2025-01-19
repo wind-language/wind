@@ -487,20 +487,11 @@
     } \
     this->TryCast(dst, x86::Gp::rdx); \
 
-#define HANDLER_LABEL(fn_name, op) \
-    (".L__"+fn_name+"_"+op+".handler")
-
 #define HANDLED_2OP(op, id, rdst, rsrc) \
-    if (!this->current_fn->handlers[#op].first) { \
-        this->current_fn->handlers[#op].first = true; \
-    } \
-    this->writer->op(rdst, rsrc, HANDLER_LABEL(this->current_fn->fn->name(), #op).c_str());
+    this->writer->op(rdst, rsrc, GetHandlerLabel(#op));
 
 #define HANDLED_1OP(op, id, rsrc) \
-    if (!this->current_fn->handlers[#op].first) { \
-        this->current_fn->handlers[#op].first = true; \
-    } \
-    this->writer->op(rsrc, HANDLER_LABEL(this->current_fn->fn->name(), #op).c_str());
+    this->writer->op(rsrc, GetHandlerLabel(#op));
 
 #define WRITER_ADD(rdst, rsrc) HANDLED_2OP(add, add, rdst, rsrc)
 #define WRITER_SUB(rdst, rsrc) HANDLED_2OP(sub, sub, rdst, rsrc)
@@ -521,15 +512,9 @@
 #define WRITER_CMP(rdst, rsrc) this->writer->cmp(rdst, rsrc);
 
 #define WRITER_JBOUNDS() \
-    if (!this->current_fn->handlers["bounds"].first) { \
-        this->current_fn->handlers["bounds"].first = true; \
-    } \
-    this->writer->jge(HANDLER_LABEL(this->current_fn->fn->name(), "bounds"));
+    this->writer->jge(GetHandlerLabel("bounds"));
 
 #define WRITER_JGUARD() \
-    if (!this->current_fn->handlers["guard"].first) { \
-        this->current_fn->handlers["guard"].first = true; \
-    } \
-    this->writer->jz(HANDLER_LABEL(this->current_fn->fn->name(), "guard"));
+    this->writer->jz(GetHandlerLabel("guard"));
 
 #endif

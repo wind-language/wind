@@ -142,8 +142,8 @@ Token *TokenStream::current() const {
 /**
  * @brief Advances the token stream by one token.
  */
-void TokenStream::advance() {
-  this->index++;
+void TokenStream::advance(int16_t index) {
+  this->index+=index;
 }
 
 /**
@@ -267,7 +267,8 @@ Token *WindLexer::LexHexadecimal() {
   std::string value;
   TokenPos start = this->stream.position();
   while ( LexUtils::hexadecimal(this->stream.current()) ) {
-    value += this->stream.current();
+    if ( this->stream.current() != '_')
+      value += this->stream.current();
     this->stream.advance();
   }
   TokenPos end = this->stream.position();

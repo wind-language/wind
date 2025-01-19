@@ -170,6 +170,12 @@ void IRPrinter::print_node(const IRNode *node) {
       );
       break;
     }
+    case IRNode::NodeType::TRY_CATCH: {
+      this->print_trycatch(
+        node->as<IRTryCatch>()
+      );
+      break;
+    }
     default : {
       std::cout << "Unknown node type " << (int)node->type() << std::endl;
       break;
@@ -354,4 +360,27 @@ void IRPrinter::print_typecast(const IRTypeCast *node) {
   std::cout << "<" << node->getType()->rawSize() << ">(";
   this->print_node(node->getValue());
   std::cout << ")";
+}
+
+void IRPrinter::print_trycatch(const IRTryCatch *node) {
+  std::cout << "try {\n";
+  this->print_node(node->getTryBody());
+  this->print_tabs();
+  std::cout << "}";
+  for (auto &handler : node->getHandlerMap()) {
+    std::cout << " [h" << (int)handler.first << "] {\n";
+    this->tabs++;
+    this->print_node(handler.second);
+    this->tabs--;
+    this->print_tabs();
+    std::cout << "}";
+  }
+  if (node->getFinallyBody()) {
+    std::cout << " finally {\n";
+    this->tabs++;
+    this->print_node(node->getFinallyBody());
+    this->tabs--;
+    this->print_tabs();
+    std::cout << "}";
+  }
 }

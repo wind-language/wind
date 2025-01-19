@@ -1,5 +1,6 @@
 #include <iostream>
 #include <algorithm>
+#include <map>
 #ifndef IR_H
 #define IR_H
 
@@ -8,7 +9,25 @@
 #include <vector>
 #include <unordered_map>
 #include <stdint.h>
-#include <wind/bridge/opt_flags.h>
+#include <wind/bridge/flags.h>
+
+enum HandlerType {
+  GUARD_HANDLER,
+  BOUNDS_HANDLER,
+  SUM_HANDLER,
+  SUB_HANDLER,
+  MUL_HANDLER,
+  DIV_HANDLER
+};
+
+const std::unordered_map<std::string, HandlerType> handler_map = {
+  {"GUARD", GUARD_HANDLER},
+  {"BOUNDS", BOUNDS_HANDLER},
+  {"SUM_OF", SUM_HANDLER},
+  {"SUB_OF", SUB_HANDLER},
+  {"MUL_OF", MUL_HANDLER},
+  {"DIV_OF", DIV_HANDLER}
+};
 
 class DataType {
   private:
@@ -91,7 +110,8 @@ public:
     FN_REF,
     GENERIC_INDEXING,
     PTR_GUARD,
-    TYPE_CAST
+    TYPE_CAST,
+    TRY_CATCH
   };
 
   virtual ~IRNode() = default;
@@ -456,6 +476,20 @@ public:
   NodeType type() const override { return NodeType::TYPE_CAST; }
 
   DataType *inferType() const override { return cast_type; }
+};
+
+class IRTryCatch : public IRNode {
+  IRBody *try_body;
+  IRBody *finally_body;
+  std::map<HandlerType, IRBody*> handlers;
+
+public:
+  IRTryCatch(IRBody *try_body, IRBody *finally_body, std::map<HandlerType, IRBody*> handlers);
+  IRBody *getTryBody() const;
+  IRBody *getHandler(HandlerType type) const;
+  IRBody *getFinallyBody() const;
+  std::map<HandlerType, IRBody*> getHandlerMap() const;
+  NodeType type() const override { return NodeType::TRY_CATCH; }
 };
 
 #endif // IR_H

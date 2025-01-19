@@ -10,5 +10,9 @@
 
 @pub @pure[stack logue stchk] func _start() : void {
   __WD_canary_gen();
+  asm {
+    mov rdi, [rsp];
+    lea rsi, [rsp + 8];
+  }
   _Exit(main());
 }

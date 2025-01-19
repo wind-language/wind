@@ -1,6 +1,6 @@
 #include <wind/generation/IR.h>
 #include <wind/generation/optimizer.h>
-#include <wind/bridge/opt_flags.h>
+#include <wind/bridge/flags.h>
 #include <wind/common/debug.h>
 
 #include <unordered_set>
@@ -349,6 +349,43 @@ IRNode *WindOptimizer::OptimizeTypeCast(IRTypeCast *type_cast, bool canLocFold) 
   return opt_type_cast;
 }
 
+IRNode *WindOptimizer::OptimizeTryCatch(IRTryCatch *try_catch, bool canLocFold) {
+  IRBody *opt_try = new IRBody({});
+  for (auto &node : try_catch->getTryBody()->get()) {
+    std::unique_ptr<IRNode> opt_node = std::unique_ptr<IRNode>(this->OptimizeNode(node.get(), false));
+    if (opt_node) {
+      *opt_try += std::move(opt_node);
+    }
+  }
+  std::map<HandlerType, IRBody*> opt_handlers;
+  for (auto &handler : try_catch->getHandlerMap()) {
+    IRBody *opt_handler = new IRBody({});
+    for (auto &node : handler.second->get()) {
+      std::unique_ptr<IRNode> opt_node = std::unique_ptr<IRNode>(this->OptimizeNode(node.get(), false));
+      if (opt_node) {
+        *opt_handler += std::move(opt_node);
+      }
+    }
+    opt_handlers[handler.first] = opt_handler;
+  }
+  IRBody *opt_finally = nullptr;
+  if (try_catch->getFinallyBody()) {
+    opt_finally = new IRBody({});
+    for (auto &node : try_catch->getFinallyBody()->get()) {
+      std::unique_ptr<IRNode> opt_node = std::unique_ptr<IRNode>(this->OptimizeNode(node.get(), false));
+      if (opt_node) {
+        *opt_finally += std::move(opt_node);
+      }
+    }
+  }
+  IRTryCatch *opt_try_catch = new IRTryCatch(
+    opt_try,
+    opt_finally,
+    opt_handlers
+  );
+  return opt_try_catch;
+}
+
 IRNode *WindOptimizer::OptimizeNode(IRNode *node, bool canLocFold) {
   if (node->is<IRRet>()) {
     IRRet *ret = node->as<IRRet>();
@@ -365,6 +402,9 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node, bool canLocFold) {
   }
   else if (node->is<IRLooping>()) {
     return this->OptimizeLooping(node->as<IRLooping>());
+  }
+  else if (node->is<IRTryCatch>()) {
+    return this->OptimizeTryCatch(node->as<IRTryCatch>(), canLocFold);
   }
   else if (node->is<IRBinOp>()) {
     return this->OptimizeBinOp(node->as<IRBinOp>(), canLocFold);

@@ -1,4 +1,5 @@
 #include <wind/backend/writer/writer.h>
+#include <iostream>
 #ifndef WRITER_Ax86_64_H
 #define WRITER_Ax86_64_H
 

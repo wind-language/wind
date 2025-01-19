@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
+#include <map>
 
 /**
  * @brief Constructor for IRRet.
@@ -244,7 +245,7 @@ IRLocalRef *IRFunction::NewLocal(std::string name, DataType *type, bool positive
     offset = this->plus_off;
   } else {
     stack_size += type->memSize();
-    offset = stack_size+0x10; // 0x10 left for canary
+    offset = stack_size + (this->flags & PURE_STCHK ? 0 : 0x8); // canary space
   }
   if (!positive_offset) {
     offset = -offset;
@@ -601,4 +602,19 @@ IRNode *IRTypeCast::getValue() const {
 }
 DataType *IRTypeCast::getType() const {
   return cast_type;
+}
+
+
+IRTryCatch::IRTryCatch(IRBody *try_body, IRBody *finally_body, std::map<HandlerType, IRBody*> handlers) : try_body(try_body), handlers(std::move(handlers)), finally_body(finally_body) {}
+IRBody *IRTryCatch::getTryBody() const {
+  return try_body;
+}
+IRBody *IRTryCatch::getFinallyBody() const {
+  return finally_body;
+}
+IRBody *IRTryCatch::getHandler(HandlerType type) const {
+  return handlers.at(type);
+}
+std::map<HandlerType, IRBody*> IRTryCatch::getHandlerMap() const {
+  return handlers;
 }

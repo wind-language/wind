@@ -13,5 +13,5 @@
 
 
 // Wind runtime functions useful for the user
-@extern func __builtin_copy(dst: ptr<char>, src: ptr<char>, size: uint64): void; 
-@extern func __builtin_memset(dst: ptr<char>, c: char, size: uint64): void;
+@extern func __builtin_copy(dst: ptr<char>, src: ptr<char>, size: u64): void; 
+@extern func __builtin_memset(dst: ptr<char>, c: char, size: u64): void;

@@ -577,3 +577,20 @@ void *WindCompiler::visit(const SizeOf &node) {
   DataType *type = this->ResolveDataType(node.getType());
   return new IRLiteral(type->moveSize());
 }
+
+void *WindCompiler::visit(const TryCatch &node) {
+  IRBody *try_body = (IRBody*)node.getTryBody()->accept(*this);
+  std::map<HandlerType, IRBody*> handlers;
+  for (const auto &handler : node.getCatchBlocks()) {
+    auto matched_handler = handler_map.find(handler.first);
+    if (matched_handler == handler_map.end()) {
+      throw std::runtime_error("Invalid handler type " + handler.first);
+    }
+    handlers[matched_handler->second] = (IRBody*)handler.second->accept(*this);
+  }
+  IRBody *finally_body = nullptr;
+  if (node.getFinallyBlock()) {
+    finally_body = (IRBody*)node.getFinallyBlock()->accept(*this);
+  }
+  return new IRTryCatch(try_body, finally_body, handlers);
+}

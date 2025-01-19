@@ -1,7 +1,7 @@
 #include <wind/generation/IR.h>
 #include <wind/backend/writer/writer.h>
 #include <wind/backend/x86_64/backend.h>
-#include <wind/bridge/opt_flags.h>
+#include <wind/bridge/flags.h>
 #include <stdexcept>
 #include <iostream>
 

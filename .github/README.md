@@ -23,8 +23,8 @@ Modernized C with a touch of Rust and a sprinkle of Go.
   </summary>
 
 ```rs
-global maxRes:int64=-1;
-func occrec(N: int, last: int64, M: int64, i: int): void {
+global maxRes:s64=-1;
+func occrec(N: int, last: s64, M: s64, i: int): void {
     branch[
         N==i: return;
     ]
@@ -33,8 +33,8 @@ func occrec(N: int, last: int64, M: int64, i: int): void {
         branch[
             digit == (last%10): {}
             else : {
-                var newLast: int64 = (last*10)+digit;
-                var modc: int64 = newLast%M;
+                var newLast: s64 = (last*10)+digit;
+                var modc: s64 = newLast%M;
                 branch [
                     modc > maxRes: {
                         maxRes = modc;

@@ -15,16 +15,16 @@
   abort();
 }
 
-@pub func __builtin_copy(dst: ptr<char>, src: ptr<char>, size: uint64): void {
-  var i: uint64 = 0;
+@pub func __builtin_copy(dst: ptr<char>, src: ptr<char>, size: u64): void {
+  var i: u64 = 0;
   loop [i < size] {
     dst[i] = src[i];
     i++;
   }
 }
 
-@pub func __builtin_memset(dst: ptr<char>, c: char, size: uint64): void {
-  var i: uint64 = 0;
+@pub func __builtin_memset(dst: ptr<char>, c: char, size: u64): void {
+  var i: u64 = 0;
   loop [i < size] {
     dst[i] = c;
     i++;
