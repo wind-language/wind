@@ -605,9 +605,12 @@ DataType *IRTypeCast::getType() const {
 }
 
 
-IRTryCatch::IRTryCatch(IRBody *try_body, std::map<HandlerType, IRBody*> handlers) : try_body(try_body), handlers(std::move(handlers)) {}
+IRTryCatch::IRTryCatch(IRBody *try_body, IRBody *finally_body, std::map<HandlerType, IRBody*> handlers) : try_body(try_body), handlers(std::move(handlers)), finally_body(finally_body) {}
 IRBody *IRTryCatch::getTryBody() const {
   return try_body;
+}
+IRBody *IRTryCatch::getFinallyBody() const {
+  return finally_body;
 }
 IRBody *IRTryCatch::getHandler(HandlerType type) const {
   return handlers.at(type);

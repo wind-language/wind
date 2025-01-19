@@ -588,5 +588,9 @@ void *WindCompiler::visit(const TryCatch &node) {
     }
     handlers[matched_handler->second] = (IRBody*)handler.second->accept(*this);
   }
-  return new IRTryCatch(try_body, handlers);
+  IRBody *finally_body = nullptr;
+  if (node.getFinallyBlock()) {
+    finally_body = (IRBody*)node.getFinallyBlock()->accept(*this);
+  }
+  return new IRTryCatch(try_body, finally_body, handlers);
 }

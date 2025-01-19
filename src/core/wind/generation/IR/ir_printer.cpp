@@ -375,4 +375,12 @@ void IRPrinter::print_trycatch(const IRTryCatch *node) {
     this->print_tabs();
     std::cout << "}";
   }
+  if (node->getFinallyBody()) {
+    std::cout << " finally {\n";
+    this->tabs++;
+    this->print_node(node->getFinallyBody());
+    this->tabs--;
+    this->print_tabs();
+    std::cout << "}";
+  }
 }

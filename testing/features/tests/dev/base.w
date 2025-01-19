@@ -16,6 +16,9 @@ func main(argc: int, argv: ptr<ptr<char>>): int {
     [GUARD] -> {
         printf("Null pointer exception handled\n");
     }
+    finally {
+        printf("Exceptions handled\n");
+    }
 
     return 0;
 }

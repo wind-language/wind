@@ -298,6 +298,7 @@ public:
 
 class TryCatch : public ASTNode {
   Body *try_body;
+  Body *finally_block;
   std::vector<std::pair<std::string, Body*>> catch_blocks;
 
 public:
@@ -305,7 +306,9 @@ public:
   void *accept(ASTVisitor &visitor) const;
   void setTryBody(Body* body);
   void addCatchBlock(std::string type, Body* body);
+  void setFinallyBlock(Body* body);
   const Body* getTryBody() const;
+  const Body* getFinallyBlock() const;
   const std::vector<std::pair<std::string, Body*>>& getCatchBlocks() const;
 };
 

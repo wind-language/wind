@@ -45,5 +45,20 @@ void WindEmitter::EmitTryCatch(IRTryCatch *trycatch) {
         this->ProcessStatement(statement.get());
     }
     this->current_fn->active_handlers = old_handlers;
-    this->writer->BindLabel(this->writer->NewLabel(".L"+std::to_string(this->ljl_i++))); // after try
+
+    uint16_t end_label = 0;
+    if (trycatch->getFinallyBody()) {
+        uint16_t finally_label = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
+        end_label = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
+        this->writer->jmp(this->writer->LabelById(end_label));
+        this->writer->BindLabel(finally_label);
+        for (auto &statement : trycatch->getFinallyBody()->get()) {
+            this->ProcessStatement(statement.get());
+        }
+        this->writer->jmp(this->writer->LabelById(end_label));
+    } else {
+        end_label = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
+    }
+
+    this->writer->BindLabel(end_label); // after try
 }

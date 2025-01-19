@@ -742,6 +742,18 @@ TryCatch *WindParser::parseTryCatch() {
     this->expect(Token::Type::RBRACE, "}");
     try_catch->addCatchBlock(block_name, catch_body);
   }
+  if (this->isKeyword(stream->current(), "finally")) {
+    this->expect(Token::Type::IDENTIFIER, "finally");
+    this->expect(Token::Type::LBRACE, "{");
+    Body *finally_body = new Body({});
+    while (!this->until(Token::Type::RBRACE)) {
+      *finally_body += std::unique_ptr<ASTNode>(
+        this->DiscriminateBody()
+      );
+    }
+    this->expect(Token::Type::RBRACE, "}");
+    try_catch->setFinallyBlock(finally_body);
+  }
   return try_catch;
 }
 

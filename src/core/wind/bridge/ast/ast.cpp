@@ -307,6 +307,9 @@ void TryCatch::setTryBody(Body* b) {
 void TryCatch::addCatchBlock(std::string e, Body* b) {
   catch_blocks.push_back({e, b});
 }
+void TryCatch::setFinallyBlock(Body* b) {
+  finally_block = b;
+}
 void *TryCatch::accept(ASTVisitor &visitor) const {
   return visitor.visit(*this);
 }
@@ -315,4 +318,7 @@ const Body* TryCatch::getTryBody() const {
 }
 const std::vector<std::pair<std::string, Body*>>& TryCatch::getCatchBlocks() const {
   return catch_blocks;
+}
+const Body* TryCatch::getFinallyBlock() const {
+  return finally_block;
 }

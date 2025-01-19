@@ -480,12 +480,14 @@ public:
 
 class IRTryCatch : public IRNode {
   IRBody *try_body;
+  IRBody *finally_body;
   std::map<HandlerType, IRBody*> handlers;
 
 public:
-  IRTryCatch(IRBody *try_body, std::map<HandlerType, IRBody*> handlers);
+  IRTryCatch(IRBody *try_body, IRBody *finally_body, std::map<HandlerType, IRBody*> handlers);
   IRBody *getTryBody() const;
   IRBody *getHandler(HandlerType type) const;
+  IRBody *getFinallyBody() const;
   std::map<HandlerType, IRBody*> getHandlerMap() const;
   NodeType type() const override { return NodeType::TRY_CATCH; }
 };

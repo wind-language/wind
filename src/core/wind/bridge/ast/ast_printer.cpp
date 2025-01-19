@@ -207,5 +207,14 @@ void *ASTPrinter::visit(const TryCatch &node) {
     std::cout << "}";
   }
   std::cout << "\n";
+  if (node.getFinallyBlock()) {
+    this->print_tabs();
+    std::cout << "finally {\n";
+    this->tabs++;
+    node.getFinallyBlock()->accept(*this);
+    this->tabs--;
+    this->print_tabs();
+    std::cout << "}\n";
+  }
   return nullptr;
 }

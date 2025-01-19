@@ -368,8 +368,19 @@ IRNode *WindOptimizer::OptimizeTryCatch(IRTryCatch *try_catch, bool canLocFold) 
     }
     opt_handlers[handler.first] = opt_handler;
   }
+  IRBody *opt_finally = nullptr;
+  if (try_catch->getFinallyBody()) {
+    opt_finally = new IRBody({});
+    for (auto &node : try_catch->getFinallyBody()->get()) {
+      std::unique_ptr<IRNode> opt_node = std::unique_ptr<IRNode>(this->OptimizeNode(node.get(), false));
+      if (opt_node) {
+        *opt_finally += std::move(opt_node);
+      }
+    }
+  }
   IRTryCatch *opt_try_catch = new IRTryCatch(
     opt_try,
+    opt_finally,
     opt_handlers
   );
   return opt_try_catch;
