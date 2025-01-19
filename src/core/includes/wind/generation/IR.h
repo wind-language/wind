@@ -8,7 +8,7 @@
 #include <vector>
 #include <unordered_map>
 #include <stdint.h>
-#include <wind/bridge/opt_flags.h>
+#include <wind/bridge/flags.h>
 
 class DataType {
   private:

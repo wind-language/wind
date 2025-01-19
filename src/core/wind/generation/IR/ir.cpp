@@ -244,7 +244,7 @@ IRLocalRef *IRFunction::NewLocal(std::string name, DataType *type, bool positive
     offset = this->plus_off;
   } else {
     stack_size += type->memSize();
-    offset = stack_size+0x10; // 0x10 left for canary
+    offset = stack_size + (this->flags & PURE_STCHK ? 0 : 0x8); // canary space
   }
   if (!positive_offset) {
     offset = -offset;

@@ -1,6 +1,6 @@
 #include <wind/generation/IR.h>
 #include <wind/generation/optimizer.h>
-#include <wind/bridge/opt_flags.h>
+#include <wind/bridge/flags.h>
 #include <wind/common/debug.h>
 
 #include <unordered_set>

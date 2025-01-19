@@ -15,7 +15,7 @@
 @const CURL_HTTP_VERSION_2_0 = 3;
 
 @extern func curl_easy_init(): CURL;
-@extern func curl_easy_setopt(curl: CURL, option: CURLcode, param: uint64): CURLcode;
+@extern func curl_easy_setopt(curl: CURL, option: CURLcode, param: u64): CURLcode;
 @extern func curl_easy_perform(curl: CURL): CURLcode;
 @extern func curl_easy_strerror(res: int): string;
 @extern func curl_easy_cleanup(curl: CURL): void;

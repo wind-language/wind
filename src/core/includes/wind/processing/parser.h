@@ -29,6 +29,7 @@ private:
   InlineAsm *parseInlAsm();
   Branching *parseBranch();
   Looping *parseLoop();
+  TryCatch *parseTryCatch();
 
   ASTNode *parseMacro();
 

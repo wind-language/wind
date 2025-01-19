@@ -202,7 +202,7 @@ void *WindCompiler::visit(const VarAddressing &node) {
   if (local == nullptr) {
     throw std::runtime_error("Variable " + node.getName() + " not found");
   }
-  if (node.getIndex() && !local->datatype()->isPointer() && !local->datatype()->isArray()) {
+  if (!local->datatype()->isPointer() && !local->datatype()->isArray()) {
     throw std::runtime_error("Variable " + node.getName() + " is not a pointer or array");
   }
   this->current_fn->occupyOffset(local->offset());
@@ -576,4 +576,8 @@ void *WindCompiler::visit(const TypeCast &node) {
 void *WindCompiler::visit(const SizeOf &node) {
   DataType *type = this->ResolveDataType(node.getType());
   return new IRLiteral(type->moveSize());
+}
+
+void *WindCompiler::visit(const TryCatch &node) {
+  return nullptr;
 }

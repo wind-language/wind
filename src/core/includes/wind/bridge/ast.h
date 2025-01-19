@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 #include <map>
-#include <wind/bridge/opt_flags.h>
+#include <wind/bridge/flags.h>
 
 class ASTVisitor;
 
@@ -296,6 +296,19 @@ public:
   const std::string& getType() const;
 };
 
+class TryCatch : public ASTNode {
+  Body *try_body;
+  std::vector<std::pair<std::string, Body*>> catch_blocks;
+
+public:
+  TryCatch();
+  void *accept(ASTVisitor &visitor) const;
+  void setTryBody(Body* body);
+  void addCatchBlock(std::string type, Body* body);
+  const Body* getTryBody() const;
+  const std::vector<std::pair<std::string, Body*>>& getCatchBlocks() const;
+};
+
 
 class ASTVisitor {
 public:
@@ -321,6 +334,7 @@ public:
   virtual void *visit(const PtrGuard &node) = 0;
   virtual void *visit(const TypeCast &node) = 0;
   virtual void *visit(const SizeOf &node) = 0;
+  virtual void *visit(const TryCatch &node) = 0;
 };
 
 #endif // AST_H

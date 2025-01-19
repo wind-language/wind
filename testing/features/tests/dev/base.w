@@ -3,9 +3,12 @@
 ]
 //@import "#link"
 
-func main(): int {
-    var test_ptr: ptr<ptr<char>> = guard![malloc(sizeof<ptr<char>>*32)];
-    test_ptr[test_ptr[0]] = "Hello";
-    printf("test_ptr[0]: %s\n", test_ptr[0]);
+func main(argc: int, argv: ptr<ptr<char>>): int {
+    var T: s16=30_000;
+    try {
+        T += 20_000; // sum overflow
+    } [SUM_OF] -> {
+        printf("Sum overflow handled\n");
+    }
     return 0;
 }

@@ -5,7 +5,7 @@
 #include <wind/processing/utils.h>
 #include <wind/bridge/ast.h>
 #include <wind/reporter/parser.h>
-#include <wind/bridge/opt_flags.h>
+#include <wind/bridge/flags.h>
 #include <wind/common/debug.h>
 #include <wind/isc/isc.h>
 #include <filesystem>
@@ -713,6 +713,38 @@ GlobalDecl *WindParser::parseGlobDecl() {
   }
 }
 
+TryCatch *WindParser::parseTryCatch() {
+  TryCatch *try_catch = new TryCatch();
+  this->expect(Token::Type::IDENTIFIER, "try");
+  this->expect(Token::Type::LBRACE, "{");
+  Body *try_body = new Body({});
+  while (!this->until(Token::Type::RBRACE)) {
+    *try_body += std::unique_ptr<ASTNode>(
+      this->DiscriminateBody()
+    );
+  }
+  try_catch->setTryBody(try_body);
+  this->expect(Token::Type::RBRACE, "}");
+  this->expect(Token::Type::LBRACKET, "[");
+  this->stream->advance(-1);
+  while (this->stream->current()->type == Token::Type::LBRACKET) {
+    this->expect(Token::Type::LBRACKET, "[");
+    std::string block_name = this->expect(Token::Type::IDENTIFIER, "catch block name")->value;
+    this->expect(Token::Type::RBRACKET, "]");
+    this->expect(Token::Type::ARROW, "->");
+    this->expect(Token::Type::LBRACE, "{");
+    Body *catch_body = new Body({});
+    while (!this->until(Token::Type::RBRACE)) {
+      *catch_body += std::unique_ptr<ASTNode>(
+        this->DiscriminateBody()
+      );
+    }
+    this->expect(Token::Type::RBRACE, "}");
+    try_catch->addCatchBlock(block_name, catch_body);
+  }
+  return try_catch;
+}
+
 ASTNode *WindParser::DiscriminateTop() {
   if (this->isKeyword(stream->current(), "func")) {
     return this->parseFn();
@@ -757,6 +789,9 @@ ASTNode *WindParser::DiscriminateBody() {
     this->expect(Token::Type::IDENTIFIER, "continue");
     this->expect(Token::Type::SEMICOLON, ";");
     return new Continue();
+  }
+  else if (this->isKeyword(stream->current(), "try")) {
+    return this->parseTryCatch();
   }
   else {
     return this->parseExprSemi();

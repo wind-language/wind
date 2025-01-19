@@ -3,8 +3,8 @@
     "curl.wi"
 ]
 
-func write_cb(contents: ptr<char>, size: int64, nmemb: int64, userp: ptr<uint64>): int64 {
-    var realsize: int64 = size * nmemb;
+func write_cb(contents: ptr<char>, size: s64, nmemb: s64, userp: ptr<u64>): s64 {
+    var realsize: s64 = size * nmemb;
     var alloc_ptr: ptr<char> = guard![ realloc(userp[0], userp[1] + realsize + 1) ];
     branch [
         alloc_ptr == Null: return 0;
@@ -16,7 +16,7 @@ func write_cb(contents: ptr<char>, size: int64, nmemb: int64, userp: ptr<uint64>
         realsize
     );
     userp[1] = userp[1] + realsize;
-    var mem_size: int64 = userp[1]-1;
+    var mem_size: s64 = userp[1]-1;
     var cast_ptr: ptr<char> = userp[0];
     cast_ptr[mem_size] = 0;
 
@@ -32,7 +32,7 @@ func write_cb(contents: ptr<char>, size: int64, nmemb: int64, userp: ptr<uint64>
     var curl: CURL = guard![curl_easy_init()];
     var res: CURLcode;
 
-    var chunk: [uint64;2];
+    var chunk: [u64;2];
     chunk[0] = malloc(1);
     chunk[1] = 0;
 
