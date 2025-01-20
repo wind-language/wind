@@ -41,35 +41,39 @@ void WindCompiler::compile() {
   this->emission = (IRBody*)this->program->accept(*this);
 }
 
-DataType *typePriority(DataType *left, DataType *right) {
+DataType *typePriority(const IRNode *left, const IRNode *right) {
+  DataType *left_t = left->inferType();
+  DataType *right_t = right->inferType();
   // always prefer pointer types over scalar types
-  if (left->isPointer()) {
-    return left;
-  } else if (right->isPointer()) {
-    return right;
+  if (left_t->isPointer()) {
+    return left_t;
+  } else if (right_t->isPointer()) {
+    return right_t;
   }
   // if both are arrays, prefer the one with the highest capacity
-  if (left->isArray() && right->isArray()) {
-    if (left->getCaps() > right->getCaps()) {
-      return left;
+  if (left_t->isArray() && right_t->isArray()) {
+    if (left_t->getCaps() > right_t->getCaps()) {
+      return left_t;
     } else {
-      return right;
+      return right_t;
     }
   }
   // if one is an array and the other is not, prefer the array
-  if (left->isArray()) {
-    return left;
-  } else if (right->isArray()) {
-    return right;
+  if (left_t->isArray()) {
+    return left_t;
+  } else if (right_t->isArray()) {
+    return right_t;
   }
   // if both are scalars, prefer the one with the highest size
-  if (left->moveSize() > right->moveSize()) {
-    return left;
+  if (left->is<IRLiteral>()) return right_t;
+  if (right->is<IRLiteral>()) return left_t;
+  if (left_t->moveSize() > right_t->moveSize()) {
+    return left_t;
   } else {
-    return right;
+    return right_t;
   }
-  // if all else fails, return the left type
-  return left;
+  // if all else fails, return the left_t type
+  return left_t;
 }
 
 DataType *findInferType(IRBinOp *binop) {
@@ -83,10 +87,24 @@ DataType *findInferType(IRBinOp *binop) {
     case IRBinOp::VA_ASSIGN:
       return binop->left()->inferType();
     default: {
-      DataType *left = binop->left()->inferType();
-      DataType *right = binop->right()->inferType();
-      return typePriority(left, right);
+      return typePriority(binop->left(), binop->right());
     }
+  }
+}
+
+void WindCompiler::CanCoerce(IRNode *left, IRNode *right) {
+  DataType *left_t = left->inferType();
+  DataType *right_t = right->inferType();
+  if (left->is<IRLiteral>() || right->is<IRLiteral>()) return;
+  if (left_t->isVoid() || right_t->isVoid()) {
+    throw std::runtime_error("Cannot coerce void type");
+  }
+  if (left_t->isPointer() || right_t->isPointer()) return;
+  if (left_t->isArray() || right_t->isArray()) return;
+  if (left_t->moveSize() != right_t->moveSize()) {
+    std::cerr << "Left type: " << left_t->moveSize() << " Right type: " << right_t->moveSize() << std::endl;
+    std::cerr << "Left Node: " << (int)left->type() << " Right Node: " << (int)right->type() << std::endl;
+    throw std::runtime_error("Cannot coerce types of different sizes, cast required");
   }
 }
 
@@ -103,21 +121,27 @@ void* WindCompiler::visit(const BinaryExpr &node) {
     if (left->type() == IRNode::NodeType::LOCAL_REF) {
       // discontinued as unsafe (unchecked overflow)
       // op = IRBinOp::Operation::L_PLUS_ASSIGN;
-      op = IRBinOp::Operation::L_ASSIGN;
-      right = new IRBinOp(
-        std::unique_ptr<IRNode>(left),
-        std::unique_ptr<IRNode>(right),
-        IRBinOp::Operation::ADD
-      );
+      return (IRNode*)(new BinaryExpr(
+        std::unique_ptr<ASTNode>((ASTNode*)node.getLeft()),
+        std::unique_ptr<ASTNode>(new BinaryExpr(
+          std::unique_ptr<ASTNode>((ASTNode*)node.getLeft()),
+          std::unique_ptr<ASTNode>((ASTNode*)node.getRight()),
+          "+"
+        )),
+        "="
+      ))->accept(*this);
     }
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
       //op = IRBinOp::Operation::G_PLUS_ASSIGN;
-      op = IRBinOp::Operation::G_ASSIGN;
-      right = new IRBinOp(
-        std::unique_ptr<IRNode>(left),
-        std::unique_ptr<IRNode>(right),
-        IRBinOp::Operation::ADD
-      );
+      return (IRNode*)(new BinaryExpr(
+        std::unique_ptr<ASTNode>((ASTNode*)node.getLeft()),
+        std::unique_ptr<ASTNode>(new BinaryExpr(
+          std::unique_ptr<ASTNode>((ASTNode*)node.getLeft()),
+          std::unique_ptr<ASTNode>((ASTNode*)node.getRight()),
+          "+"
+        )),
+        "="
+      ))->accept(*this);
     }
     else {
       throw std::runtime_error("Left operand of += must be a variable reference (also not a pointer)");
@@ -127,21 +151,27 @@ void* WindCompiler::visit(const BinaryExpr &node) {
     if (left->type() == IRNode::NodeType::LOCAL_REF) {
       // discontinued as unsafe (unchecked overflow)
       //op = IRBinOp::Operation::L_MINUS_ASSIGN;
-      op = IRBinOp::Operation::L_ASSIGN;
-      right = new IRBinOp(
-        std::unique_ptr<IRNode>(left),
-        std::unique_ptr<IRNode>(right),
-        IRBinOp::Operation::SUB
-      );
+      return (IRNode*)(new BinaryExpr(
+        std::unique_ptr<ASTNode>((ASTNode*)node.getLeft()),
+        std::unique_ptr<ASTNode>(new BinaryExpr(
+          std::unique_ptr<ASTNode>((ASTNode*)node.getLeft()),
+          std::unique_ptr<ASTNode>((ASTNode*)node.getRight()),
+          "-"
+        )),
+        "="
+      ))->accept(*this);
     } 
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
       //op = IRBinOp::Operation::G_MINUS_ASSIGN;
-      op = IRBinOp::Operation::G_ASSIGN;
-      right = new IRBinOp(
-        std::unique_ptr<IRNode>(left),
-        std::unique_ptr<IRNode>(right),
-        IRBinOp::Operation::SUB
-      );
+      return (IRNode*)(new BinaryExpr(
+        std::unique_ptr<ASTNode>((ASTNode*)node.getLeft()),
+        std::unique_ptr<ASTNode>(new BinaryExpr(
+          std::unique_ptr<ASTNode>((ASTNode*)node.getLeft()),
+          std::unique_ptr<ASTNode>((ASTNode*)node.getRight()),
+          "-"
+        )),
+        "="
+      ))->accept(*this);
     }
     else {
       throw std::runtime_error("Left operand of -= must be a variable reference (also not a pointer)");
@@ -164,7 +194,10 @@ void* WindCompiler::visit(const BinaryExpr &node) {
     else {
       throw std::runtime_error("Left operand of assignment must be a variable reference or an indexed pointer");
     }
-  } else { op = IRstr2op(node.getOperator()); }
+  } else {
+    op = IRstr2op(node.getOperator());
+    this->CanCoerce(left, right);
+  }
   IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(left), std::unique_ptr<IRNode>(right), op);
   binop->setInferedType(findInferType(binop));
   return binop;

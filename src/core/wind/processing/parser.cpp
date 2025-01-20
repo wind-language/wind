@@ -162,7 +162,8 @@ static Token::Type TOK_OP_LIST[]={
   Token::Type::NOTEQ,
   Token::Type::OR,
   Token::Type::AND,
-  Token::Type::XOR
+  Token::Type::XOR,
+  Token::Type::CAST_SYMBOL
 };
 
 bool tokIsOperator(Token *tok) {
@@ -229,19 +230,6 @@ ASTNode *WindParser::parseExprPrimary() {
         this->expect(Token::Type::RBRACKET, "]");
         return new PtrGuard(
           std::unique_ptr<ASTNode>(value)
-        );
-      }
-      else if (isKeyword(this->stream->current(), "cast") && this->stream->peek()->type == Token::Type::LESS) {
-        // type cast
-        this->expect(Token::Type::IDENTIFIER, "cast");
-        this->expect(Token::Type::LESS, "<");
-        std::string type = this->typeSignature(Token::Type::GREATER, Token::Type::GREATER);
-        this->expect(Token::Type::GREATER, ">");
-        this->expect(Token::Type::LPAREN, "(");
-        ASTNode *value = this->parseExpr(0);
-        this->expect(Token::Type::RPAREN, ")");
-        return new TypeCast(
-          type, std::unique_ptr<ASTNode>(value)
         );
       }
       else if (isKeyword(this->stream->current(), "sizeof") && this->stream->peek()->type == Token::Type::LESS) {
@@ -318,7 +306,8 @@ ASTNode *WindParser::parseExpr(int precedence) {
   if (!left) {
     return nullptr;
   }
-  ASTNode *enode = this->parseExprBinOp(left, precedence);
+  ASTNode *enode = left;
+  enode = this->parseExprBinOp(enode, precedence);
 
   while (this->stream->current()->type == Token::Type::LBRACKET) {
     this->expect(Token::Type::LBRACKET, "[");
@@ -367,6 +356,8 @@ int getOpPrecedence(Token *tok) {
     case Token::Type::GREATER:
     case Token::Type::LESSEQ:
       return 2;
+    case Token::Type::CAST_SYMBOL:
+      return 3;
 
     // TODO: More
     default:
@@ -399,6 +390,13 @@ ASTNode *WindParser::parseExprBinOp(ASTNode *left, int precedence) {
         std::unique_ptr<ASTNode>(left),
         std::unique_ptr<ASTNode>(right),
         "-="
+      );
+      continue;
+    }
+    else if (op->type == Token::Type::CAST_SYMBOL) {
+      left = new TypeCast(
+        this->typeSignature(Token::Type::IDENTIFIER),
+        std::unique_ptr<ASTNode>(left)
       );
       continue;
     }

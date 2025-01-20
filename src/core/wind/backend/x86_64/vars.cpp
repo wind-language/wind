@@ -67,7 +67,7 @@ Reg WindEmitter::EmitGlobRef(IRGlobRef *ref, Reg dst) {
         return {dst.id, (uint8_t)ref->getType()->moveSize(), Reg::GPR, ref->getType()->isSigned()};
     }
     CASTED_MOV(
-        dst,
+        CastReg(dst, ref->getType()->moveSize()),
         this->writer->ptr(
             ref->getName(),
             0,
@@ -101,7 +101,7 @@ Reg WindEmitter::EmitLocRef(IRLocalRef *ref, Reg dst) {
         );
     } else {
         CASTED_MOV(
-            dst,
+            CastReg(dst, ref->datatype()->moveSize()),
             this->writer->ptr(
                 x86::Gp::rbp,
                 ref->offset(),

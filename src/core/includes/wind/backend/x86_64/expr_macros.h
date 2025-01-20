@@ -2,7 +2,7 @@
 #define BACKEND_EXPR_MACROS
 
 #define CASTED_MOV(dst, src) \
-    if (dst.size > src.size || dst.size < src.size) { \
+    if (dst.size > src.size) { \
         if (!dst.signed_value) { \
             this->writer->movzx(dst, src); \
         } else { \

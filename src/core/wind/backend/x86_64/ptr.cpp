@@ -20,7 +20,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
             IRNode *index = ref->getIndex();
             if (index->is<IRLiteral>()) {
                 CASTED_MOV(
-                    dst,
+                    CastReg(dst, ref->datatype()->rawSize()),
                     this->writer->ptr(
                         CastReg(dst, 8),
                         ref->datatype()->index2offset(index->as<IRLiteral>()->get()),
@@ -30,7 +30,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
             } else {
                 Reg r_index = this->EmitExpr(index, x86::Gp::rbx);
                 CASTED_MOV(
-                    dst,
+                    CastReg(dst, ref->datatype()->rawSize()),
                     this->writer->ptr(
                         CastReg(dst, 8),
                         CastReg(r_index, 8),
@@ -48,7 +48,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
             }
             dst.size = ref->datatype()->moveSize(); dst.signed_value = ref->datatype()->isSigned();
             CASTED_MOV(
-                dst,
+                CastReg(dst, ref->datatype()->rawSize()),
                 this->writer->ptr(
                     x86::Gp::rbp,
                     offset,
@@ -62,7 +62,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
             regalloc.SetDirty(index);
             if (!ref->datatype()->hasCapacity() || this->current_fn->fn->flags & PURE_STCHK) {
                 CASTED_MOV(
-                    dst,
+                    CastReg(dst, ref->datatype()->rawSize()),
                     this->writer->ptr(
                         x86::Gp::rbp,
                         index,
@@ -96,7 +96,7 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
                     x86::Gp::rbp
                 );
                 CASTED_MOV(
-                    dst,
+                    CastReg(dst, ref->datatype()->rawSize()),
                     this->writer->ptr(
                         addr_holder,
                         0,
@@ -260,7 +260,7 @@ Reg WindEmitter::EmitGenAddrRef(IRGenericIndexing *ref, Reg dst) {
         Reg base = this->EmitExpr(ref->getBase(), x86::Gp::rbx);
         int16_t indexv = index->as<IRLiteral>()->get();
         CASTED_MOV(
-            dst,
+            CastReg(dst, ref->inferType()->rawSize()),
             this->writer->ptr(
                 CastReg(base, 8),
                 ref->inferType()->index2offset(indexv),
@@ -273,7 +273,7 @@ Reg WindEmitter::EmitGenAddrRef(IRGenericIndexing *ref, Reg dst) {
     Reg r_index = this->EmitExpr(index, this->regalloc.Allocate(8, false));
     r_index = {r_index.id, 8, Reg::GPR, false};
     CASTED_MOV(
-        dst,
+        CastReg(dst, ref->inferType()->rawSize()),
         this->writer->ptr(
             CastReg(base, 8),
             CastReg(r_index, 8),

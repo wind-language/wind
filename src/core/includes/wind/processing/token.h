@@ -50,7 +50,8 @@ public:
     DECREMENT,
     NOTEQ,
     NOT,
-    ARROW
+    ARROW,
+    CAST_SYMBOL
   };
   
   std::string value;
@@ -81,6 +82,7 @@ std::vector<std::pair<std::string, Token::Type>> const SymbolTable = {
   {"--", Token::Type::DECREMENT},
   {"!=", Token::Type::NOTEQ},
   {"->", Token::Type::ARROW},
+  {"::", Token::Type::CAST_SYMBOL},
   
   {"+", Token::Type::PLUS},
   {"-", Token::Type::MINUS},

@@ -5,12 +5,13 @@
 func main(argc: int, argv: ptr<ptr<char>>): int {
     var T: s16=30_000;
     var i: int=0;
+    var tptr: ptr<int> = guard![malloc(sizeof<int>*8)];
 
     loop [true] {
-        printf("Enter a number to sum to %d within 16 bits: ", T);
-        scanf("%d", &i);
+        printf("Enter a number to sum to %hd within 16 bits: ", T);
+        scanf("%hd", &i);
         try {
-            T += i;
+            T += (i :: s16) + (tptr[0] :: s16);
         }
         [SUM_OF] -> {
             printf("Sum overflowed 16 bits\n");
@@ -20,7 +21,7 @@ func main(argc: int, argv: ptr<ptr<char>>): int {
         }
         break;
     }
-    printf("Sum: %d\n", T);
+    printf("Sum: %hd\n", T);
 
     return 0;
 }
