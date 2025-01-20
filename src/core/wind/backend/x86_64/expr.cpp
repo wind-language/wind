@@ -145,7 +145,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
         }
         case IRNode::NodeType::LOCAL_REF: {
             Reg *freg = this->regalloc.FindLocalVar(binop->right()->as<IRLocalRef>()->offset(), binop->right()->as<IRLocalRef>()->datatype()->moveSize());
-            dst = this->CastReg(dst, binop->right()->as<IRLocalRef>()->datatype()->moveSize());
+            //dst = this->CastReg(dst, binop->right()->as<IRLocalRef>()->datatype()->moveSize());
             switch (binop->operation()) {
                 OPT_LOCAL_OP(IRBinOp::ADD, WRITER_ADD)
                 OPT_LOCAL_OP(IRBinOp::SUB, WRITER_SUB)
@@ -185,7 +185,7 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
         }
         case IRNode::NodeType::GLOBAL_REF: {
             Reg *freg = this->regalloc.FindLabel(binop->right()->as<IRGlobRef>()->getName(), binop->right()->as<IRGlobRef>()->getType()->moveSize());
-            dst = this->CastReg(dst, binop->right()->as<IRGlobRef>()->getType()->moveSize());
+            //dst = this->CastReg(dst, binop->right()->as<IRGlobRef>()->getType()->moveSize());
             switch (binop->operation()) {
                 GLOBAL_OP(IRBinOp::ADD, WRITER_ADD)
                 GLOBAL_OP(IRBinOp::SUB, WRITER_SUB)
@@ -275,27 +275,15 @@ Reg WindEmitter::EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp) {
             break;
         }
         case IRBinOp::L_ASSIGN: {
-            L_ASSIGN_OP(tmp)
+            L_ASSIGN_OP(
+                CastReg(tmp, binop->left()->as<IRLocalRef>()->datatype()->moveSize())
+            )
             break;
         }
         case IRBinOp::G_ASSIGN: {
-            G_ASSIGN_OP(tmp)
-            break;
-        }
-        case IRBinOp::L_PLUS_ASSIGN: {
-            L_PLUS_ASSIGN_OP(tmp)
-            break;
-        }
-        case IRBinOp::G_PLUS_ASSIGN: {
-            G_PLUS_ASSIGN_OP(tmp)
-            break;
-        }
-        case IRBinOp::L_MINUS_ASSIGN: {
-            L_MINUS_ASSIGN_OP(tmp)
-            break;
-        }
-        case IRBinOp::G_MINUS_ASSIGN: {
-            G_MINUS_ASSIGN_OP(tmp)
+            G_ASSIGN_OP(
+                CastReg(tmp, binop->left()->as<IRGlobRef>()->getType()->moveSize())
+            )
             break;
         }
         case IRBinOp::VA_ASSIGN: {

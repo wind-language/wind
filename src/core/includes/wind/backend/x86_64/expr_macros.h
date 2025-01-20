@@ -23,9 +23,9 @@
     op(dst, this->writer->ptr( \
         x86::Gp::rbp, \
         binop->right()->as<IRLocalRef>()->offset(), \
-        binop->right()->as<IRLocalRef>()->datatype()->moveSize() \
+        dst.size \
     )); \
-    return {dst.id, (uint8_t)binop->right()->as<IRLocalRef>()->datatype()->moveSize(), Reg::GPR, binop->right()->as<IRLocalRef>()->datatype()->isSigned()};
+    return dst;
 
 #define OPT_LOCAL_OP(type, op) \
     case type: { \
@@ -42,9 +42,9 @@
     op(dst, this->writer->ptr( \
         binop->right()->as<IRGlobRef>()->getName(), \
         0, \
-        binop->right()->as<IRGlobRef>()->getType()->moveSize() \
+        dst.size \
     )); \
-    return {dst.id, (uint8_t)binop->right()->as<IRGlobRef>()->getType()->moveSize(), Reg::GPR, binop->right()->as<IRGlobRef>()->getType()->isSigned()};
+    return dst;
 
 #define GLOBAL_OP(type, op) \
     case type: { \
@@ -107,7 +107,7 @@
     ); \
 
 #define G_MINUS_ASSIGN_OP(src) \
-    this->writer->sub( \
+    WRITER_SUB( \
         this->writer->ptr( \
             binop->left()->as<IRGlobRef>()->getName(), \
             0, \
@@ -135,7 +135,8 @@
                     offset, \
                     ref->datatype()->rawSize() \
                 ), \
-                src \
+                src, \
+                ref->datatype()->rawSize() \
             ); \
         } \
         else { \
@@ -150,7 +151,8 @@
                     ref->offset(), \
                     ref->datatype()->rawSize() \
                 ), \
-                src \
+                src, \
+                ref->datatype()->rawSize() \
             ); \
         } \
     }
@@ -181,7 +183,8 @@
                     offset, \
                     ref->datatype()->rawSize() \
                 ), \
-                src \
+                src, \
+                ref->datatype()->rawSize() \
             ); \
         } \
         else { \
@@ -205,7 +208,8 @@
                     ref->offset(), \
                     ref->datatype()->rawSize() \
                 ), \
-                src \
+                src, \
+                ref->datatype()->rawSize() \
             ); \
         } \
     } \

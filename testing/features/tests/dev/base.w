@@ -4,11 +4,11 @@
 
 func main(argc: int, argv: ptr<ptr<char>>): int {
     var T: s16=30_000;
-    var i: s16=0;
+    var i: int=0;
 
     loop [true] {
         printf("Enter a number to sum to %d within 16 bits: ", T);
-        scanf("%hu", &i);
+        scanf("%d", &i);
         try {
             T += i;
         }
