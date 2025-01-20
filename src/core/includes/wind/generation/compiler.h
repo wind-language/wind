@@ -26,6 +26,7 @@ private:
 
   void compile();
   DataType *ResolveDataType(const std::string &type);
+  void CanCoerce(IRNode *left, IRNode *right);
 
   // Visitor
   void *visit(const BinaryExpr &node) override;

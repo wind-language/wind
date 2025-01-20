@@ -58,6 +58,14 @@ func occrec(N: int, last: s64, M: s64, i: int): void {
 </td>
 </tr>
 </table>
+
+<div align="center">
+
+## [Documentation](https://wind-lang.me)
+## [VSCode Extension](https://marketplace.visualstudio.com/items?itemName=WindLang.wind-lang)
+
+</div>
+
 <div align="center">
   <h3>Try benchmarking it!</h3>
 </div>
@@ -65,9 +73,3 @@ func occrec(N: int, last: s64, M: s64, i: int): void {
 ```sh
 python testing/benchmarks/run_bench.py cabala
 ```
-
-<div align="center">
-
-## [Documentation](https://wind-lang.me)
-
-</div>
