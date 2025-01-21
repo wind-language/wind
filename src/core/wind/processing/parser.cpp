@@ -755,12 +755,29 @@ TryCatch *WindParser::parseTryCatch() {
   return try_catch;
 }
 
+Namespace *WindParser::parseNamespace() {
+  this->expect(Token::Type::IDENTIFIER, "namespace");
+  std::string name = this->expect(Token::Type::IDENTIFIER, "namespace name")->value;
+  this->expect(Token::Type::LBRACE, "{");
+  Body *ns_body = new Body({});
+  while (!this->until(Token::Type::RBRACE)) {
+    *ns_body += std::unique_ptr<ASTNode>(
+      this->DiscriminateTop()
+    );
+  }
+  this->expect(Token::Type::RBRACE, "}");
+  return new Namespace(name, ns_body);
+}
+
 ASTNode *WindParser::DiscriminateTop() {
   if (this->isKeyword(stream->current(), "func")) {
     return this->parseFn();
   }
   else if (this->isKeyword(stream->current(), "global")) {
     return this->parseGlobDecl();
+  }
+  else if (this->isKeyword(stream->current(), "namespace")) {
+    return this->parseNamespace();
   }
   else if (this->stream->current()->type == Token::Type::AT) {
     return this->parseMacro();

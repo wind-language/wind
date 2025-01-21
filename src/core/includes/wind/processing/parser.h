@@ -30,6 +30,7 @@ private:
   Branching *parseBranch();
   Looping *parseLoop();
   TryCatch *parseTryCatch();
+  Namespace *parseNamespace();
 
   ASTNode *parseMacro();
 

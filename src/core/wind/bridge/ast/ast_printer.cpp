@@ -218,3 +218,13 @@ void *ASTPrinter::visit(const TryCatch &node) {
   }
   return nullptr;
 }
+
+void *ASTPrinter::visit(const Namespace &node) {
+  std::cout << "namespace " << node.getName() << " {\n";
+  this->tabs++;
+  node.getChildren()->accept(*this);
+  this->tabs--;
+  this->print_tabs();
+  std::cout << "}\n";
+  return nullptr;
+}

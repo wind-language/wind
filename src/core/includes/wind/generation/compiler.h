@@ -23,10 +23,48 @@ private:
   std::map<std::string, IRGlobRef*> global_table;
   std::map<std::string, IRFunction*> fn_table;
   bool decl_return = false;
+  std::vector<std::string> active_namespaces;
+
+  std::string nameMangle(const std::string &name) {
+    std::string mangled = "";
+    for (char c : name) {
+      if (c == ':') {
+        mangled += "_";
+      } else {
+        mangled += c;
+      }
+    }
+    return mangled;
+  }
+  std::string getFullMangled(const std::string &name) {
+    std::string base = "";
+    for (const std::string &ns : active_namespaces) {
+      base += ns + "__";
+    }
+    base += nameMangle(name);
+    return base;
+  }
+  std::map<std::string, IRFunction *>::iterator findFunction(const std::string &name) {
+    std::string base = nameMangle(name);
+    auto found = fn_table.find(base);
+    if (found != fn_table.end()) {
+      return found;
+    }
+    for (const std::string &ns : active_namespaces) {
+      base = ns + "__" + base;
+      found = fn_table.find(base);
+      if (found != fn_table.end()) {
+        return found;
+      }
+    }
+    return fn_table.end();
+  }
+
 
   void compile();
   DataType *ResolveDataType(const std::string &type);
   void CanCoerce(IRNode *left, IRNode *right);
+  void NodeIntoBody(IRNode *node, IRBody *body);
 
   // Visitor
   void *visit(const BinaryExpr &node) override;
@@ -52,6 +90,7 @@ private:
   void *visit(const TypeCast &node) override;
   void *visit(const SizeOf &node) override;
   void *visit(const TryCatch &node) override;
+  void *visit(const Namespace &node) override;
 };
 
 #endif // COMPILER_H

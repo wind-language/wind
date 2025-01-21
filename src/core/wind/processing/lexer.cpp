@@ -284,12 +284,19 @@ Token *WindLexer::LexIdentifier() {
   std::string value;
   TokenPos start = this->stream.position();
   start.second--;
-  while ( LexUtils::alphanum(this->stream.current()) ) {
+  while (
+    LexUtils::alphanum(this->stream.current())
+    || (this->stream.current() == ':' && this->stream.peek() == ':') // namespace separator
+  ) {
+    if (this->stream.current() == ':') { value += "::"; this->stream.advance(2); continue; }
     value += this->stream.current();
     this->stream.advance();
   }
   TokenPos end = this->stream.position();
   end.second--;
+  if (value == "as") {
+    return new Token(value, Token::Type::CAST_SYMBOL, "Cast Symbol", std::make_pair(start, end), this->srcId);
+  }
   return new Token(value, Token::Type::IDENTIFIER, "Identifier", std::make_pair(start, end), this->srcId);
 }
 

@@ -28,6 +28,7 @@ public:
     void *visit(const TypeCast &node) override;
     void *visit(const SizeOf &node) override;
     void *visit(const TryCatch &node) override;
+    void *visit(const Namespace &node) override;
 
 private:
     void print_tabs();

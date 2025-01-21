@@ -203,7 +203,7 @@ void IRPrinter::print_function(const IRFunction *node) {
   }
   std::cout << "function " << node->name() << " {" << std::endl;
   this->print_body(node->body());
-  std::cout << "}" << std::endl;
+  std::cout << "}\n" << std::endl;
 }
 
 void IRPrinter::print_bin_op(const IRBinOp *node) {

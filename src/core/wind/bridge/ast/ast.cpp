@@ -322,3 +322,14 @@ const std::vector<std::pair<std::string, Body*>>& TryCatch::getCatchBlocks() con
 const Body* TryCatch::getFinallyBlock() const {
   return finally_block;
 }
+
+Namespace::Namespace(std::string n, Body *c) : name(n), children(std::move(c)) {}
+void *Namespace::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const std::string& Namespace::getName() const {
+  return name;
+}
+Body* Namespace::getChildren() const {
+  return children;
+}

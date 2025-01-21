@@ -312,6 +312,17 @@ public:
   const std::vector<std::pair<std::string, Body*>>& getCatchBlocks() const;
 };
 
+class Namespace : public ASTNode {
+  std::string name;
+  Body* children;
+
+public:
+  Namespace(std::string n, Body *c);
+  void *accept(ASTVisitor &visitor) const;
+  const std::string& getName() const;
+  Body* getChildren() const;
+};
+
 
 class ASTVisitor {
 public:
@@ -338,6 +349,7 @@ public:
   virtual void *visit(const TypeCast &node) = 0;
   virtual void *visit(const SizeOf &node) = 0;
   virtual void *visit(const TryCatch &node) = 0;
+  virtual void *visit(const Namespace &node) = 0;
 };
 
 #endif // AST_H

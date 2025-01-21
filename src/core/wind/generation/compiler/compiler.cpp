@@ -215,11 +215,12 @@ void* WindCompiler::visit(const VariableRef &node) {
     this->current_fn->occupyOffset(local->offset());
     return local;
   }
+  auto found = findFunction(node.getName());
   if (this->global_table.find(node.getName()) != this->global_table.end()) {
     return this->global_table[node.getName()];
   }
-  else if (this->fn_table.find(node.getName()) != this->fn_table.end()) {
-    return new IRFnRef(node.getName());
+  else if (found != this->fn_table.end()) {
+    return new IRFnRef(found->first);
   }
   throw std::runtime_error("Variable " + node.getName() + " not found");
 }
@@ -287,6 +288,37 @@ void* WindCompiler::visit(const Return &node) {
   return ret;
 }
 
+void WindCompiler::NodeIntoBody(IRNode *node, IRBody *body) {
+  if (node == nullptr) return;
+  if (this->decl_return) {
+    this->decl_return = false;
+    std::vector<IRVariableDecl*> *decls = (std::vector<IRVariableDecl*>*)node;
+    for (IRVariableDecl *decl : *decls) {
+      *body += std::unique_ptr<IRNode>(decl);
+    }
+    return;
+  }
+
+  switch (node->type()) {
+    case IRNode::NodeType::BODY: {
+      IRBody *b = node->as<IRBody>();
+      for (auto &sub_node : b->get()) {
+        NodeIntoBody(sub_node.get(), body);
+      }
+      break;
+    }
+    case IRNode::NodeType::FUNCTION: {
+      IRFunction *fn = node->as<IRFunction>();
+      if (fn->isDefined) {
+        body->addDefFn(fn->fn_name);
+      }
+    }
+    default: {
+      *body += std::unique_ptr<IRNode>(node);
+    }
+  }
+}
+
 /**
  * @brief Visits a body node.
  * @param node The body node.
@@ -296,20 +328,7 @@ void* WindCompiler::visit(const Body &node) {
   IRBody *body = new IRBody({});
   for (const auto &child : node.get()) {
     auto *child_node = (IRNode*)child->accept(*this);
-    if (this->decl_return) {
-      this->decl_return = false;
-      std::vector<IRVariableDecl*> *decls = (std::vector<IRVariableDecl*>*)child_node;
-      for (IRVariableDecl *decl : *decls) {
-        *body += std::unique_ptr<IRNode>(decl);
-      }
-    } else {
-      if (child_node != nullptr) {
-        if (child_node->type() == IRNode::NodeType::FUNCTION && child_node->as<IRFunction>()->isDefined) {
-          body->addDefFn(child_node->as<IRFunction>()->fn_name);
-        }
-        *body += std::unique_ptr<IRNode>(child_node);
-      }
-    }
+    NodeIntoBody(child_node, body);
   }
   return body;
 }
@@ -320,10 +339,12 @@ void* WindCompiler::visit(const Body &node) {
  * @return The compiled IR node.
  */
 void* WindCompiler::visit(const Function &node) {
-  IRFunction *fn = new IRFunction(node.getName(), {}, std::unique_ptr<IRBody>(new IRBody({})));
+  std::string mang_name = getFullMangled(node.getName());
+  IRFunction *fn = new IRFunction(
+    mang_name, {}, std::unique_ptr<IRBody>(new IRBody({})));
   fn->metadata = node.metadata;
   fn->isDefined = node.isDefined;
-  auto found_fn = fn_table.find(node.getName());
+  auto found_fn = fn_table.find(mang_name);
   if (found_fn != this->fn_table.end() && found_fn->second->isDefined) {
     throw std::runtime_error("Function " + node.getName() + " already defined");
   }
@@ -334,7 +355,7 @@ void* WindCompiler::visit(const Function &node) {
     arg_types.push_back(this->ResolveDataType(type));
   }
   fn->copyArgTypes(arg_types);
-  this->fn_table[node.getName()] = fn;
+  this->fn_table[mang_name] = fn;
   fn->flags = node.flags;
   IRBody *body = (IRBody*)node.getBody()->accept(*this);
   fn->SetBody(std::unique_ptr<IRBody>(body));
@@ -460,12 +481,12 @@ void *WindCompiler::visit(const ArgDecl &node) {
 void* WindCompiler::visit(const FnCall &node) {
   this->current_fn->call_sub = true;
 
-  auto fnit = this->fn_table.find(node.getName());
+  auto fnit = this->findFunction(node.getName());
   if (fnit == this->fn_table.end()) {
     throw std::runtime_error("Function " + node.getName() + " not found");
   }
 
-  IRFnCall *call = new IRFnCall(node.getName(), {}, fnit->second);
+  IRFnCall *call = new IRFnCall(fnit->first, {}, fnit->second);
   for (const auto &arg : node.getArgs()) {
     call->push_arg(std::unique_ptr<IRNode>((IRNode*)arg->accept(*this)));
   }
@@ -626,4 +647,11 @@ void *WindCompiler::visit(const TryCatch &node) {
     finally_body = (IRBody*)node.getFinallyBlock()->accept(*this);
   }
   return new IRTryCatch(try_body, finally_body, handlers);
+}
+
+void *WindCompiler::visit(const Namespace &node) {
+  this->active_namespaces.push_back(node.getName());
+  IRBody *body = (IRBody*)node.getChildren()->accept(*this);
+  this->active_namespaces.pop_back();
+  return body;
 }
