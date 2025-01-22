@@ -34,6 +34,7 @@ void WindEmitter::EmitLoop(IRLooping *loop) {
         this->ProcessStatement(node.get());
     }
     this->writer->jmp(this->writer->LabelById(start));
+    this->regalloc.FreeAllRegs();
     this->writer->BindLabel(end);
     this->c_flow_desc = old;
 }

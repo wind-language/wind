@@ -1,5 +1,7 @@
 @linkflag("-lcurl")
 
+// experimental -- WIP doesn't always work bc of memory problems
+
 @type CURL = ptr<char>;
 @type CURLcode = int;
 
@@ -14,12 +16,14 @@
 
 @const CURL_HTTP_VERSION_2_0 = 3;
 
-@extern func curl_easy_init(): CURL;
-@extern func curl_easy_setopt(curl: CURL, option: CURLcode, param: u64): CURLcode;
-@extern func curl_easy_perform(curl: CURL): CURLcode;
-@extern func curl_easy_strerror(res: int): string;
-@extern func curl_easy_cleanup(curl: CURL): void;
-@extern func curl_global_init(flags: int): CURLcode;
-@extern func curl_global_cleanup(): void;
+@extern @pure[no_mangle] func curl_easy_init(): CURL;
+@extern @pure[no_mangle] func curl_easy_setopt(curl: CURL, option: CURLcode, param: u64): CURLcode;
+@extern @pure[no_mangle] func curl_easy_perform(curl: CURL): CURLcode;
+@extern @pure[no_mangle] func curl_easy_strerror(res: int): string;
+@extern @pure[no_mangle] func curl_easy_cleanup(curl: CURL): void;
+@extern @pure[no_mangle] func curl_global_init(flags: int): CURLcode;
+@extern @pure[no_mangle] func curl_global_cleanup(): void;
 
-func curl_test(): void;
+namespace curl {
+    func test(): void;
+}

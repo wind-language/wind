@@ -21,6 +21,8 @@ const std::unordered_map<IRBinOp::Operation, std::string> BOpTTable = {
   {IRBinOp::Operation::LESS, "le"},
   {IRBinOp::Operation::LESSEQ, "leq"},
   {IRBinOp::Operation::GREATER, "gr"},
+  {IRBinOp::Operation::GREATEREQ, "geq"},
+  {IRBinOp::Operation::NOTEQ, "neq"},
   {IRBinOp::Operation::MOD, "mod"},
   {IRBinOp::Operation::LOGAND, "&&"},
 };

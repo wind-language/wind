@@ -1,0 +1,28 @@
+// sys library for *nix systems
+
+// syscalls
+@const SYS_EXIT = 60;
+@const SYS_WRITE = 1;
+@const SYS_READ = 0;
+
+@const STDIN = 0;
+@const STDOUT = 1;
+@const STDERR = 2;
+
+func syscall(num: int, ...): int {
+    asm {
+        mov rax, rdi;
+        mov rdi, rsi;
+        mov rsi, rdx;
+        mov rdx, rcx;
+        mov r10, r8;
+        mov r8, r9;
+        syscall;
+    }
+}
+
+namespace unix {
+    func write(fd: int, buf: ptr<char>, len: size_t): ssize_t {
+        return syscall(SYS_WRITE, fd, buf, len);
+    }
+}

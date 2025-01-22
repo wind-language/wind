@@ -32,16 +32,16 @@ const std::unordered_map<std::string, HandlerType> handler_map = {
 class DataType {
   private:
     DataType *array;
-    DataType *ptr;
+    DataType *ptr=nullptr;
     uint16_t type_size;
     uint16_t capacity;
     bool signed_type = true;
 
   public:
     DataType(uint16_t size, bool is_signed) : type_size(size), capacity(1), array(nullptr), signed_type(is_signed) {}
-    DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr) {}
-    DataType(uint16_t size, DataType *arr) : type_size(size), capacity(UINT16_MAX), array(arr) {}
-    DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr) {}
+    DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr), ptr(nullptr) {}
+    DataType(uint16_t size, DataType *arr) : type_size(size), capacity(UINT16_MAX), array(arr), ptr(nullptr) {}
+    DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr), ptr(nullptr) {}
     DataType(DataType *ptr): type_size(ptr->moveSize()), capacity(UINT16_MAX), array(nullptr), ptr(ptr), signed_type(false) {}
     bool isArray() const { return array != nullptr; }
     bool isSigned() const { return signed_type; }
@@ -72,7 +72,8 @@ class DataType {
     DataType *getArrayType() const { return array; }
     bool isVoid() const { return type_size == 0; }
     bool hasCapacity() const { return capacity != UINT16_MAX; }
-    uint16_t getCaps() const { return capacity; }
+    uint16_t getCaps() const { if (hasCapacity()) return capacity; return 0; }
+    bool isScalar() const { return !isArray() && !isPointer(); }
 
     bool isPointer() const { return ptr != nullptr; }
     DataType *getPtrType() const { return ptr; }
@@ -326,7 +327,7 @@ public:
   NodeType type() const override { return NodeType::STRING; }
 
   DataType *inferType() const override {
-    return new DataType(DataType::Sizes::QWORD, false);
+    return new DataType(new DataType(DataType::Sizes::BYTE, false));
   }
 };
 

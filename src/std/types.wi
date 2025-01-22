@@ -14,3 +14,6 @@
 @type bool = u8;
 
 @type string = ptr<char>;
+
+@type size_t = u64;
+@type ssize_t = s64;

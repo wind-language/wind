@@ -464,7 +464,8 @@ static std::map<std::string, FnFlags> FLAGS_MAP = {
   {"noabi", PURE_NOABI},
   {"expr", PURE_EXPR},
   {"logue", PURE_LOGUE},
-  {"stchk", PURE_STCHK}
+  {"stchk", PURE_STCHK},
+  {"no_mangle", FN_NOMANGLE}
 };
 
 FnFlags macroIntoFlag(std::string name) {
@@ -507,8 +508,15 @@ void WindParser::pathWorkInclude(std::string relative, Token *token_ref) {
 
 void WindParser::pathWorkImport(std::string relative, Token *token_ref) {
   std::string path;
+  std::string this_path = global_isc->getPath(token_ref->srcId);
+  if (this_path.substr(this_path.size()-3) == ".wi") {
+    GetReporter(token_ref)->Report(ParserReport::PARSER_ERROR, new Token(
+      token_ref->value, token_ref->type, "Nothing (Cannot import from .wi file)", token_ref->range, token_ref->srcId
+    ), token_ref);
+    return;
+  }
+
   if (relative[0] != '#') {
-    std::string this_path = global_isc->getPath(token_ref->srcId);
     std::string folder = std::filesystem::path(this_path).parent_path().string();
     path = std::filesystem::path(folder).append(relative).string();
   } else {
@@ -761,8 +769,10 @@ Namespace *WindParser::parseNamespace() {
   this->expect(Token::Type::LBRACE, "{");
   Body *ns_body = new Body({});
   while (!this->until(Token::Type::RBRACE)) {
+    ASTNode *node = this->DiscriminateTop();
+    if (!node) continue;
     *ns_body += std::unique_ptr<ASTNode>(
-      this->DiscriminateTop()
+      node
     );
   }
   this->expect(Token::Type::RBRACE, "}");

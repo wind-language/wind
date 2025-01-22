@@ -4,11 +4,13 @@
 #include <wind/processing/token.h>
 #include <wind/reporter/parser.h>
 #include <wind/bridge/ast.h>
+#include <wind/generation/IR.h>
 #include <map>
 #include <algorithm>
 
 #ifndef INTER_SOURCE_COMMUNICATION_H
 #define INTER_SOURCE_COMMUNICATION_H
+
 
 struct SourceDesc {
   std::string path;
@@ -19,7 +21,9 @@ struct SourceDesc {
 class WindISC {
 public:
   WindISC();
-  void tabulaRasa() { this->sources.clear(); }
+  void tabulaRasa() {
+    this->sources.clear();
+  }
   uint16_t getNewSrcId() { return this->sources.size(); }
   void setPath(uint16_t id, std::string path);
   std::string getPath(uint16_t id);
@@ -34,8 +38,13 @@ public:
 
   Body *commitAST(Body *ast);
 
-  std::vector<std::string> getImports() { return this->imp_toprocess; }
   void popImport() { this->imp_toprocess.pop_back(); }
+  bool availableImports() { return !this->imp_toprocess.empty(); }
+  std::string consumeImport() {
+    std::string path = this->imp_toprocess.back();
+    this->imp_toprocess.pop_back();
+    return path;
+  }
   
   void addLdFlag(std::string flag) {
     if (std::find(this->ld_user_flags.begin(), this->ld_user_flags.end(), flag) != this->ld_user_flags.end()) {

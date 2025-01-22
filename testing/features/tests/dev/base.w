@@ -1,15 +1,7 @@
-@include[
-    "#libc.wi"
-]
-
-namespace testsp {
-    func test1(): int {
-        printf("Test 1\n");
-        return 5;
-    }
-}
+@import "#std"
 
 func main(argc: int, argv: ptr<ptr<char>>): int {
-    testsp::test1();
+    var s: ptr<char> = "Hello";
+    std::io::puts(s);
     return 0;
 }

@@ -1,0 +1,5 @@
+@include "#types.wi"
+
+namespace std::str {
+    func len(s: ptr<char>): size_t;
+}

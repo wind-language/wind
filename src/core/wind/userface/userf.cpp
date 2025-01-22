@@ -147,12 +147,12 @@ void WindUserInterface::emitObject(std::string path) {
     this->user_ld_flags.push_back(flag);
   }
 
-  std::vector<std::string> pending_src = global_isc->getImports();
-  for (std::string src : pending_src) {
-    global_isc->popImport();
-    this->emitObject(src);
+  while (global_isc->availableImports()) {
+    this->emitObject(global_isc->consumeImport());
   }
-  
+
+  delete lexer;
+  delete parser;
   delete ir;
   delete opt;
   delete backend;
@@ -204,9 +204,6 @@ void WindUserInterface::processFiles() {
     ld->addFile(obj);
   }
   std::string outtmp = ld->link();
-  for (std::string obj : this->objects) {
-    std::filesystem::remove(obj);
-  }
   if (this->output == "") {
     std::filesystem::remove(outtmp);
   }

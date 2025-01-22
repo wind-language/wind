@@ -21,44 +21,18 @@ private:
   IRFunction *current_fn;
   std::map<std::string, DataType*> userdef_types_map;
   std::map<std::string, IRGlobRef*> global_table;
-  std::map<std::string, IRFunction*> fn_table;
   bool decl_return = false;
   std::vector<std::string> active_namespaces;
+  std::multimap<std::string, IRFunction*> fn_table;
 
-  std::string nameMangle(const std::string &name) {
-    std::string mangled = "";
-    for (char c : name) {
-      if (c == ':') {
-        mangled += "_";
-      } else {
-        mangled += c;
-      }
-    }
-    return mangled;
-  }
-  std::string getFullMangled(const std::string &name) {
-    std::string base = "";
-    for (const std::string &ns : active_namespaces) {
-      base += ns + "__";
-    }
-    base += nameMangle(name);
-    return base;
-  }
-  std::map<std::string, IRFunction *>::iterator findFunction(const std::string &name) {
-    std::string base = nameMangle(name);
-    auto found = fn_table.find(base);
-    if (found != fn_table.end()) {
-      return found;
-    }
-    for (const std::string &ns : active_namespaces) {
-      base = ns + "__" + base;
-      found = fn_table.find(base);
-      if (found != fn_table.end()) {
-        return found;
-      }
-    }
-    return fn_table.end();
-  }
+
+  std::string namespacePrefix(std::string name);
+  std::string generalizeType(DataType *type);
+  std::string functionSignature(std::string name, DataType *ret, std::vector<DataType*> &args);
+  std::pair<std::string, std::string> fnSignHash(std::string name, DataType *ret, std::vector<DataType*> &args);
+
+  bool typeMatch(DataType *left, IRNode *right);
+  IRFunction* matchFunction(std::string name, std::vector<std::unique_ptr<IRNode>> &args, bool raise=true);
 
 
   void compile();

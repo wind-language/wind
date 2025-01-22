@@ -102,8 +102,6 @@ void WindCompiler::CanCoerce(IRNode *left, IRNode *right) {
   if (left_t->isPointer() || right_t->isPointer()) return;
   if (left_t->isArray() || right_t->isArray()) return;
   if (left_t->moveSize() != right_t->moveSize()) {
-    std::cerr << "Left type: " << left_t->moveSize() << " Right type: " << right_t->moveSize() << std::endl;
-    std::cerr << "Left Node: " << (int)left->type() << " Right Node: " << (int)right->type() << std::endl;
     throw std::runtime_error("Cannot coerce types of different sizes, cast required");
   }
 }
@@ -215,12 +213,13 @@ void* WindCompiler::visit(const VariableRef &node) {
     this->current_fn->occupyOffset(local->offset());
     return local;
   }
-  auto found = findFunction(node.getName());
+
+  auto fn_it = this->fn_table.find(node.getName()); // find first to avoid ambiguity
   if (this->global_table.find(node.getName()) != this->global_table.end()) {
     return this->global_table[node.getName()];
   }
-  else if (found != this->fn_table.end()) {
-    return new IRFnRef(found->first);
+  else if (fn_it != this->fn_table.end()) {
+    return new IRFnRef(fn_it->second->name());
   }
   throw std::runtime_error("Variable " + node.getName() + " not found");
 }
@@ -247,6 +246,11 @@ void *WindCompiler::visit(const VarAddressing &node) {
       uint16_t indexv = index->as<IRLiteral>()->get();
       if (local->datatype()->isArray() && local->datatype()->hasCapacity() && indexv >= local->datatype()->getCaps()) {
         throw std::runtime_error("Index " + std::to_string(indexv) + " out of bounds");
+      }
+    } else {
+      if (!local->datatype()->isArray()) {
+        // turn it into generic indexing
+        return new IRGenericIndexing(local, index);
       }
     }
   }
@@ -302,6 +306,9 @@ void WindCompiler::NodeIntoBody(IRNode *node, IRBody *body) {
   switch (node->type()) {
     case IRNode::NodeType::BODY: {
       IRBody *b = node->as<IRBody>();
+      if (b == nullptr) {
+        throw std::runtime_error("Invalid body node");
+      }
       for (auto &sub_node : b->get()) {
         NodeIntoBody(sub_node.get(), body);
       }
@@ -333,33 +340,87 @@ void* WindCompiler::visit(const Body &node) {
   return body;
 }
 
-/**
- * @brief Visits a function node.
- * @param node The function node.
- * @return The compiled IR node.
- */
-void* WindCompiler::visit(const Function &node) {
-  std::string mang_name = getFullMangled(node.getName());
-  IRFunction *fn = new IRFunction(
-    mang_name, {}, std::unique_ptr<IRBody>(new IRBody({})));
-  fn->metadata = node.metadata;
+std::string WindCompiler::namespacePrefix(std::string name) {
+  std::string prefix = "";
+  for (std::string ns : this->active_namespaces) {
+    prefix += ns + "::";
+  }
+  return prefix + name;
+}
+
+std::string WindCompiler::generalizeType(DataType *type) {
+  if (type->isPointer()) {
+    return generalizeType(type->getPtrType()) + "*";
+  }
+  else if (type->isArray()) {
+    return "[" + std::to_string(type->getCaps()) + ";" + generalizeType(type->getArrayType()) + "]";
+  }
+  return (type->isSigned() ? "i" : "u")+std::to_string(type->moveSize()*8); // get u/s bitness
+}
+
+#include <wind/hashing/xxhash.h>
+std::string WindCompiler::functionSignature(std::string name, DataType *ret, std::vector<DataType*> &args) {
+  std::string sig = name+"(";
+  for (DataType *arg : args) {
+    sig += generalizeType(arg) + ",";
+  }
+  sig.pop_back();
+  sig += ")";
+  sig += "->"+generalizeType(ret);
+  return sig;
+}
+
+std::string hashIntoHex(uint64_t hash) {
+  std::string hex = "";
+  for (int i=0; i<8; i++) {
+    uint8_t byte = (hash >> (i*8)) & 0xFF;
+    hex = hex + "0123456789abcdef"[byte >> 4] + "0123456789abcdef"[byte & 0x0F];
+  }
+  return hex;
+}
+
+std::pair<std::string, std::string> WindCompiler::fnSignHash(std::string name, DataType *ret, std::vector<DataType*> &args) {
+  std::string plain_sign = functionSignature(name, ret, args);
+  uint64_t long_hash = XXHash64::hash(plain_sign.c_str(), plain_sign.size());
+  return {plain_sign, hashIntoHex(long_hash)};
+}
+
+#define PREFIX_FN(hash) "func_"+hash
+
+void *WindCompiler::visit(const Function &node) {
+  std::string raw_name = node.getName();
+  std::string nsd_name = namespacePrefix(raw_name);
+
+  IRFunction *fn = new IRFunction(nsd_name, {}, std::unique_ptr<IRBody>(new IRBody({})));
   fn->isDefined = node.isDefined;
-  auto found_fn = fn_table.find(mang_name);
-  if (found_fn != this->fn_table.end() && found_fn->second->isDefined) {
-    throw std::runtime_error("Function " + node.getName() + " already defined");
+  fn->flags = node.flags;
+  if (nsd_name == "main") {
+    fn->flags |= FN_PUBLIC | FN_NOMANGLE; // main function is always public and not mangled
   }
   this->current_fn = fn;
-  fn->return_type = this->ResolveDataType(node.getType());
+
   std::vector<DataType*> arg_types;
   for (std::string type : node.getArgTypes()) {
     arg_types.push_back(this->ResolveDataType(type));
   }
+  DataType *ret_type = this->ResolveDataType(node.getType());
+  
+  auto sign_hash = this->fnSignHash(nsd_name, ret_type, arg_types);
+  fn->metadata = sign_hash.first + " [" + node.metadata+ "]";
+
+  fn->return_type = ret_type;
   fn->copyArgTypes(arg_types);
-  this->fn_table[mang_name] = fn;
-  fn->flags = node.flags;
+
+  if (!(fn->flags & FN_NOMANGLE)) {
+    fn->fn_name = PREFIX_FN(sign_hash.second);
+  }
+
+  this->fn_table.insert({nsd_name, fn});
+  
   IRBody *body = (IRBody*)node.getBody()->accept(*this);
   fn->SetBody(std::unique_ptr<IRBody>(body));
   this->current_fn = nullptr;
+
   return fn;
 }
 
@@ -412,7 +473,6 @@ DataType *WindCompiler::ResolveDataType(const std::string &n_type) {
   else if (this->userdef_types_map.find(type) != this->userdef_types_map.end()) {
     return this->userdef_types_map[type];
   }
-
   std::string fn_name;
   if (this->current_fn) {
     fn_name = " in function: " + this->current_fn->name();
@@ -473,6 +533,42 @@ void *WindCompiler::visit(const ArgDecl &node) {
   return new IRArgDecl(local);
 }
 
+bool WindCompiler::typeMatch(DataType *left, IRNode *right) {
+  DataType *right_t = right->inferType();
+  if (left->isPointer() && right_t->isPointer()) return true;
+  if (left->isArray() && right_t->isArray()) return true;
+  if (left->isScalar() && right_t->isScalar()) {
+    if (right->is<IRLiteral>()) return true;
+    if (left->moveSize() == right_t->moveSize()) return true;
+  }
+  return false;
+}
+
+IRFunction *WindCompiler::matchFunction(std::string name, std::vector<std::unique_ptr<IRNode>> &args, bool raise) {
+  auto range = this->fn_table.equal_range(name);
+  if (range.first == range.second) {
+    if (!raise) return nullptr;
+    throw std::runtime_error("Function " + name + " not found");
+  }
+  for (auto it = range.first; it != range.second; it++) {
+    IRFunction *fn = it->second;
+    if ((fn->arg_types.size() != args.size()) && !(fn->flags & FN_VARIADIC)) continue;
+    bool match = true;
+    for (int i=0; i<fn->arg_types.size();i++) {
+      if (!this->typeMatch(fn->arg_types[i], args[i].get())) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      return fn;
+    }
+  }
+  if (raise)
+    throw std::runtime_error("No " + name + " function overload matches the arguments");
+  return nullptr;
+}
+
 /**
  * @brief Visits a function call node.
  * @param node The function call node.
@@ -481,16 +577,13 @@ void *WindCompiler::visit(const ArgDecl &node) {
 void* WindCompiler::visit(const FnCall &node) {
   this->current_fn->call_sub = true;
 
-  auto fnit = this->findFunction(node.getName());
-  if (fnit == this->fn_table.end()) {
-    throw std::runtime_error("Function " + node.getName() + " not found");
+  std::vector<std::unique_ptr<IRNode>> args;
+  for (const auto &arg : node.getArgs()) {
+    args.push_back(std::unique_ptr<IRNode>((IRNode*)arg->accept(*this)));
   }
 
-  IRFnCall *call = new IRFnCall(fnit->first, {}, fnit->second);
-  for (const auto &arg : node.getArgs()) {
-    call->push_arg(std::unique_ptr<IRNode>((IRNode*)arg->accept(*this)));
-  }
-  return call;
+  IRFunction* fn = this->matchFunction(node.getName(), args);
+  return new IRFnCall(fn->name(), std::move(args), fn);
 }
 
 
@@ -651,7 +744,11 @@ void *WindCompiler::visit(const TryCatch &node) {
 
 void *WindCompiler::visit(const Namespace &node) {
   this->active_namespaces.push_back(node.getName());
-  IRBody *body = (IRBody*)node.getChildren()->accept(*this);
+  Body *body = node.getChildren();
+  if (body == nullptr) {
+    throw std::runtime_error("Namespace " + node.getName() + " has no body");
+  }
+  IRBody *irbody = (IRBody*)body->accept(*this);
   this->active_namespaces.pop_back();
-  return body;
+  return irbody;
 }

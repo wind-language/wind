@@ -2,6 +2,7 @@
 #include <wind/backend/writer/writer.h>
 #include <functional>
 #include <map>
+#include <cstring>
 
 #ifndef x86_64_BACKEND_H
 #define x86_64_BACKEND_H
@@ -99,8 +100,21 @@ public:
         jmp_map[IRBinOp::Operation::LESSEQ][0][1] = [this](uint16_t label) { this->writer->ja(this->writer->LabelById(label)); };
         jmp_map[IRBinOp::Operation::LESSEQ][1][0] = [this](uint16_t label) { this->writer->jle(this->writer->LabelById(label)); };
         jmp_map[IRBinOp::Operation::LESSEQ][1][1] = [this](uint16_t label) { this->writer->jg(this->writer->LabelById(label)); };
+
+        jmp_map[IRBinOp::Operation::GREATEREQ][0][0] = [this](uint16_t label) { this->writer->jae(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::GREATEREQ][0][1] = [this](uint16_t label) { this->writer->jb(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::GREATEREQ][1][0] = [this](uint16_t label) { this->writer->jge(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::GREATEREQ][1][1] = [this](uint16_t label) { this->writer->jl(this->writer->LabelById(label)); };
+
+        jmp_map[IRBinOp::Operation::NOTEQ][0][0] = [this](uint16_t label) { this->writer->jne(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::NOTEQ][0][1] = [this](uint16_t label) { this->writer->je(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::NOTEQ][1][0] = [this](uint16_t label) { this->writer->jne(this->writer->LabelById(label)); };
+        jmp_map[IRBinOp::Operation::NOTEQ][1][1] = [this](uint16_t label) { this->writer->je(this->writer->LabelById(label)); };
     }
-    ~WindEmitter() { delete writer; }
+    ~WindEmitter() {
+        delete writer;
+        delete c_flow_desc;
+    }
     void Process();
     std::string GetAsm() { return writer->Emit(); }
     std::string emitObj(std::string outpath="");
@@ -171,8 +185,8 @@ private:
         }
         if (current_fn->base_handlers.find(instruction) != current_fn->base_handlers.end()) {
             current_fn->base_handlers[instruction].needEmit = true;
-            static std::string handler_str = HANDLER_LABEL(current_fn->fn->fn_name, instruction);
-            return handler_str.c_str();
+            std::string handler_str = HANDLER_LABEL(current_fn->fn->fn_name, instruction);
+            return strdup(handler_str.c_str());
         }
         return "";
     }

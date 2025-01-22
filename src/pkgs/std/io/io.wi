@@ -1,0 +1,5 @@
+@include "#types.wi"
+
+namespace std::io {
+    func puts(s: ptr<char>): void;
+}

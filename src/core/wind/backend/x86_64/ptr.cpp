@@ -43,9 +43,6 @@ Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
         }
         if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) {
             int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get());
-            if (offset < 0) {
-                throw std::runtime_error("Invalid offset");
-            }
             dst.size = ref->datatype()->moveSize(); dst.signed_value = ref->datatype()->isSigned();
             CASTED_MOV(
                 CastReg(dst, ref->datatype()->rawSize()),
@@ -138,7 +135,7 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
             if (ref->getIndex()->is<IRLiteral>()) {
                 int16_t index = ref->getIndex()->as<IRLiteral>()->get();
                 if (index < 0) {
-                    throw std::runtime_error("Invalid offset");
+                    throw std::runtime_error("Invalid offset " + std::to_string(index) + " for pointer " + std::to_string(ref->offset()));
                 }
                 this->writer->mov(
                     this->writer->ptr(
@@ -174,9 +171,6 @@ void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
     // array indexing
     if (ref->getIndex()->is<IRLiteral>()) {
         int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get());
-        if (offset < 0) {
-            throw std::runtime_error("Invalid offset");
-        }
         src.size = ref->datatype()->moveSize(); src.signed_value = ref->datatype()->isSigned();
         this->writer->mov(
             this->writer->ptr(
@@ -267,7 +261,7 @@ Reg WindEmitter::EmitGenAddrRef(IRGenericIndexing *ref, Reg dst) {
                 ref->inferType()->rawSize()
             )
         )
-        return dst;
+        return CastReg(dst, ref->inferType()->rawSize());
     }
     Reg base = this->EmitExpr(ref->getBase(), x86::Gp::rbx);
     Reg r_index = this->EmitExpr(index, this->regalloc.Allocate(8, false));
@@ -281,6 +275,7 @@ Reg WindEmitter::EmitGenAddrRef(IRGenericIndexing *ref, Reg dst) {
             ref->inferType()->rawSize()
         )
     )
+    TryCast(dst, CastReg(dst, ref->inferType()->rawSize()));
     return dst;
 }
 

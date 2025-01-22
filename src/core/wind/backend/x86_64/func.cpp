@@ -27,7 +27,7 @@ void WindEmitter::EmitFnPrologue(IRFunction *fn) {
     uint16_t metadata_ros_i=0;
     if (!(fn->flags & PURE_STCHK)) {
         this->rostrs.push_back(
-            fn->name() + "(...) [" + fn->metadata + "]"
+            fn->metadata
         );
         metadata_ros_i = this->rostr_i++;
     }
@@ -108,14 +108,11 @@ bool isFnDef(std::vector<std::string> def_fns, std::string name) {
 void WindEmitter::ProcessFunction(IRFunction *func) {
     this->writer->BindSection(this->textSection);
     
-    if ((func->flags & FN_EXTERN || !func->isDefined)) {
-        if (!isFnDef(this->program->getDefFns(), func->name())) {
-            // either extern or wrongly externed
-            this->writer->Extern(func->name());
-        }
+    if ((func->flags & FN_EXTERN) || !func->isDefined) {
+        this->writer->Extern(func->name());
         return;
     }
-    else if (func->flags & FN_PUBLIC || func->name() == "main") {
+    else if (func->flags & FN_PUBLIC) {
         this->writer->Global(func->name());
     }
     uint8_t fn_label =this->writer->NewLabel(func->name());
@@ -185,6 +182,7 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
             );
         }
     }
+    delete this->current_fn;
     this->current_fn = nullptr;
 }
 
