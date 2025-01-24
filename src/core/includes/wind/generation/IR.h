@@ -242,6 +242,7 @@ public:
   DataType *GetArgType(int index);
   int ArgNum() const { return arg_types.size(); }
   bool isVariadic() const { return flags & FN_VARIADIC; }
+  bool isArgPush() const { return flags & FN_ARGPUSH; }
   bool isCallSub() const { return call_sub; }
 
   IRLocalRef *NewLocal(std::string name, DataType *type, bool positive_offset = false);

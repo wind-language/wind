@@ -65,4 +65,5 @@ void WindEmitter::EmitBranch(IRBranching *branch) {
             this->writer->jmp(this->writer->LabelById(end));
     }
     this->writer->BindLabel(end);
+    this->regalloc.FreeAllRegs();
 }

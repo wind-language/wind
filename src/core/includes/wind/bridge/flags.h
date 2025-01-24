@@ -13,6 +13,7 @@
 #define FN_VARIADIC (1 << 7)
 #define FN_PUBLIC   (1 << 8)
 #define FN_NOMANGLE (1 << 9)
+#define FN_ARGPUSH  (1 << 10)
 
 typedef uint16_t FnFlags;
 

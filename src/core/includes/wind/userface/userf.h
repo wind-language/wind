@@ -20,7 +20,7 @@ public:
   ~WindUserInterface();
 
   void processFiles();
-  void emitObject(std::string path);
+  void emitObject(std::string path, bool canPrint=true);
 
 private:
   void parseArgument(std::string arg, int &i);

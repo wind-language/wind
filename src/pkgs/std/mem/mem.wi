@@ -1,0 +1,14 @@
+@include "#types.wi"
+
+namespace std {
+    namespace mem {
+        func copy(dst: ptr<char>, src: ptr<char>, len: size_t): void;
+        func set(dst: ptr<char>, val: byte, len: size_t): void;
+        func zero(dst: ptr<char>, len: size_t): void;
+        
+        func alloc(size: size_t): ptr<char>;
+        func free(ptr: ptr<char>): void;
+
+        func reverse(s: ptr<char>, len: size_t): void;
+    }
+}

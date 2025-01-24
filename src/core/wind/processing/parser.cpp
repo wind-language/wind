@@ -569,6 +569,10 @@ ASTNode* WindParser::parseMacro() {
   else if (name == "pub") {
     this->flag_holder |= FN_PUBLIC;
   }
+  else if (name == "argpush") {
+    // variadic-like
+    this->flag_holder |= FN_ARGPUSH;
+  }
   else if (name == "include") {
     if (this->stream->current()->type != Token::Type::LBRACKET) {
       Token *path = this->expect(Token::Type::STRING, "include path");
@@ -784,9 +788,11 @@ ASTNode *WindParser::DiscriminateTop() {
     return this->parseFn();
   }
   else if (this->isKeyword(stream->current(), "global")) {
+    this->flag_holder = 0;
     return this->parseGlobDecl();
   }
   else if (this->isKeyword(stream->current(), "namespace")) {
+    this->flag_holder = 0;
     return this->parseNamespace();
   }
   else if (this->stream->current()->type == Token::Type::AT) {

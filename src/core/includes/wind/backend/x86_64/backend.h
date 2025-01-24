@@ -153,6 +153,11 @@ private:
     Reg EmitTypeCast(IRTypeCast *cast, Reg dst);
     void EmitIntoGenAddrRef(IRGenericIndexing *ref, Reg src);
 
+    // --- argpush utils ---
+    uint8_t typeIdentify(DataType *type);
+    uint64_t setDesc(uint64_t desc, uint8_t index, DataType *type);
+    uint64_t get64bitDesc(std::vector<DataType *> &args);
+
     void ProcessStatement(IRNode *node);
     void ProcessTop(IRNode *node);
 

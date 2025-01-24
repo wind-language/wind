@@ -1,5 +1,12 @@
 @include "#types.wi"
 
-namespace std::str {
-    func len(s: ptr<char>): size_t;
+namespace std {
+    namespace str {
+        func len(s: ptr<char>): size_t;
+
+        namespace fmt {
+            func untoa(n: u64): ptr<char>;
+            func ntoa(n: s64): ptr<char>;
+        }
+    }
 }

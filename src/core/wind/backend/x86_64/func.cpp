@@ -7,7 +7,7 @@
 #include <iostream>
 
 unsigned NearPow2(unsigned n) {
-    if (n==0) return 1;
+    if (n==0) return 0;
     n--;
     n |= n >> 1; n |= n >> 2; n |= n >> 4; n |= n >> 8; n |= n >> 16;
     return n+1;
@@ -36,10 +36,11 @@ void WindEmitter::EmitFnPrologue(IRFunction *fn) {
     else {
         this->writer->push(x86::Gp::rbp);
         this->writer->mov(x86::Gp::rbp, x86::Gp::rsp);
-        unsigned stack_size = NearPow2(fn->stack_size + (fn->isCallSub() ? 16 : 0));
-        this->writer->sub(x86::Gp::rsp,
-            align16(stack_size)
-        );
+        unsigned stack_size = NearPow2(fn->stack_size + (fn->isCallSub() ? 0 : 0));
+        if (stack_size)
+            this->writer->sub(x86::Gp::rsp,
+                align16(stack_size)
+            );
     }
     if (!(fn->flags & PURE_STCHK) && this->current_fn->fn->canary_needed) {
         this->writer->rdtscp();
@@ -118,7 +119,9 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
     uint8_t fn_label =this->writer->NewLabel(func->name());
     this->writer->BindLabel(fn_label);
     
+    this->writer->Write("# " + func->metadata);
     this->EmitFnPrologue(func);
+    this->writer->OverflowChecks = !(func->flags & PURE_STCHK);
 
     this->regalloc.FreeAllRegs();
     IRNode *last = nullptr;
@@ -189,11 +192,13 @@ void WindEmitter::ProcessFunction(IRFunction *func) {
 Reg WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
     int arg_i = call->args().size()-1;
     dst.size = call->getRef()->return_type->moveSize();
+    std::vector<DataType*> arg_types;
     for (;arg_i>=0;arg_i--) {
-        if (arg_i>=call->getRef()->ArgNum() && !(call->getRef()->flags & FN_VARIADIC)) {
+        if (arg_i>=call->getRef()->ArgNum() && !(call->getRef()->flags & FN_VARIADIC) && !(call->getRef()->flags & FN_ARGPUSH)) {
             throw std::runtime_error("Too many arguments");
         }
-        if (arg_i<6) {
+        arg_types.push_back(call->args()[arg_i]->inferType());
+        if (arg_i<6 && !call->getRef()->isArgPush()) {
             this->EmitExpr(call->args()[arg_i].get(), SYSVABI_CNV[arg_i]);
             this->regalloc.SetVar(SYSVABI_CNV[arg_i], 0, RegisterAllocator::RegValue::Lifetime::FN_CALL);
         } else {
@@ -208,19 +213,29 @@ Reg WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
                 ));
             } else if (argv->is<IRStringLiteral>()) {
                 this->rostrs.push_back(argv->as<IRStringLiteral>()->get());
-                this->writer->push(this->writer->ptr(
-                    ".ros"+std::to_string(this->rostr_i++),
-                    0,
-                    8
-                ));
+                this->writer->lea(
+                    x86::Gp::rax,
+                    this->writer->ptr(
+                        ".ros"+std::to_string(this->rostr_i++),
+                        0,
+                        8
+                    )
+                );
+                this->writer->push(
+                    x86::Gp::rax
+                );
             }
             else if (argv->is<IRFnRef>()) {
-                this->writer->push(
+                this->writer->lea(
+                    x86::Gp::rax,
                     this->writer->ptr(
                         argv->as<IRFnRef>()->name(),
                         0,
                         8
                     )
+                );
+                this->writer->push(
+                    x86::Gp::rax
                 );
             } else {
                 Reg arg = this->regalloc.Allocate(8, false);
@@ -233,10 +248,19 @@ Reg WindEmitter::EmitFnCall(IRFnCall *call, Reg dst) {
 
     if (call->getRef()->flags & FN_VARIADIC) {
         this->writer->xor_(x86::Gp::rax, x86::Gp::rax);
+    } else if (call->getRef()->flags & FN_ARGPUSH) {
+        this->writer->mov(x86::Gp::rax, call->args().size());
+        this->writer->mov(
+            x86::Gp::rbx,
+            this->get64bitDesc(arg_types)
+        );
     }
     this->regalloc.FreeAllRegs();
     this->writer->call(call->name());
     uint16_t stack_args_size = (call->args().size() > 6 ? (call->args().size()-6)*8 : 0);
+    if (call->getRef()->isArgPush()) {
+        stack_args_size = call->args().size();
+    }
     if (stack_args_size!=0) {
         this->writer->add(x86::Gp::rsp, stack_args_size);
     }

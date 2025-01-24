@@ -93,7 +93,7 @@ void WindUserInterface::parseArgument(std::string arg, int &i) {
  * @brief Emits an object file from the given path.
  * @param path The path to the source file.
  */
-void WindUserInterface::emitObject(std::string path) {
+void WindUserInterface::emitObject(std::string path, bool canPrint) {
   global_isc->tabulaRasa();
   WindLexer *lexer = TokenizeFile(path.c_str());
   if (lexer == nullptr) {
@@ -102,7 +102,7 @@ void WindUserInterface::emitObject(std::string path) {
   }
   WindParser *parser = new WindParser(lexer->get(), path);
   Body *ast = parser->parse();
-  if (flags & SHOW_AST) {
+  if (flags & SHOW_AST && canPrint) {
     std::cout << "[" << path << "] AST:" << std::endl;
     ASTPrinter *printer = new ASTPrinter();
     ast->accept(*printer);
@@ -111,7 +111,7 @@ void WindUserInterface::emitObject(std::string path) {
 
   WindCompiler *ir = new WindCompiler(ast);
 
-  if (flags & SHOW_RAW_IR) {
+  if (flags & SHOW_RAW_IR && canPrint) {
     std::cout << "[" << path << "] RAW IR:" << std::endl;
     IRPrinter *ir_printer = new IRPrinter(ir->get());
     ir_printer->print();
@@ -121,7 +121,7 @@ void WindUserInterface::emitObject(std::string path) {
   WindOptimizer *opt = new WindOptimizer(ir->get());
   IRBody *optimized = opt->get();
 
-  if (flags & SHOW_IR) {
+  if (flags & SHOW_IR && canPrint) {
     std::cout << "[" << path << "] IR:" << std::endl;
     IRPrinter *ir_printer = new IRPrinter(optimized);
     ir_printer->print();
@@ -136,7 +136,7 @@ void WindUserInterface::emitObject(std::string path) {
   } else {
     output = backend->emitObj();
   }
-  if (this->flags & SHOW_ASM) {
+  if (this->flags & SHOW_ASM && canPrint) {
     std::cout << "[" << path << "] ASM:" << std::endl;
     std::cout << backend->GetAsm() << std::endl;
   }
@@ -148,7 +148,7 @@ void WindUserInterface::emitObject(std::string path) {
   }
 
   while (global_isc->availableImports()) {
-    this->emitObject(global_isc->consumeImport());
+    this->emitObject(global_isc->consumeImport(), false);
   }
 
   delete lexer;

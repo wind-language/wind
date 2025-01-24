@@ -552,7 +552,7 @@ IRFunction *WindCompiler::matchFunction(std::string name, std::vector<std::uniqu
   }
   for (auto it = range.first; it != range.second; it++) {
     IRFunction *fn = it->second;
-    if ((fn->arg_types.size() != args.size()) && !(fn->flags & FN_VARIADIC)) continue;
+    if ((fn->arg_types.size() != args.size()) && !(fn->flags & FN_VARIADIC) && !(fn->flags & FN_ARGPUSH)) continue;
     bool match = true;
     for (int i=0; i<fn->arg_types.size();i++) {
       if (!this->typeMatch(fn->arg_types[i], args[i].get())) {
@@ -615,16 +615,16 @@ void *WindCompiler::visit(const InlineAsm &node) {
     if (code[i] == '?') {
       std::string var = "";
       i++;
-      while (i < code.size() && isalnum(code[i])) {
+      while (i < code.size() && LexUtils::alphanum(code[i])) {
         var += code[i];
         i++;
       }
       i--; // compensate for the increment
       IRLocalRef *local = this->current_fn->GetLocal(var);
       if (local == nullptr) {
-        throw std::runtime_error("[INLINE ASM] Variable " + var + " not found");
+        throw std::runtime_error("[INLINE ASM] Local variable " + var + " not found");
       }
-      new_code += "[rbp-" + std::to_string(local->offset()) + "]";
+      new_code += "[rbp" + std::to_string(local->offset()) + "]";
     } else {
       new_code += code[i];
     }

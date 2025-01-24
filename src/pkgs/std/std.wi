@@ -2,3 +2,4 @@
 
 @include "io/io.wi"
 @include "string/string.wi"
+@include "mem/mem.wi"

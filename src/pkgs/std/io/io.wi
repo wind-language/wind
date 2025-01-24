@@ -2,4 +2,6 @@
 
 namespace std::io {
     func puts(s: ptr<char>): void;
+    @argpush func print(): void;
+    @argpush func println(): void;
 }
