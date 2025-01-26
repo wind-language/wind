@@ -5,65 +5,86 @@
 #include <stdexcept>
 #include <iostream>
 
-void WindEmitter::EmitCJump(IRNode *node, uint16_t label, bool invert) {
-    Reg rinfo = this->EmitExpr(node, x86::Gp::rax, true);
-    if (node->type() != IRNode::NodeType::BIN_OP) {
-        this->writer->test(x86::Gp::rax, x86::Gp::rax);
-    } else {
-        IRBinOp *binop = node->as<IRBinOp>();
-        auto jmp_it = this->jmp_map.find(binop->operation());
-        if (jmp_it == this->jmp_map.end()) {
-            this->writer->test(x86::Gp::rax, x86::Gp::rax);
-        } else {
-            jmp_it->second[rinfo.signed_value][invert ? 1 : 0](label);
-            return;
-        }
-    }
-    this->writer->je(this->writer->LabelById(label));
-}
 
-void WindEmitter::EmitLoop(IRLooping *loop) {
-    uint8_t start = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
-    uint8_t end = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
-    this->writer->BindLabel(start);
-    this->regalloc.FreeAllRegs();
-    this->EmitCJump(loop->getCondition(), end, true);
-    FlowDesc *old = this->c_flow_desc;
-    this->c_flow_desc = new FlowDesc({start, end});
-    for (auto &node : loop->getBody()->get()) {
-        this->ProcessStatement(node.get());
+void WindEmitter::EmitCondJump(IRNode *cond, uint16_t label, bool invert) {
+    if (cond->type() != IRNode::NodeType::BIN_OP) {
+        Reg val = this->EmitExpr(cond, this->regalloc->Allocate(8, false), false);
+        this->writer->cmp(val, 0);
+        this->state->jmp_map[IRBinOp::Operation::EQ][cond->inferType()->isSigned()][invert](label);
+        return;
     }
-    this->writer->jmp(this->writer->LabelById(start));
-    this->regalloc.FreeAllRegs();
-    this->writer->BindLabel(end);
-    this->c_flow_desc = old;
+    Reg val = this->EmitExpr(cond, this->regalloc->Allocate(8, false), false, true);
+    auto jmp_it = this->state->jmp_map.find(cond->as<IRBinOp>()->operation());
+    if (jmp_it == this->state->jmp_map.end()) {
+        this->writer->cmp(val, 0);
+        this->state->jmp_map[IRBinOp::Operation::EQ][cond->inferType()->isSigned()][invert](label);
+        return;
+    }
+    jmp_it->second[cond->inferType()->isSigned()][invert](label);
 }
 
 void WindEmitter::EmitBranch(IRBranching *branch) {
-    int N = branch->getBranches().size();
-    uint8_t *labels = new uint8_t[N];
-    for (int i = 0; i < N; i++) {
-        labels[i] = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
+    std::vector<uint16_t> labels;
+    int Nb = branch->getBranches().size();
+    for (int i=0;i<Nb;i++) {
+        labels.push_back(this->state->NewLogicalFlow());        
     }
-    uint8_t end = this->writer->NewLabel(".L"+std::to_string(this->ljl_i++));
-    for (int i = 0; i < N; i++) {
-        this->EmitCJump(branch->getBranches()[i].condition.get(), labels[i], false);
+    uint16_t end_label = this->state->NewLogicalFlow();
+    for (int i=0;i<Nb;i++) {
+        IRNode *c = branch->getBranches()[i].condition.get();
+        EmitCondJump(c, labels[i]);
     }
+    // emit else branch
     if (branch->getElseBranch() != nullptr) {
-        for (auto &statement : branch->getElseBranch()->get()) {
-            this->ProcessStatement(statement.get());
+        for (auto &stmt : branch->getElseBranch()->get()) {
+            this->ProcessStatement(stmt.get());
         }
     }
-    this->writer->jmp(this->writer->LabelById(end));
-    for (int i = 0; i < N; i++) {
+    this->writer->jmp(this->writer->LabelById(end_label));
+    for (int i=0;i<Nb;i++) {
         this->writer->BindLabel(labels[i]);
-        IRBody *body = branch->getBranches()[i].body.get()->as<IRBody>();
-        for (auto &statement : body->get()) {
-            this->ProcessStatement(statement.get());
+        for (auto &stmt : branch->getBranches()[i].body.get()->as<IRBody>()->get()) {
+            this->ProcessStatement(stmt.get());
         }
-        if (i < N-1)
-            this->writer->jmp(this->writer->LabelById(end));
+        if (i != Nb-1) {
+            this->writer->jmp(this->writer->LabelById(end_label));
+        }
     }
-    this->writer->BindLabel(end);
-    this->regalloc.FreeAllRegs();
+    this->writer->BindLabel(end_label);
+}
+
+void WindEmitter::EmitLoop(IRLooping *loop) {
+    uint16_t loop_label = this->state->NewLogicalFlow();
+    uint16_t end_label = this->state->NewLogicalFlow();
+    WindEmitter::BackendState::LogicalFlow *backup = this->state->l_flow;
+    this->state->l_flow = new WindEmitter::BackendState::LogicalFlow();
+    this->state->l_flow->start = this->writer->LabelById(loop_label);
+    this->state->l_flow->end = this->writer->LabelById(end_label);
+
+    this->writer->BindLabel(loop_label);
+    this->regalloc->Reset();
+    this->EmitCondJump(loop->getCondition(), end_label, true);
+    for (auto &stmt : loop->getBody()->get()) {
+        this->ProcessStatement(stmt.get());
+    }
+    this->writer->jmp(this->writer->LabelById(loop_label));
+    this->writer->BindLabel(end_label);
+    this->regalloc->Reset();
+    delete this->state->l_flow;
+    this->state->l_flow = backup;
+}
+
+
+void WindEmitter::EmitContinue() {
+    if (this->state->l_flow == nullptr) {
+        throw std::runtime_error("Continue statement outside of loop");
+    }
+    this->writer->jmp(this->state->l_flow->start);
+}
+
+void WindEmitter::EmitBreak() {
+    if (this->state->l_flow == nullptr) {
+        throw std::runtime_error("Break statement outside of loop");
+    }
+    this->writer->jmp(this->state->l_flow->end);
 }

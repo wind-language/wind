@@ -7,18 +7,29 @@
 #ifndef x86_64_BACKEND_H
 #define x86_64_BACKEND_H
 
-#define HANDLER_LABEL(fn_name, op) \
-    (".L__"+fn_name+"_"+op+".handler")
+// -- Utils --
+unsigned NearPow2(unsigned n);
+unsigned align16(unsigned n);
 
-struct BaseHandlerDesc {
-    bool needEmit;
-    const char *handler_fn;
+uint8_t typeIdentify(DataType *type);
+uint64_t setDesc(uint64_t desc, uint8_t index, DataType *type);
+uint64_t get64bitDesc(std::vector<DataType*> &args);
+
+Reg CastReg(Reg reg, uint8_t size);
+
+const Reg SYSVABI_CNV[6] = {
+    x86::Gp::rdi, x86::Gp::rsi, x86::Gp::rdx, x86::Gp::rcx, 
+    x86::Gp::r8, x86::Gp::r9
 };
-struct UserHandlerDesc {
-    const char *handler_label;
-    uint16_t lj_label_callback;
-    IRBody *body;
-    std::map<std::string, UserHandlerDesc> handler_ctx;
+
+const std::map<HandlerType, std::string> SYSTEM_HANDLERS = {
+    {HandlerType::GUARD_HANDLER, "__WDH_guard_failed"},
+    {HandlerType::BOUNDS_HANDLER, "__WDH_out_of_bounds"},
+    {HandlerType::SUM_HANDLER, "__WDH_sum_overflow"},
+    {HandlerType::SUB_HANDLER, "__WDH_sub_overflow"},
+    {HandlerType::MUL_HANDLER, "__WDH_mul_overflow"},
+    {HandlerType::DIV_HANDLER, "__WDH_div_overflow"},
+    {HandlerType::CANARY_HANDLER, "__WD_canary_fail"}
 };
 
 class WindEmitter {
@@ -26,27 +37,7 @@ private:
     IRBody *program;
     Ax86_64 *writer;
 
-    // ----
-
-    uint16_t rostr_i=0; // rodata string index
-    uint16_t ljl_i=0;   // logical jump label index
-    std::vector<std::string> rostrs;
-
-    // ----
-
-    uint8_t textSection;
-    uint8_t dataSection;
-    uint8_t rodataSection;
-
-    // ----
-
-    struct FlowDesc {
-        uint16_t start;
-        uint16_t end;
-    } *c_flow_desc = nullptr;
-
-    // ----
-    
+    // --- Register allocator ---
     class RegisterAllocator {
     public:
         struct RegValue {
@@ -55,7 +46,8 @@ private:
                 EXPRESSION,
                 FN_CALL,
                 LOOP,
-                UNTIL_ALLOC
+                UNTIL_ALLOC,
+                INDEXING
             } lifetime;
             int16_t stack_offset; // holding local stack offset
             std::string label;     // holding label address
@@ -70,141 +62,191 @@ private:
         void SetLabel(Reg reg, std::string label, RegValue::Lifetime lifetime); // Set a label to a register
         void SetLifetime(Reg reg, RegValue::Lifetime lifetime); // Set a lifetime to a register
         void Free(Reg reg); // Free a register
-        void FreeAllRegs();
+        void Reset();
         void PostExpression();
         void PostLoop();
         Reg *FindLocalVar(int16_t stack_offset, uint16_t size); // Find if a local is in a register
         Reg *FindLabel(std::string label, uint16_t size); // Find if a label is in a register
         bool isDirty(Reg reg) { return regs[reg.id].isDirty; }
+        void SetIndexing(Reg reg) { this->SetDirty(reg); regs[reg.id].lifetime = RegValue::Lifetime::INDEXING; }
         void AllocRepr();
-    } regalloc;
+    } *regalloc;
+
+    // --- Section management ---
+
+    class BackendState {
+        private:
+            WindEmitter &emitter;
+        public:
+            // --- Section management ---
+
+            struct Sections {
+                uint16_t text;
+                uint16_t data;
+                uint16_t rodata;
+            } sections;
+
+            // --- String management ---
+
+            struct Strings {
+                std::map<std::string, std::string> strmap; // string -> label
+                uint16_t str_i = 0;
+            } strings;
+
+            std::string string(std::string str);
+            void EmitStrings();
+
+            // --- Handler management ---
+
+            struct HandlerDesc {
+                enum Type {
+                    USER,
+                    SYSTEM
+                } type;
+                std::string label;
+                std::string handler_fn; // for system handlers
+                HandlerType op_handle;
+                // TODO: Logical return label for user handlers
+            };
+
+            struct ExcHandlers {
+                std::map<HandlerType, HandlerDesc> active_handlers;
+                std::vector<HandlerDesc> used_handlers;
+            } *handlers;
+
+
+            const char *RequestHandler(HandlerType type) {
+                if (this->handlers->active_handlers.find(type) == this->handlers->active_handlers.end()) {
+                    std::string label = ".L__"+this->fn.ref->name() + "." + std::to_string(type) + ".handler";
+                    this->handlers->active_handlers[type] = {
+                        .type = HandlerDesc::Type::USER,
+                        .label = label,
+                        .handler_fn = SYSTEM_HANDLERS.at(type),
+                        .op_handle = type
+                    };
+                    this->handlers->used_handlers.push_back(this->handlers->active_handlers[type]);
+                }
+                return strdup(this->handlers->active_handlers[type].label.c_str());
+            }
+
+            // --- Function management ---
+
+            struct Function {
+                IRFunction *ref;
+
+                uint16_t in_arg_i=0;
+            } fn;
+
+            void UpdateFn(IRFunction *fn) {
+                this->fn.ref = fn;
+                this->fn.in_arg_i = 0;
+                this->handlers = new ExcHandlers();
+            }
+
+            // --- Logical management ---
+
+            struct LogicalFlow {
+                std::string start; // for loops
+                std::string end; // loops and branches
+            } *l_flow;
+            uint16_t l_flow_i =0;
+
+            typedef std::function<void(uint16_t)> writer_jmp_generic;
+            std::map<IRBinOp::Operation, writer_jmp_generic[2][2]> jmp_map;
+
+            uint16_t NewLogicalFlow() {
+                std::string label = ".L__"+std::to_string(this->l_flow_i)+".flow";
+                this->l_flow_i++;
+                return emitter.writer->NewLabel(label);
+            }
+
+            // --- Constructor ---
+
+            BackendState(WindEmitter &emitter): emitter(emitter) {
+                this->sections.data = emitter.writer->NewSection(".rodata");
+                this->sections.data = emitter.writer->NewSection(".data");
+                this->sections.text = emitter.writer->NewSection(".text");
+            }
+    };
+
+    BackendState *state;
 
 public:
-    WindEmitter(IRBody *program): program(program), writer(new Ax86_64()) {
-        jmp_map[IRBinOp::Operation::EQ][0][0] = [this](uint16_t label) { this->writer->je(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::EQ][0][1] = [this](uint16_t label) { this->writer->jne(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::EQ][1][0] = [this](uint16_t label) { this->writer->je(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::EQ][1][1] = [this](uint16_t label) { this->writer->jne(this->writer->LabelById(label)); };
-
-        jmp_map[IRBinOp::Operation::LESS][0][0] = [this](uint16_t label) { this->writer->jb(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::LESS][0][1] = [this](uint16_t label) { this->writer->jnb(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::LESS][1][0] = [this](uint16_t label) { this->writer->jl(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::LESS][1][1] = [this](uint16_t label) { this->writer->jge(this->writer->LabelById(label)); };
-
-        jmp_map[IRBinOp::Operation::GREATER][0][0] = [this](uint16_t label) { this->writer->ja(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::GREATER][0][1] = [this](uint16_t label) { this->writer->jbe(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::GREATER][1][0] = [this](uint16_t label) { this->writer->jg(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::GREATER][1][1] = [this](uint16_t label) { this->writer->jle(this->writer->LabelById(label)); };
-
-        jmp_map[IRBinOp::Operation::LESSEQ][0][0] = [this](uint16_t label) { this->writer->jbe(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::LESSEQ][0][1] = [this](uint16_t label) { this->writer->ja(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::LESSEQ][1][0] = [this](uint16_t label) { this->writer->jle(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::LESSEQ][1][1] = [this](uint16_t label) { this->writer->jg(this->writer->LabelById(label)); };
-
-        jmp_map[IRBinOp::Operation::GREATEREQ][0][0] = [this](uint16_t label) { this->writer->jae(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::GREATEREQ][0][1] = [this](uint16_t label) { this->writer->jb(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::GREATEREQ][1][0] = [this](uint16_t label) { this->writer->jge(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::GREATEREQ][1][1] = [this](uint16_t label) { this->writer->jl(this->writer->LabelById(label)); };
-
-        jmp_map[IRBinOp::Operation::NOTEQ][0][0] = [this](uint16_t label) { this->writer->jne(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::NOTEQ][0][1] = [this](uint16_t label) { this->writer->je(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::NOTEQ][1][0] = [this](uint16_t label) { this->writer->jne(this->writer->LabelById(label)); };
-        jmp_map[IRBinOp::Operation::NOTEQ][1][1] = [this](uint16_t label) { this->writer->je(this->writer->LabelById(label)); };
+    WindEmitter(IRBody *program): program(program), writer(new Ax86_64()), regalloc(new RegisterAllocator()), state(new BackendState(*this)) {
+        this->SetupJumpMap();
     }
     ~WindEmitter() {
         delete writer;
-        delete c_flow_desc;
+        delete regalloc;
+        delete state;
     }
     void Process();
     std::string GetAsm() { return writer->Emit(); }
     std::string emitObj(std::string outpath="");
 
 private:
-    void EmitFnPrologue(IRFunction *fn);
-    void EmitFnEpilogue();
+    // -- state.cpp --
+    void SetupJumpMap();
 
+    // -- func.cpp --
     void ProcessFunction(IRFunction *func);
-    void ProcessGlobalDecl(IRGlobalDecl *decl);
-
-    void EmitCJump(IRNode *node, uint16_t label, bool invert);
-
-    void EmitReturn(IRRet *ret);
-    void EmitLocDecl(IRVariableDecl *decl);
-    void EmitInAsm(IRInlineAsm *asmn);
-    void EmitBranch(IRBranching *branch);
-    void EmitLoop(IRLooping *loop);
-
-    void EmitTryCatch(IRTryCatch *trycatch);
-
+        void EmitFnPrologue(IRFunction *fn);
+            void EmitFnProCanary();
+        void EmitFnEpilogue();
+            void EmitFnEpiCanary();
+        void EmitFnStatement(IRNode *node);
     Reg EmitFnCall(IRFnCall *call, Reg dst);
+        void EmitFnCallArgs(IRFnCall *call, std::vector<DataType*> &arg_types);
+            void EmitFnCallStackArg(IRNode *argv);
+    
+    // -- vars.cpp --
+    void ProcessGlobal(IRGlobalDecl *decl);
+    
 
-    Reg EmitValue(IRNode *value, Reg dst);
-    Reg EmitBinOp(IRBinOp *binop, Reg dst, bool isJmp);
-    Reg EmitExpr(IRNode *expr, Reg dst, bool isJmp=false);
-    Reg EmitLocRef(IRLocalRef *ref, Reg dst);
-    Reg EmitGlobRef(IRGlobRef *ref, Reg dst);
-    void EmitIntoLoc(IRLocalRef *ref, IRNode *value);
-    Reg EmitString(IRStringLiteral *str, Reg dst);
-    Reg EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst);
-    void EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src);
-    Reg EmitFnRef(IRFnRef *ref, Reg dst);
-    Reg EmitGenAddrRef(IRGenericIndexing *ref, Reg dst);
+    // -- expr.cpp --
+    Reg EmitExpr(IRNode *node, Reg dst, bool keepDstSize=false, bool isJmp=false);
+    /*
+        - keepDstSize: If true, the destination register will keep its size (or resize if needed)
+        - isJmp: If true, the expression does not execute set conditional operations
+    */
+        Reg EmitBinOp(IRBinOp *expr, Reg dst, bool isJmp=false);
+        Reg EmitValue(IRNode *node, Reg dst);
+            Reg EmitValLiteral(IRLiteral *lit, Reg dst);
+            Reg EmitStrLiteral(IRStringLiteral *str, Reg dst);
+            Reg EmitTypeCast(IRTypeCast *cast, Reg dst);
+            // -- vars.cpp --
+            Reg EmitLocalVar(IRLocalRef *local, Reg dst);
+            Reg EmitGlobalVar(IRGlobRef *global, Reg dst);
+            void EmitIntoLocalVar(IRLocalRef *local, IRNode *value);
+            void EmitIntoGlobalVar(IRGlobRef *global, IRNode *value);
+            // -- ptr.cpp --
+            Reg EmitLocalPtr(IRLocalAddrRef *local, Reg dst);
+            void EmitIntoGenPtr(const IRNode *ptr, const IRNode *value);
+            Reg EmitGenPtrIndex(IRGenericIndexing *ptr, Reg dst);
+        template <typename srcT>
+        Reg EmitArithmeticOp(IRBinOp::Operation op, Reg dst, srcT right, bool isJmp=false);
+            Reg EmitOptArithmeticLVOp(IRBinOp::Operation op, Reg dst, const IRLocalRef *local, bool isJmp=false);
+            Reg EmitOptArithmeticGVOp(IRBinOp::Operation op, Reg dst, const IRGlobRef *global, bool isJmp=false);
+
+    void TryCast(Reg dst, Reg src);
+    
+    // -- cond.cpp --
+    void EmitLoop(IRLooping *loop);
+    void EmitBranch(IRBranching *branch);
+        void EmitCondJump(IRNode *cmp, uint16_t label, bool invert=false);
+    void EmitContinue();
+    void EmitBreak();
+
+
+    // -- flow.cpp --
+    void EmitReturn(IRRet *ret);
+    void EmitInAsm(IRInlineAsm *asmn);
     Reg EmitPtrGuard(IRPtrGuard *guard, Reg dst);
-    Reg EmitTypeCast(IRTypeCast *cast, Reg dst);
-    void EmitIntoGenAddrRef(IRGenericIndexing *ref, Reg src);
 
-    // --- argpush utils ---
-    uint8_t typeIdentify(DataType *type);
-    uint64_t setDesc(uint64_t desc, uint8_t index, DataType *type);
-    uint64_t get64bitDesc(std::vector<DataType *> &args);
-
+    // -- backend.cpp --
     void ProcessStatement(IRNode *node);
     void ProcessTop(IRNode *node);
 
-    Reg CastReg(Reg reg, uint8_t size);
-    void TryCast(Reg dst, Reg proc);
-
-    typedef std::function<void(uint16_t)> writer_jmp_generic;
-    std::map<IRBinOp::Operation, writer_jmp_generic[2][2]> jmp_map;
-
-    struct FunctionDesc {
-        IRFunction *fn;
-        uint16_t metadata_l=0;
-        std::map<std::string, BaseHandlerDesc> base_handlers = {
-            {"add", {false, "__WDH_sum_overflow"}},
-            {"sub", {false, "__WDH_sub_overflow"}},
-            {"mul", {false, "__WDH_mul_overflow"}},
-            {"imul", {false, "__WDH_mul_overflow"}},
-            {"div", {false, "__WDH_div_overflow"}},
-            {"idiv", {false, "__WDH_div_overflow"}},
-            {"bounds", {false, "__WDH_out_of_bounds"}},
-            {"guard", {false, "__WDH_guard_failed"}}
-        };
-        std::map<std::string, UserHandlerDesc> active_handlers;
-        std::vector<UserHandlerDesc> user_handlers;
-    } *current_fn=nullptr;
-
-    const char *GetHandlerLabel(std::string instruction) {
-        if (current_fn->active_handlers.find(instruction) != current_fn->active_handlers.end()) {
-            return current_fn->active_handlers[instruction].handler_label;
-        }
-        if (current_fn->base_handlers.find(instruction) != current_fn->base_handlers.end()) {
-            current_fn->base_handlers[instruction].needEmit = true;
-            std::string handler_str = HANDLER_LABEL(current_fn->fn->fn_name, instruction);
-            return strdup(handler_str.c_str());
-        }
-        return "";
-    }
-
-};
-
-const std::map<HandlerType, std::vector<std::string>> HANDLER_INSTR_MAP = {
-    {HandlerType::SUM_HANDLER, {"add"}},
-    {HandlerType::SUB_HANDLER, {"sub"}},
-    {HandlerType::MUL_HANDLER, {"mul", "imul"}},
-    {HandlerType::DIV_HANDLER, {"div", "idiv"}},
-    {HandlerType::BOUNDS_HANDLER, {"bounds"}},
-    {HandlerType::GUARD_HANDLER, {"guard"}}
 };
 
 #endif

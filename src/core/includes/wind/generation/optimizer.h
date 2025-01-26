@@ -73,6 +73,11 @@ private:
    * @return An optimized IRNode.
    */
   IRNode *OptimizeLDecl(IRVariableDecl *local_decl, bool canLocFold);
+  
+
+  IRNode *OptimizeArgDecl(IRArgDecl *arg_decl, bool canLocFold);
+
+  bool canInline(IRNode *node);
 
   /**
    * @brief Optimizes function calls.

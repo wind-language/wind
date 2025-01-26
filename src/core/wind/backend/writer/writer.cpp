@@ -5,6 +5,7 @@
 
 #include <wind/backend/writer/writer.h>
 #include <iostream>
+#include <sstream>
 
 /**
  * @brief Creates a new section in the content.
@@ -57,11 +58,21 @@ void WindWriter::Content::WriteLabel(std::string content) { sections[cs_id].labe
 std::string WindWriter::Emit() {
     std::string output = ".intel_syntax noprefix\n";
     for (Section &section : content.sections) {
+        if (section.labels.empty() && section.header.empty()) continue;
         output += ".section " + section.name + "\n";
         output += section.header;
+        if (!section.externs.empty()) output += ".globl ";
+        for (std::string &ext : section.externs) {
+            output += ext + ", ";
+        }
+        if (!section.externs.empty()) { output.pop_back(); output.pop_back(); output += "\n"; }
         for (Label &label : section.labels) {
             output += label.name + ":\n";
-            output += label.content;
+            //output += label.content;
+            std::istringstream iss(label.content);
+            for (std::string line; std::getline(iss, line);) {
+                output += "  " + line + "\n";
+            }
         }
     }
     return output;

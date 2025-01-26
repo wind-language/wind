@@ -84,7 +84,7 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node, bool canLocFold) {
   IRNode *right = (IRNode*)node->right();
   IRBinOp::Operation op = node->operation();
   if (this->current_fn->fn->flags & PURE_EXPR) {
-    return new IRBinOp(std::unique_ptr<IRNode>(left), std::unique_ptr<IRNode>(right), op);
+    return node;
   }
   IRNode *opt_left = left;
 
@@ -94,8 +94,10 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node, bool canLocFold) {
   IRNode *opt_right = this->OptimizeExpr(right, canLocFold);
 
   if (opt_left->is<IRLiteral>() && opt_right->is<IRLiteral>()) {
+    IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(opt_left), std::unique_ptr<IRNode>(opt_right), op);
+    binop->setInferedType(node->inferType());
     return this->OptimizeConstFold(
-      new IRBinOp(std::unique_ptr<IRNode>(opt_left), std::unique_ptr<IRNode>(opt_right), op)
+      binop
     );
   }
   else if (
@@ -138,8 +140,10 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node, bool canLocFold) {
     opt_right->is<IRBinOp>()
   ) {
     // Swap the order of the operands to make the right one the non-binop
+    IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(opt_right), std::unique_ptr<IRNode>(opt_left), op);
+    binop->setInferedType(node->inferType());
     return this->OptimizeBinOp(
-      new IRBinOp(std::unique_ptr<IRNode>(opt_right), std::unique_ptr<IRNode>(opt_left), op),
+      binop,
       canLocFold
     );
   }
@@ -149,11 +153,13 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node, bool canLocFold) {
     pow2(opt_right->as<IRLiteral>()->get())
   ) {
     // pow2 mul into shl
-    return new IRBinOp(
+    IRBinOp *binop = new IRBinOp(
       std::unique_ptr<IRNode>(opt_left),
       std::unique_ptr<IRNode>(new IRLiteral(opt_right->as<IRLiteral>()->get() >> 1)),
       IRBinOp::Operation::SHL
     );
+    binop->setInferedType(node->inferType());
+    return binop;
   }
   else if (
     op == IRBinOp::Operation::DIV &&
@@ -161,11 +167,13 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node, bool canLocFold) {
     pow2(opt_right->as<IRLiteral>()->get())
   ) {
     // pow2 div into shr
-    return new IRBinOp(
+    IRBinOp *binop = new IRBinOp(
       std::unique_ptr<IRNode>(opt_left),
       std::unique_ptr<IRNode>(new IRLiteral(opt_right->as<IRLiteral>()->get() >> 1)),
       IRBinOp::Operation::SHR
     );
+    binop->setInferedType(node->inferType());
+    return binop;
   }
   else if (
     op == IRBinOp::Operation::MOD &&
@@ -179,11 +187,13 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node, bool canLocFold) {
       return new IRLiteral(0);
     }
     else if ((val&(val-1))==0) {
-      return new IRBinOp(
+      IRBinOp *binop = new IRBinOp(
         std::unique_ptr<IRNode>(opt_left),
         std::unique_ptr<IRNode>(new IRLiteral(val - 1)),
         IRBinOp::Operation::AND
       );
+      binop->setInferedType(node->inferType());
+      return binop;
     }
   }
 
@@ -198,6 +208,7 @@ IRNode *WindOptimizer::OptimizeBinOp(IRBinOp *node, bool canLocFold) {
   }
 
   IRBinOp *binop = new IRBinOp(std::unique_ptr<IRNode>(opt_left), std::unique_ptr<IRNode>(opt_right), op);
+  binop->setInferedType(node->inferType());
   return binop;
 }
 
@@ -214,16 +225,12 @@ IRNode *WindOptimizer::OptimizeLDecl(IRVariableDecl *local_decl, bool canLocFold
   }
   assert (this->current_fn != nullptr);
   if (!this->current_fn->fn->isUsed(local_decl->local())) {
-    this->current_fn->fn->stack_size -= local_decl->local()->datatype()->memSize();
+    // TODO: Shift stack
     return nullptr;
   }
   IRNode *opt_value = nullptr;
   if (local_decl->value()) {
     opt_value = this->OptimizeExpr(local_decl->value(), canLocFold);
-  }
-  if (local_decl->local()->datatype()->isArray()) {
-    // whenever an array is declared, a canary is needed to prevent buffer overflows
-    this->current_fn->fn->canary_needed = true;
   }
   if (opt_value->is<IRLiteral>() || opt_value->is<IRStringLiteral>()) {
     this->NewLocalValue(local_decl->local()->offset(), opt_value);
@@ -249,25 +256,43 @@ IRNode *WindOptimizer::OptimizeFnCall(IRFnCall *fn_call, bool canLocFold) {
   return opt_fn_call;
 }
 
+bool WindOptimizer::canInline(IRNode *node) {
+  if (node->is<IRVariableDecl>()) {
+    return false;
+  }
+  else if (node->is<IRLooping>()) {
+    return false;
+  }
+  else if (node->is<IRFnCall>()) {
+    return false;
+  }
+  else if (node->is<IRBinOp>()) {
+    IRBinOp *binop = node->as<IRBinOp>();
+    return this->canInline((IRNode*)binop->left()) && this->canInline((IRNode*)binop->right());
+  }
+  else if (node->is<IRTypeCast>()) {
+    IRTypeCast *type_cast = node->as<IRTypeCast>();
+    return this->canInline(type_cast->getValue());
+  }
+  return true;
+}
+
 IRNode *WindOptimizer::OptimizeFunction(IRFunction *fn) {
   IRFunction *fn_copy = fn->clone();
   bool can_inline=true;
 
   for (auto &node : fn->body()->get()) {
-    if (node->is<IRLooping>()) {
-      can_inline = false;
-      break;
-    }
-    else if (node->is<IRFnCall>()) {
+    if (node->is<IRRet>()) { can_inline = true; break; } // single return statement, can inline
+    if (!this->canInline(node.get())) {
       can_inline = false;
       break;
     }
   }
 
-  if (fn->ArgNum()==1 && can_inline) {
+  if (can_inline) {
     // clear stack usage
-    fn_copy->stack_size -= fn->GetArgType(0)->memSize();
     fn_copy->ignore_stack_abi = true;
+    fn_copy->stack_size = 0;
   }
   return fn_copy;
 }
@@ -386,6 +411,14 @@ IRNode *WindOptimizer::OptimizeTryCatch(IRTryCatch *try_catch, bool canLocFold) 
   return opt_try_catch;
 }
 
+IRNode *WindOptimizer::OptimizeArgDecl(IRArgDecl *arg_decl, bool canLocFold) {
+  if (this->current_fn->fn->isUsed(arg_decl->local())) {
+    return arg_decl;
+  }
+  // TODO: Shift stack
+  return nullptr;
+}
+
 IRNode *WindOptimizer::OptimizeNode(IRNode *node, bool canLocFold) {
   if (node->is<IRRet>()) {
     IRRet *ret = node->as<IRRet>();
@@ -396,6 +429,9 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node, bool canLocFold) {
   }
   else if (node->is<IRVariableDecl>()) {
     return this->OptimizeLDecl(node->as<IRVariableDecl>(), canLocFold);
+  }
+  else if (node->is<IRArgDecl>()) {
+    return this->OptimizeArgDecl(node->as<IRArgDecl>(), canLocFold);
   }
   else if (node->is<IRBranching>()) {
     return this->OptimizeBranching(node->as<IRBranching>());
@@ -450,8 +486,9 @@ IRNode *WindOptimizer::OptimizeNode(IRNode *node, bool canLocFold) {
 void WindOptimizer::OptimizeBody(IRBody *body, IRFunction *parent) {
   IRBody *tbody = parent->body();
   for (auto &node : body->get()) {
-    std::unique_ptr<IRNode> opt_node = std::unique_ptr<IRNode>(this->OptimizeNode(node.get(), true));
-    if (opt_node) {
+    IRNode *raw_opt_node = this->OptimizeNode(node.get(), true);
+    if (raw_opt_node) {
+      std::unique_ptr<IRNode> opt_node = std::unique_ptr<IRNode>(raw_opt_node);
       *tbody += std::move(opt_node);
     }
   }
@@ -485,7 +522,23 @@ void WindOptimizer::NewLocalValue(int16_t local, IRNode *value) {
 
 IRNode *WindOptimizer::GetLocalValue(int16_t local) {
   if (this->current_fn->lkv.find(local) != this->current_fn->lkv.end()) {
-    return this->current_fn->lkv[local];
+    //return this->current_fn->lkv[local];
+    // set size and signed
+    IRNode *value = this->current_fn->lkv[local];
+    switch (value->type()) {
+      case IRNode::NodeType::LITERAL: {
+        IRLocalRef *local_ref;
+        for (auto &local : this->current_fn->fn->locals()) {
+          if (local->offset() == local.get()->offset()) {
+            local_ref = local.get();
+            break;
+          }
+        }
+        value->as<IRLiteral>()->setSigned(local_ref->datatype()->isSigned());
+        //value->as<IRLiteral>()->setSize(local_ref->datatype()->moveSize());
+      }
+      default: return value;
+    }
   }
   return nullptr;
 }

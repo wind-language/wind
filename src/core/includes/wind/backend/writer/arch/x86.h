@@ -231,6 +231,7 @@ public:
     B_N_INSTR(rdtscp)
     B_N_INSTR(cdq)
     B_N_INSTR(cqo)
+    B_N_INSTR(cdqe)
 
     C_SEVEN_INSTR(cmp)
     C_SEVEN_INSTR(test)

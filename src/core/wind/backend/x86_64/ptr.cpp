@@ -1,333 +1,133 @@
 #include <wind/generation/IR.h>
 #include <wind/backend/writer/writer.h>
 #include <wind/backend/x86_64/backend.h>
-#include <wind/backend/x86_64/expr_macros.h>
 #include <wind/bridge/flags.h>
 #include <stdexcept>
 #include <iostream>
 
-Reg WindEmitter::EmitLocAddrRef(IRLocalAddrRef *ref, Reg dst) {
-    if (ref->isIndexed()) {
-        if (!ref->datatype()->isArray()) { // pointer indexing
-            CASTED_MOV(
-                CastReg(dst, 8),
-                this->writer->ptr(
-                    x86::Gp::rbp,
-                    ref->offset(),
-                    ref->datatype()->moveSize()
-                )
-            );
-            IRNode *index = ref->getIndex();
-            if (index->is<IRLiteral>()) {
-                CASTED_MOV(
-                    CastReg(dst, ref->datatype()->rawSize()),
-                    this->writer->ptr(
-                        CastReg(dst, 8),
-                        ref->datatype()->index2offset(index->as<IRLiteral>()->get()),
-                        ref->datatype()->rawSize()
-                    )
-                )
-            } else {
-                Reg r_index = this->EmitExpr(index, x86::Gp::rbx);
-                CASTED_MOV(
-                    CastReg(dst, ref->datatype()->rawSize()),
-                    this->writer->ptr(
-                        CastReg(dst, 8),
-                        CastReg(r_index, 8),
-                        0,
-                        ref->datatype()->rawSize()
-                    )
-                )
-            }
-            return dst;
-        }
-        if (ref->getIndex()->type() == IRNode::NodeType::LITERAL) {
-            int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get());
-            dst.size = ref->datatype()->moveSize(); dst.signed_value = ref->datatype()->isSigned();
-            CASTED_MOV(
-                CastReg(dst, ref->datatype()->rawSize()),
-                this->writer->ptr(
-                    x86::Gp::rbp,
-                    offset,
-                    ref->datatype()->rawSize()
-                )
-            );
-        } else {
-            Reg r_index = this->EmitExpr(ref->getIndex(), dst);
-            Reg index = {r_index.id, 8, Reg::GPR, false};
-            this->TryCast(index, r_index);
-            regalloc.SetDirty(index);
-            if (!ref->datatype()->hasCapacity() || this->current_fn->fn->flags & PURE_STCHK) {
-                CASTED_MOV(
-                    CastReg(dst, ref->datatype()->rawSize()),
-                    this->writer->ptr(
-                        x86::Gp::rbp,
-                        index,
-                        ref->offset(),
-                        ref->datatype()->rawSize()
-                    )
-                );
-            } else {
-                Reg addr_holder = this->regalloc.Allocate(8);
-                this->writer->OverflowChecks = false;
-                this->writer->lea(
-                    addr_holder,
-                    this->writer->ptr(
-                        x86::Gp::rbp,
-                        index,
-                        ref->offset(),
-                        ref->datatype()->rawSize()
-                    )
-                );
-                this->writer->sub(
-                    addr_holder,
-                    x86::Gp::rbp
-                );
-                this->writer->cmp(
-                    addr_holder,
-                    -ref->offset()+ref->datatype()->memSize()
-                );
-                WRITER_JBOUNDS();
-                this->writer->add(
-                    addr_holder,
-                    x86::Gp::rbp
-                );
-                CASTED_MOV(
-                    CastReg(dst, ref->datatype()->rawSize()),
-                    this->writer->ptr(
-                        addr_holder,
-                        0,
-                        ref->datatype()->rawSize()
-                    )
-                );
-                this->writer->OverflowChecks = true;
-                this->regalloc.Free(addr_holder);
-            }
-            this->regalloc.Free(index);
-        }
-    } else {
+Reg WindEmitter::EmitLocalPtr(IRLocalAddrRef *local, Reg dst) {
+    if (local->datatype()->isArray() && local->isIndexed()) {
+        // TODO: Implement array indexing
+    }
+    else {
+        // Load the address of the local variable
         this->writer->lea(
             dst,
             this->writer->ptr(
                 x86::Gp::rbp,
-                ref->offset(),
-                8
+                local->offset(),
+                local->datatype()->moveSize()
             )
         );
     }
-    return {dst.id, 8, Reg::GPR, false};
+    return CastReg(dst, 8);
 }
 
-void WindEmitter::EmitIntoLocAddrRef(IRLocalAddrRef *ref, Reg src) {
-    if (ref->isIndexed()) {
-        if (!ref->datatype()->isArray()) {
-            // pointer indexing
-            src.size = ref->datatype()->rawSize(); src.signed_value = ref->datatype()->isSigned();
-            CASTED_MOV(
-                x86::Gp::rbx,
-                this->writer->ptr(
-                    x86::Gp::rbp,
-                    ref->offset(),
-                    ref->datatype()->moveSize()
-                )
-            )
-            this->regalloc.SetVar(x86::Gp::rbx, ref->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
-            if (ref->getIndex()->is<IRLiteral>()) {
-                int16_t index = ref->getIndex()->as<IRLiteral>()->get();
-                if (index < 0) {
-                    throw std::runtime_error("Invalid offset " + std::to_string(index) + " for pointer " + std::to_string(ref->offset()));
-                }
-                this->writer->mov(
-                    this->writer->ptr(
-                        x86::Gp::rbx,
-                        ref->datatype()->index2offset(index),
-                        src.size
-                    ),
-                    src
-                );
-            } else {
-                this->regalloc.SetDirty(src); // Keep src alive
-                Reg r_index = this->EmitExpr(ref->getIndex(), this->regalloc.Allocate(8, false));
-                Reg index = {r_index.id, 8, Reg::GPR, false};
-                this->TryCast(index, r_index);
-                this->writer->mov(
-                    this->writer->ptr(
-                        x86::Gp::rbx,
-                        index,
-                        0,
-                        src.size
-                    ),
-                    src
-                );
-                this->regalloc.Free(index);
-            }
-            return;
-        }
-    } else {
-        // &var = src ;; doesn't have any use case
-        return;
+void WindEmitter::EmitIntoGenPtr(const IRNode *ptr, const IRNode *value) {
+    if (ptr->type() == IRNode::NodeType::LADDR_REF) {
+        throw std::runtime_error("TODO: Implement array indexing");
     }
 
-    // array indexing
-    if (ref->getIndex()->is<IRLiteral>()) {
-        int16_t offset = ref->offset() - ref->datatype()->index2offset(ref->getIndex()->as<IRLiteral>()->get());
-        src.size = ref->datatype()->moveSize(); src.signed_value = ref->datatype()->isSigned();
-        this->writer->mov(
-            this->writer->ptr(
-                x86::Gp::rbp,
-                offset,
-                ref->datatype()->rawSize()
-            ),
-            src
-        );
-    } else {
-        this->regalloc.SetDirty(src); // Keep src alive
-        Reg r_index = this->EmitExpr(ref->getIndex(), src);
-        Reg index = {r_index.id, 8, Reg::GPR, false};
-        this->TryCast(index, r_index);
-        regalloc.SetDirty(index);
-        if (!ref->datatype()->hasCapacity() || this->current_fn->fn->flags & PURE_STCHK) {
+    const IRGenericIndexing *ndexing = ptr->as<IRGenericIndexing>();
+    Reg base = this->EmitExpr(ndexing->getBase(), this->regalloc->Allocate(8, false));
+    this->regalloc->SetIndexing(base);
+    TryCast(CastReg(base, 8), base);
+    base = CastReg(base, 8);
+
+    IRNode *index = ndexing->getIndex();
+    Mem dst_ptr = this->writer->ptr(x86::Gp::rax, 0, 8); // placeholder
+    Reg c_index;
+
+    switch (index->type()) {
+        case IRNode::NodeType::LITERAL: {
+            dst_ptr = this->writer->ptr(
+                base,
+                ndexing->inferType()->index2offset(index->as<IRLiteral>()->get()),
+                ndexing->inferType()->rawSize()
+            );
+            break;
+        }
+        default: {
+            Reg r_index = this->EmitExpr(ndexing->getIndex(), this->regalloc->Allocate(8, false));
+            this->regalloc->SetIndexing(r_index);
+            c_index = {r_index.id, 8, Reg::GPR, false};
+            TryCast(c_index, r_index);
+            dst_ptr = this->writer->ptr(
+                base,
+                c_index,
+                0,
+                ndexing->inferType()->rawSize()
+            );
+        }
+    }
+    switch (value->type()) {
+        case IRNode::NodeType::LITERAL: {
             this->writer->mov(
-                this->writer->ptr(
-                    x86::Gp::rbp,
-                    index,
-                    ref->offset(),
-                    ref->datatype()->rawSize()
-                ),
+                dst_ptr,
+                value->as<IRLiteral>()->get()
+            );
+            break;
+        }
+        default: {
+            Reg src = this->EmitExpr((IRNode*)value, this->regalloc->Allocate(ndexing->inferType()->rawSize(), false));
+            this->writer->mov(
+                dst_ptr,
                 src
             );
-        } else {
-            Reg addr_holder = this->regalloc.Allocate(8);
-            this->writer->OverflowChecks = false;
-            this->writer->lea(
-                addr_holder,
-                this->writer->ptr(
-                    x86::Gp::rbp,
-                    index,
-                    ref->offset(),
-                    ref->datatype()->rawSize()
-                )
-            );
-            this->writer->sub(
-                addr_holder,
-                x86::Gp::rbp
-            );
-            this->writer->cmp(
-                addr_holder,
-                -ref->offset()+ref->datatype()->memSize()
-            );
-            WRITER_JBOUNDS();
-            this->writer->add(
-                addr_holder,
-                x86::Gp::rbp
-            );
-            this->writer->mov(
-                this->writer->ptr(
-                    addr_holder,
-                    0,
-                    ref->datatype()->rawSize()
-                ),
-                CastReg(src, ref->datatype()->rawSize())
-            );
-            this->writer->OverflowChecks = true;
-            this->regalloc.Free(addr_holder);
-        }
-        this->regalloc.Free(index);
-    }
-}
-
-Reg WindEmitter::EmitFnRef(IRFnRef *ref, Reg dst) {
-    this->writer->lea(
-        dst,
-        this->writer->ptr(
-            ref->name(),
-            0,
-            8
-        )
-    );
-    return {dst.id, 8, Reg::GPR, false};
-}
-
-Reg WindEmitter::EmitGenAddrRef(IRGenericIndexing *ref, Reg dst) {
-    IRNode *index = ref->getIndex();
-    if (index->is<IRLiteral>()) {
-        Reg base = this->EmitExpr(ref->getBase(), x86::Gp::rbx);
-        int16_t indexv = index->as<IRLiteral>()->get();
-        CASTED_MOV(
-            CastReg(dst, ref->inferType()->rawSize()),
-            this->writer->ptr(
-                CastReg(base, 8),
-                ref->inferType()->index2offset(indexv),
-                ref->inferType()->rawSize()
-            )
-        )
-        return CastReg(dst, ref->inferType()->rawSize());
-    }
-    Reg base = this->EmitExpr(ref->getBase(), x86::Gp::rbx);
-    Reg r_index = this->EmitExpr(index, this->regalloc.Allocate(8, false));
-    r_index = {r_index.id, 8, Reg::GPR, false};
-    CASTED_MOV(
-        CastReg(dst, ref->inferType()->rawSize()),
-        this->writer->ptr(
-            CastReg(base, 8),
-            CastReg(r_index, 8),
-            0,
-            ref->inferType()->rawSize()
-        )
-    )
-    TryCast(dst, CastReg(dst, ref->inferType()->rawSize()));
-    return dst;
-}
-
-Reg WindEmitter::EmitPtrGuard(IRPtrGuard *ref, Reg dst) {
-    Reg ptr = this->EmitExpr(ref->getValue(), dst);
-    this->writer->test(ptr, ptr);
-    WRITER_JGUARD();
-    return ptr;
-}
-
-Reg WindEmitter::EmitTypeCast(IRTypeCast *cast, Reg dst) {
-    Reg val = this->EmitExpr(cast->getValue(), dst);
-    if (val.size == cast->getType()->rawSize()) {
-        return val;
-    }
-    if (val.size < cast->getType()->rawSize()) {
-        if (val.signed_value) {
-            this->writer->movsx(CastReg(val, cast->getType()->rawSize()), val);
-        } else {
-            this->writer->movzx(CastReg(val, cast->getType()->rawSize()), val);
+            this->regalloc->Free(src);
         }
     }
-    return CastReg(val, cast->getType()->rawSize());
+    if (index->type() != IRNode::NodeType::LITERAL) {
+        this->regalloc->Free(c_index);
+    }
+    this->regalloc->Free(base);
 }
 
-void WindEmitter::EmitIntoGenAddrRef(IRGenericIndexing *ref, Reg src) {
-    IRNode *index = ref->getIndex();
-    if (index->is<IRLiteral>()) {
-        Reg base = this->EmitExpr(ref->getBase(), x86::Gp::rbx);
-        int16_t indexv = index->as<IRLiteral>()->get();
-        this->writer->mov(
-            this->writer->ptr(
-                CastReg(base, 8),
-                ref->inferType()->index2offset(indexv),
-                ref->inferType()->rawSize()
-            ),
-            CastReg(src, ref->inferType()->rawSize())
-        );
-        return;
+Reg WindEmitter::EmitGenPtrIndex(IRGenericIndexing *ptr, Reg dst) {
+    if (ptr->type() == IRNode::NodeType::LADDR_REF) {
+        throw std::runtime_error("TODO: Implement array indexing");
     }
 
-    this->regalloc.SetDirty(src); // Keep src alive
-    Reg base = this->EmitExpr(ref->getBase(), x86::Gp::rbx);
-    Reg r_index = this->EmitExpr(index, src);
-    r_index = {r_index.id, 8, Reg::GPR, false};
+    const IRGenericIndexing *ndexing = ptr->as<IRGenericIndexing>();
+    Reg base = this->EmitExpr(ndexing->getBase(), this->regalloc->Allocate(8, false));
+    this->regalloc->SetIndexing(base);
+    TryCast(CastReg(base, 8), base);
+    base = CastReg(base, 8);
+
+    IRNode *index = ndexing->getIndex();
+    Mem dst_ptr = this->writer->ptr(x86::Gp::rax, 0, 8); // placeholder
+    Reg c_index;
+
+    switch (index->type()) {
+        case IRNode::NodeType::LITERAL: {
+            dst_ptr = this->writer->ptr(
+                base,
+                ndexing->inferType()->index2offset(index->as<IRLiteral>()->get()),
+                ndexing->inferType()->rawSize()
+            );
+            break;
+        }
+        default: {
+            Reg r_index = this->EmitExpr(ndexing->getIndex(), this->regalloc->Allocate(8, false));
+            this->regalloc->SetIndexing(r_index);
+            c_index = {r_index.id, 8, Reg::GPR, false};
+            TryCast(c_index, r_index);
+            dst_ptr = this->writer->ptr(
+                base,
+                c_index,
+                0,
+                ndexing->inferType()->rawSize()
+            );
+        }
+    }
+    dst.size = ndexing->inferType()->rawSize();
     this->writer->mov(
-        this->writer->ptr(
-            CastReg(base, 8),
-            CastReg(r_index, 8),
-            0,
-            ref->inferType()->rawSize()
-        ),
-        CastReg(src, ref->inferType()->rawSize())
+        dst,
+        dst_ptr
     );
+    if (index->type() != IRNode::NodeType::LITERAL) {
+        this->regalloc->Free(c_index);
+    }
+    this->regalloc->Free(base);
+    return dst;
 }

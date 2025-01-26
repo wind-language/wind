@@ -11,7 +11,7 @@
 
 @pub func std::str::fmt::untoa(n: u64): ptr<char> {
     var buf: ptr<char> = guard![std::mem::alloc(24)]; // max u64 is 20 digits
-    var i: int =0;
+    var i: int = 0;
     branch [
         n == 0: {
             buf[0] = '0';

@@ -39,7 +39,7 @@ namespace __wind_internal {
             loop [i < arg_len] {
                 asm {
                     mov rax, ?i;
-                    mov rdi, [rbp+rax*8+32];   // 8 (size of ptr) + 8*(2 rets + 1 rbp) 
+                    mov rdi, [rbp+rax*8+24];   // 8 (size of ptr) + 8*(2 rets) 
                     mov ?arg, rdi;
                     // extract the arg corresponding type_entry
                     mov rdi, ?type_desc;

@@ -37,3 +37,9 @@
   printf("Pointer guard failed in function '%s'\n", metadata);
   abort();
 }
+
+@pub @pure[stchk no_mangle] func __WD_canary_fail(metadata: string) : void {
+  puts("*** [ canary fail ] ***");
+  printf("Canary fail encountered in function '%s'\n", metadata);
+  abort();
+}

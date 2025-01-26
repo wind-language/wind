@@ -23,7 +23,7 @@ target_compile_options(windc PRIVATE -g)
 if (WIND_BUILD_RUNTIME)
     add_custom_command(
         TARGET windc POST_BUILD
-        COMMAND ${CMAKE_BINARY_DIR}/windc ${WIND_RUNTIME_PATH}/stack.w ${WIND_RUNTIME_PATH}/handler.w ${WIND_RUNTIME_PATH}/start.w -ej -o ${WIND_RUNTIME_PATH}/wrt.o
+        COMMAND ${CMAKE_BINARY_DIR}/windc ${WIND_RUNTIME_PATH}/handler.w ${WIND_RUNTIME_PATH}/start.w -ej -o ${WIND_RUNTIME_PATH}/wrt.o
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
         COMMENT "Compiling runtime utilities"
     )

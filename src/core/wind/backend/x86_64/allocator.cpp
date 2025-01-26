@@ -40,7 +40,7 @@ void WindEmitter::RegisterAllocator::Free(Reg reg) {
  */
 Reg WindEmitter::RegisterAllocator::Allocate(uint8_t size, bool setDirty) {
     for (uint8_t i = 0; i < 16; i++) {
-        if ( (i>5 && i<8) || i==1 ) { continue; }
+        if ( (i>3 && i<6)) { continue; }
         if (regs[i].lifetime == RegValue::Lifetime::UNTIL_ALLOC || !regs[i].isDirty) {
             Reg freg = Reg({i, size, Reg::GPR});
             if (setDirty) this->SetDirty(freg);
@@ -77,7 +77,7 @@ void WindEmitter::RegisterAllocator::SetLifetime(Reg reg, RegValue::Lifetime lif
 /**
  * @brief Frees registers after a function call.
  */
-void WindEmitter::RegisterAllocator::FreeAllRegs() {
+void WindEmitter::RegisterAllocator::Reset() {
     // Every register is compromised after a function call
     for (uint8_t i = 0; i < 16; i++) {
         this->Free((Reg){i, 8, Reg::GPR});

@@ -78,13 +78,9 @@ DataType *typePriority(const IRNode *left, const IRNode *right) {
 
 DataType *findInferType(IRBinOp *binop) {
   switch (binop->operation()) {
-    case IRBinOp::L_PLUS_ASSIGN:
-    case IRBinOp::L_MINUS_ASSIGN:
-    case IRBinOp::G_PLUS_ASSIGN:
-    case IRBinOp::G_MINUS_ASSIGN:
     case IRBinOp::L_ASSIGN:
     case IRBinOp::G_ASSIGN:
-    case IRBinOp::VA_ASSIGN:
+    case IRBinOp::GEN_INDEX_ASSIGN:
       return binop->left()->inferType();
     default: {
       return typePriority(binop->left(), binop->right());
@@ -184,7 +180,7 @@ void* WindCompiler::visit(const BinaryExpr &node) {
       op = IRBinOp::Operation::G_ASSIGN;
     }
     else if (left->type() == IRNode::NodeType::LADDR_REF) {
-      op = IRBinOp::Operation::VA_ASSIGN;
+      op = IRBinOp::Operation::GEN_INDEX_ASSIGN;
     }
     else if (left->type() == IRNode::NodeType::GENERIC_INDEXING) {
       op = IRBinOp::Operation::GEN_INDEX_ASSIGN;
@@ -242,7 +238,7 @@ void *WindCompiler::visit(const VarAddressing &node) {
   IRNode *index = nullptr;
   if (node.getIndex() != nullptr) {
     index = (IRNode*)node.getIndex()->accept(*this);
-    if (index->type() == IRNode::NodeType::LITERAL) {
+    if (local->datatype()->isArray() && index->type() == IRNode::NodeType::LITERAL) {
       uint16_t indexv = index->as<IRLiteral>()->get();
       if (local->datatype()->isArray() && local->datatype()->hasCapacity() && indexv >= local->datatype()->getCaps()) {
         throw std::runtime_error("Index " + std::to_string(indexv) + " out of bounds");
@@ -283,6 +279,9 @@ void* WindCompiler::visit(const StringLiteral &node) {
  * @return The compiled IR node.
  */
 void* WindCompiler::visit(const Return &node) {
+  if (this->current_fn->return_type->moveSize() == DataType::VOID) {
+    throw std::runtime_error("Cannot return a value from a void function");
+  }
   const ASTNode *aval = node.get();
   if (aval == nullptr) {
     return new IRRet(nullptr);

@@ -17,7 +17,8 @@ enum HandlerType {
   SUM_HANDLER,
   SUB_HANDLER,
   MUL_HANDLER,
-  DIV_HANDLER
+  DIV_HANDLER,
+  CANARY_HANDLER
 };
 
 const std::unordered_map<std::string, HandlerType> handler_map = {
@@ -45,6 +46,8 @@ class DataType {
     DataType(DataType *ptr): type_size(ptr->moveSize()), capacity(UINT16_MAX), array(nullptr), ptr(ptr), signed_type(false) {}
     bool isArray() const { return array != nullptr; }
     bool isSigned() const { return signed_type; }
+    void setSigned(bool sign) { signed_type = sign; }
+    void setSize(uint16_t size) { type_size = size; }
     uint16_t moveSize() const {
       if (isArray() || isPointer()) return QWORD;
       else return type_size;
@@ -159,10 +162,10 @@ public:
 };
 
 class IRLocalRef : public IRNode {
-  int16_t stack_offset;
   DataType *var_type;
 
 public:
+  int16_t stack_offset;
   IRLocalRef(int16_t stack_offset, DataType *type);
   int16_t offset() const;
   DataType *datatype() const;
@@ -191,7 +194,7 @@ public:
       }
       return var_type->getPtrType();
     } 
-    return new DataType(DataType::QWORD, false);
+    return new DataType(new DataType(DataType::BYTE, false));
   }
 };
 
@@ -244,6 +247,10 @@ public:
   bool isVariadic() const { return flags & FN_VARIADIC; }
   bool isArgPush() const { return flags & FN_ARGPUSH; }
   bool isCallSub() const { return call_sub; }
+  bool isCanaryNeeded() const { return canary_needed && !(flags & PURE_STCHK);}
+
+  void OffsetCanaryStack();
+  void AddOffset(int16_t offset);
 
   IRLocalRef *NewLocal(std::string name, DataType *type, bool positive_offset = false);
   IRLocalRef* GetLocal(std::string name);
@@ -275,14 +282,9 @@ public:
     GREATEREQ,
     L_ASSIGN,
     G_ASSIGN,
-    VA_ASSIGN,
     MOD,
     LOGAND,
-    L_PLUS_ASSIGN,
-    L_MINUS_ASSIGN,
-    G_PLUS_ASSIGN,
-    G_MINUS_ASSIGN,
-    GEN_INDEX_ASSIGN,
+    GEN_INDEX_ASSIGN
   };
 
 private:
@@ -308,6 +310,7 @@ IRBinOp::Operation IRstr2op(std::string str);
 
 class IRLiteral : public IRNode {
   long long value;
+  DataType *int_type;
 
 public:
   explicit IRLiteral(long long v);
@@ -315,7 +318,13 @@ public:
   NodeType type() const override { return NodeType::LITERAL; }
 
   DataType *inferType() const override {
-    return new DataType(DataType::Sizes::QWORD, true);
+    return int_type;
+  }
+  void setSigned(bool sign) {
+    int_type->setSigned(sign);
+  }
+  void setSize(uint16_t size) {
+    int_type->setSize(size);
   }
 };
 

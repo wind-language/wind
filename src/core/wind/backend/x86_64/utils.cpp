@@ -1,5 +1,6 @@
 #include <wind/backend/x86_64/backend.h>
 #include <wind/generation/IR.h>
+#include <wind/backend/writer/writer.h>
 
 enum TypeID {
     BYTE = 0,
@@ -12,7 +13,7 @@ enum TypeID {
     POINTER = 7
 };
 
-uint8_t WindEmitter::typeIdentify(DataType *type) {
+uint8_t typeIdentify(DataType *type) {
     uint8_t base = 0;
     if (type->isArray() || type->isPointer()) {
         base = TypeID::POINTER; // std will treat as a string no matter what
@@ -27,9 +28,6 @@ uint8_t WindEmitter::typeIdentify(DataType *type) {
             case 4:
                 base = TypeID::DWORD;
                 break;
-            case 8:
-                base = TypeID::QWORD;
-                break;
             default:
                 base = TypeID::QWORD;
         }
@@ -40,13 +38,13 @@ uint8_t WindEmitter::typeIdentify(DataType *type) {
     return base;
 }
 
-uint64_t WindEmitter::setDesc(uint64_t desc, uint8_t index, DataType *type) {
+uint64_t setDesc(uint64_t desc, uint8_t index, DataType *type) {
     uint8_t base = typeIdentify(type);
     desc |= base << (index * 4);
     return desc;
 }
 
-uint64_t WindEmitter::get64bitDesc(std::vector<DataType*> &args) {
+uint64_t get64bitDesc(std::vector<DataType*> &args) {
     /*
     the idea is of having a 64-bit descriptor with each entry having 4 bits
          1 for the sign and 3 for the identification
@@ -72,4 +70,26 @@ uint64_t WindEmitter::get64bitDesc(std::vector<DataType*> &args) {
         desc = setDesc(desc, index, args[i]);
     }
     return desc;
+}
+
+unsigned NearPow2(unsigned n) {
+    if (n==0) return 0;
+    n--;
+    n |= n >> 1; n |= n >> 2; n |= n >> 4; n |= n >> 8; n |= n >> 16;
+    return n+1;
+}
+
+unsigned align16(unsigned n) {
+    // System V ABI is annoying and requires 16-byte stack alignment
+    int mask = ~(0xF);
+    int aligned = n & mask;
+    if (n != aligned) {
+        aligned += 16;
+    }
+    return aligned;
+}
+
+Reg CastReg(Reg reg, uint8_t size) {
+    reg.size = size;
+    return reg;
 }

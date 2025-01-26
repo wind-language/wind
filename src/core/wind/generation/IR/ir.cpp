@@ -245,7 +245,7 @@ IRLocalRef *IRFunction::NewLocal(std::string name, DataType *type, bool positive
     offset = this->plus_off;
   } else {
     stack_size += type->memSize();
-    offset = stack_size + (this->flags & PURE_STCHK ? 0 : 0x8); // canary space
+    offset = stack_size;
   }
   if (!positive_offset) {
     offset = -offset;
@@ -253,6 +253,23 @@ IRLocalRef *IRFunction::NewLocal(std::string name, DataType *type, bool positive
   local_table.insert({name, new IRLocalRef(offset, type)});
   this->fn_locals.push_back(std::make_unique<IRLocalRef>(offset, type));
   return this->fn_locals.back().get();
+}
+
+void IRFunction::AddOffset(int16_t offset) {
+  this->stack_size += offset;
+  for (auto &local : this->fn_locals) {
+    if (local->offset() < 0) local->stack_offset -= offset;
+  }
+  for (auto &local : this->local_table) {
+    if (local.second->offset() < 0) local.second->stack_offset -= offset;
+  }
+  for (auto &offset : this->used_offsets) {
+    if (offset < 0) offset -= offset;
+  }
+}
+
+void IRFunction::OffsetCanaryStack() {
+  this->AddOffset(8);
 }
 
 /**
@@ -350,7 +367,9 @@ IRBinOp::Operation IRstr2op(std::string str) {
  * @brief Constructor for IRLiteral.
  * @param v The literal value.
  */
-IRLiteral::IRLiteral(long long v) : value(v) {}
+IRLiteral::IRLiteral(long long v) : value(v) {
+  int_type = new DataType(DataType::Sizes::QWORD, true);
+}
 
 /**
  * @brief Gets the literal value.

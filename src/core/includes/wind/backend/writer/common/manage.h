@@ -53,6 +53,7 @@ struct Section {
     std::string name;
     std::vector<Label> labels;
     std::string header;
+    std::vector<std::string> externs;
 };
 
 class WindWriter {
@@ -86,7 +87,7 @@ public:
     std::string LabelById(uint16_t id) { return content.LabelById(id); }
 
     void Global(std::string name) { this->WriteHdr(".global " + name); }
-    void Extern(std::string name) { this->WriteHdr(".extern " + name); }
+    void Extern(std::string name) { this->content.sections[content.cs_id].externs.push_back(name); }
     void Align(uint16_t size) { this->Write(".align " + std::to_string(size)); }
 
     virtual std::string ResolveReg(Reg &reg) { return ""; }
@@ -129,6 +130,10 @@ public:
     void Dword(long value) { this->Write(".long " + std::to_string(value)); }
     void Qword(long value) { this->Write(".quad " + std::to_string(value)); }
     void Reserve(long size) { this->Write(".space " + std::to_string(size)); }
+
+    // Extra
+
+    void Comment(std::string comment) { this->Write("# " + comment); }
 
     // Emission
     std::string Emit();

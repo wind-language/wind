@@ -15,7 +15,6 @@ const std::unordered_map<IRBinOp::Operation, std::string> BOpTTable = {
   {IRBinOp::Operation::AND, "and"},
   {IRBinOp::Operation::L_ASSIGN, "mov"},
   {IRBinOp::Operation::G_ASSIGN, "mov"},
-  {IRBinOp::Operation::VA_ASSIGN, "mov"},
   {IRBinOp::Operation::GEN_INDEX_ASSIGN, "mov"},
   {IRBinOp::Operation::EQ, "eq"},
   {IRBinOp::Operation::LESS, "le"},
@@ -198,6 +197,7 @@ void IRPrinter::print_body(const IRBody *body) {
 }
 
 void IRPrinter::print_function(const IRFunction *node) {
+  if (!node->isDefined) return;
   this->print_tabs();
   if (node->flags & FN_EXTERN) {
     std::cout << "extern " << node->name() << "\n" << std::endl;

@@ -1,23 +1,11 @@
-@import "#std"
 @include "#libc.wi"
+@import "#std"
 
-func reverse(s: ptr<char>): void {
-
-}
-
-func set(s: ptr<char>, val: byte, len: size_t): void {
-    var i: size_t = 0;
-    loop[i<len] {
-        s[i] = val;
-        i++;
-    }
-}
 
 func main(argc: int, argv: ptr<ptr<char>>): int {
-    var s: ptr<char> = std::mem::alloc(5);
-    set(s, 'a', 5);
-    printf("%s\n", s);
-    std::mem::reverse(s, 5);
-    printf("%s\n", s);
+    var a: u32 = 10;
+    var b: u32 = 20;
+    //TODO: fix signess issue
+    std::io::println("a: ", a as s32, " b: ", b as s32);
     return 0;
 }

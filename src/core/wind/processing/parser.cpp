@@ -359,7 +359,6 @@ int getOpPrecedence(Token *tok) {
     case Token::Type::CAST_SYMBOL:
       return 3;
 
-    // TODO: More
     default:
       return 0;
   }
@@ -465,7 +464,8 @@ static std::map<std::string, FnFlags> FLAGS_MAP = {
   {"expr", PURE_EXPR},
   {"logue", PURE_LOGUE},
   {"stchk", PURE_STCHK},
-  {"no_mangle", FN_NOMANGLE}
+  {"no_mangle", FN_NOMANGLE},
+  {"arithm", PURE_ARITHM}
 };
 
 FnFlags macroIntoFlag(std::string name) {

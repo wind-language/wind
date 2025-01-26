@@ -30,28 +30,13 @@
 }
 
 @pub @pure[stchk] func std::mem::reverse(s: ptr<char>, len: size_t): void {
-    var l: size_t = 0;
+    var i: size_t = 0;
     var j: size_t = len - 1;
-    loop [l<j] {
-        asm {
-            mov rax, ?s;
-            add rax, ?l;
-            mov al, byte [rax];
-
-            mov rbx, ?s;
-            add rbx, ?j;
-            mov bl, byte [rbx];
-
-            mov rax, ?s;
-            add rax, ?l;
-            mov byte [rax], bl;
-
-            mov rbx, ?s;
-            add rbx, ?j;
-            mov byte [rbx], al;
-        }
-
-        l++;
+    loop[i<j] {
+        var tmp: char = s[i];
+        s[i] = s[j];
+        s[j] = tmp;
+        i++;
         j--;
     }
 }
