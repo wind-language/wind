@@ -83,6 +83,7 @@ public:
     // Label management
     uint16_t NewLabel(std::string name) { return content.NewLabel(name); }
     void BindLabel(uint16_t id) { content.BindLabel(id); }
+    uint16_t ActiveLabel() { return content.cl_id; }
     void Write(std::string content) { this->content.WriteLabel(content + "\n"); }
     std::string LabelById(uint16_t id) { return content.LabelById(id); }
 

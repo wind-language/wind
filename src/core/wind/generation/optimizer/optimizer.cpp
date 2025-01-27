@@ -69,6 +69,8 @@ IRLiteral *WindOptimizer::OptimizeConstFold(IRBinOp *node) {
       return new IRLiteral(left != right);
     case IRBinOp::Operation::GREATEREQ:
       return new IRLiteral(left >= right);
+    case IRBinOp::Operation::LOGAND:
+      return new IRLiteral(left && right);
     default:
       return nullptr;
   }

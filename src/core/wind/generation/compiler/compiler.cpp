@@ -363,7 +363,8 @@ std::string WindCompiler::functionSignature(std::string name, DataType *ret, std
   for (DataType *arg : args) {
     sig += generalizeType(arg) + ",";
   }
-  sig.pop_back();
+  if (args.size() > 0)
+    sig.pop_back();
   sig += ")";
   sig += "->"+generalizeType(ret);
   return sig;
@@ -735,8 +736,8 @@ void *WindCompiler::visit(const TryCatch &node) {
     handlers[matched_handler->second] = (IRBody*)handler.second->accept(*this);
   }
   IRBody *finally_body = nullptr;
-  if (node.getFinallyBlock()) {
-    finally_body = (IRBody*)node.getFinallyBlock()->accept(*this);
+  if (node.getFinallyBlock() != nullptr) {
+    finally_body = (IRBody*)(node.getFinallyBlock()->accept(*this));
   }
   return new IRTryCatch(try_body, finally_body, handlers);
 }

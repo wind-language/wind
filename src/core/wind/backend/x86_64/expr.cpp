@@ -54,7 +54,9 @@ Reg WindEmitter::EmitValue(IRNode *node, Reg dst) {
 template <typename srcT>
 Reg WindEmitter::EmitArithmeticOp(IRBinOp::Operation op, Reg dst, srcT right, bool isJmp) {
     if (this->state->jmp_map.find(op) != this->state->jmp_map.end()) {
-        this->writer->cmp(dst, right);
+        if (op == IRBinOp::Operation::LOGAND) this->writer->test(dst, right);
+        else this->writer->cmp(dst, right);
+        
         if (isJmp) return dst;
     }
     switch (op) {
@@ -78,6 +80,123 @@ Reg WindEmitter::EmitArithmeticOp(IRBinOp::Operation op, Reg dst, srcT right, bo
             dst = CastReg(dst, 1);
             if (dst.signed_value) this->writer->setl(dst);
             else this->writer->setb(dst);
+            break;
+        }
+        case IRBinOp::Operation::EQ: {
+            dst = CastReg(dst, 1);
+            this->writer->sete(dst);
+            break;
+        }
+        case IRBinOp::Operation::NOTEQ: {
+            dst = CastReg(dst, 1);
+            this->writer->setne(dst);
+            break;
+        }
+        case IRBinOp::Operation::GREATER: {
+            dst = CastReg(dst, 1);
+            if (dst.signed_value) this->writer->setg(dst);
+            else this->writer->seta(dst);
+            break;
+        }
+        case IRBinOp::Operation::LESSEQ: {
+            dst = CastReg(dst, 1);
+            if (dst.signed_value) this->writer->setle(dst);
+            else this->writer->setbe(dst);
+            break;
+        }
+        case IRBinOp::Operation::GREATEREQ: {
+            dst = CastReg(dst, 1);
+            if (dst.signed_value) this->writer->setge(dst);
+            else this->writer->setae(dst);
+            break;
+        }
+        case IRBinOp::Operation::LOGAND: {
+            this->writer->test(dst, right);
+            this->writer->setnz(dst);
+            break;
+        }
+        case IRBinOp::Operation::SHL: {
+            if (dst.signed_value) this->writer->sal(dst, right);
+            else this->writer->shl(dst, right);
+            break;
+        }
+        case IRBinOp::Operation::SHR: {
+            if (dst.signed_value) this->writer->sar(dst, right);
+            else this->writer->shr(dst, right);
+            break;
+        }
+        case IRBinOp::Operation::XOR: {
+            this->writer->xor_(dst, right);
+            break;
+        }
+        case IRBinOp::Operation::DIV: {
+            bool rdx_restore = this->regalloc->isDirty(x86::Gp::rdx);
+            RegisterAllocator::RegValue rdx = this->regalloc->GetRegState(x86::Gp::rdx);
+            if (rdx_restore) {
+                this->writer->push(x86::Gp::rdx);
+            }
+            TryCast(x86::Gp::rax, dst);
+            this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx);
+            if (dst.signed_value) this->writer->cqo();
+
+            if (typeid(srcT) != typeid(Reg)) {
+                Reg src = this->regalloc->Allocate(8, true);
+                this->writer->mov(src, right);
+                if (dst.signed_value) this->writer->idiv(src, this->state->RequestHandler(HandlerType::DIV_HANDLER));
+                else this->writer->div(src, this->state->RequestHandler(HandlerType::DIV_HANDLER));
+            } else {
+                if (dst.signed_value) this->writer->idiv(right, this->state->RequestHandler(HandlerType::DIV_HANDLER));
+                else this->writer->div(right, this->state->RequestHandler(HandlerType::DIV_HANDLER));
+            }
+
+            this->regalloc->Free(x86::Gp::rdx);
+            this->regalloc->Free(x86::Gp::rax);
+            if (rdx_restore) {
+                this->writer->pop(x86::Gp::rdx);
+                this->regalloc->SetRegState(x86::Gp::rdx, rdx);
+            }
+            return CastReg(x86::Gp::rax, 8);
+        }
+        case IRBinOp::Operation::MOD: {
+            bool rdx_restore = this->regalloc->isDirty(x86::Gp::rdx);
+            RegisterAllocator::RegValue rdx = this->regalloc->GetRegState(x86::Gp::rdx);
+            if (rdx_restore) {
+                this->writer->push(x86::Gp::rdx);
+            }
+            TryCast(x86::Gp::rax, dst);
+            this->writer->xor_(x86::Gp::rdx, x86::Gp::rdx);
+            if (dst.signed_value) this->writer->cqo();
+
+            if (typeid(srcT) != typeid(Reg)) {
+                Reg src = this->regalloc->Allocate(8, true);
+                this->writer->mov(src, right);
+                if (dst.signed_value) this->writer->idiv(src, this->state->RequestHandler(HandlerType::DIV_HANDLER));
+                else this->writer->div(src, this->state->RequestHandler(HandlerType::DIV_HANDLER));
+            } else {
+                if (dst.signed_value) this->writer->idiv(right, this->state->RequestHandler(HandlerType::DIV_HANDLER));
+                else this->writer->div(right, this->state->RequestHandler(HandlerType::DIV_HANDLER));
+            }
+
+            this->regalloc->Free(x86::Gp::rdx);
+            this->regalloc->Free(x86::Gp::rax);
+            if (rdx_restore) {
+                this->writer->pop(x86::Gp::rdx);
+                this->regalloc->SetRegState(x86::Gp::rdx, rdx);
+            }
+            return CastReg(x86::Gp::rdx, 8);
+        }
+        case IRBinOp::Operation::MUL: {
+            if (dst.signed_value) {
+                this->writer->imul(dst, right);
+                break;
+            }
+            if (typeid(srcT) != typeid(Reg)) {
+                Reg src = this->regalloc->Allocate(8, true);
+                this->writer->mov(src, right);
+                this->writer->mul(src, this->state->RequestHandler(HandlerType::MUL_HANDLER));
+            } else {
+                this->writer->mul(right, this->state->RequestHandler(HandlerType::MUL_HANDLER));
+            }
             break;
         }
         default: {

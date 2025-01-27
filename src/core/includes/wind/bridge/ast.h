@@ -298,7 +298,7 @@ public:
 
 class TryCatch : public ASTNode {
   Body *try_body;
-  Body *finally_block;
+  Body *finally_block=nullptr;
   std::vector<std::pair<std::string, Body*>> catch_blocks;
 
 public:

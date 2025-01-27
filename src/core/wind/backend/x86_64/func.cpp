@@ -129,15 +129,17 @@ void WindEmitter::ProcessFunction(IRFunction *fn) {
     // Handlers labels
     for (auto &handler : this->state->handlers->used_handlers) {
         this->writer->BindLabel(this->writer->NewLabel(handler.label));
-        this->writer->lea(
-            x86::Gp::rdi,
-            this->writer->ptr(
-                this->state->string(this->state->fn.ref->metadata),
-                0,
-                8
-            )
-        );
-        this->writer->call(handler.handler_fn);
+        if (handler.type == WindEmitter::BackendState::HandlerDesc::Type::SYSTEM) {
+            this->writer->lea(
+                x86::Gp::rdi,
+                this->writer->ptr(
+                    this->state->string(this->state->fn.ref->metadata),
+                    0,
+                    8
+                )
+            );
+            this->writer->call(handler.handler_fn);
+        }
     }
 }
 

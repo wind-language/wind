@@ -56,6 +56,9 @@ void WindEmitter::ProcessStatement(IRNode *node) {
         case IRNode::NodeType::BREAK:
             this->EmitBreak();
             break;
+        case IRNode::NodeType::TRY_CATCH:
+            this->EmitTryCatch(node->as<IRTryCatch>());
+            break;
         default: {
             this->EmitExpr(node, x86::Gp::rax);
         }

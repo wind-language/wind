@@ -29,6 +29,10 @@ void WindEmitter::EmitIntoGenPtr(const IRNode *ptr, const IRNode *value) {
     }
 
     const IRGenericIndexing *ndexing = ptr->as<IRGenericIndexing>();
+    Reg src = this->regalloc->Allocate(ndexing->inferType()->rawSize(), false);
+    if (value->type() != IRNode::NodeType::LITERAL) {
+        src = this->EmitExpr((IRNode*)value, src);
+    }
     Reg base = this->EmitExpr(ndexing->getBase(), this->regalloc->Allocate(8, false));
     this->regalloc->SetIndexing(base);
     TryCast(CastReg(base, 8), base);
@@ -69,10 +73,10 @@ void WindEmitter::EmitIntoGenPtr(const IRNode *ptr, const IRNode *value) {
             break;
         }
         default: {
-            Reg src = this->EmitExpr((IRNode*)value, this->regalloc->Allocate(ndexing->inferType()->rawSize(), false));
+            TryCast(CastReg(src, ndexing->inferType()->rawSize()), src);
             this->writer->mov(
                 dst_ptr,
-                src
+                CastReg(src, ndexing->inferType()->rawSize())
             );
             this->regalloc->Free(src);
         }
@@ -80,6 +84,7 @@ void WindEmitter::EmitIntoGenPtr(const IRNode *ptr, const IRNode *value) {
     if (index->type() != IRNode::NodeType::LITERAL) {
         this->regalloc->Free(c_index);
     }
+    this->regalloc->Free(src);
     this->regalloc->Free(base);
 }
 

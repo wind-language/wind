@@ -70,6 +70,8 @@ private:
         bool isDirty(Reg reg) { return regs[reg.id].isDirty; }
         void SetIndexing(Reg reg) { this->SetDirty(reg); regs[reg.id].lifetime = RegValue::Lifetime::INDEXING; }
         void AllocRepr();
+        RegValue GetRegState(Reg reg) { return regs[reg.id]; }
+        void SetRegState(Reg reg, RegValue state) { regs[reg.id] = state; }
     } *regalloc;
 
     // --- Section management ---
@@ -85,6 +87,8 @@ private:
                 uint16_t data;
                 uint16_t rodata;
             } sections;
+
+            uint16_t ActiveLabel() { return emitter.writer->ActiveLabel(); }
 
             // --- String management ---
 
@@ -106,7 +110,7 @@ private:
                 std::string label;
                 std::string handler_fn; // for system handlers
                 HandlerType op_handle;
-                // TODO: Logical return label for user handlers
+                uint16_t handler_i;
             };
 
             struct ExcHandlers {
@@ -119,7 +123,7 @@ private:
                 if (this->handlers->active_handlers.find(type) == this->handlers->active_handlers.end()) {
                     std::string label = ".L__"+this->fn.ref->name() + "." + std::to_string(type) + ".handler";
                     this->handlers->active_handlers[type] = {
-                        .type = HandlerDesc::Type::USER,
+                        .type = HandlerDesc::Type::SYSTEM,
                         .label = label,
                         .handler_fn = SYSTEM_HANDLERS.at(type),
                         .op_handle = type
@@ -127,6 +131,24 @@ private:
                     this->handlers->used_handlers.push_back(this->handlers->active_handlers[type]);
                 }
                 return strdup(this->handlers->active_handlers[type].label.c_str());
+            }
+
+            void SetHandler(HandlerType type, std::string label) {
+                this->handlers->active_handlers[type] = {
+                    .type = HandlerDesc::Type::USER,
+                    .label = label,
+                    .handler_fn = "",
+                    .op_handle = type
+                };
+            }
+            void AppendHandler(HandlerDesc handler) {
+                this->handlers->used_handlers.push_back(handler);
+            }
+
+            uint16_t NewHandlerFlow(HandlerType handler) {
+                return this->emitter.writer->NewLabel(
+                    ".L__"+std::to_string(this->l_flow_i++)+"."+std::to_string(handler)+".handler"
+                );
             }
 
             // --- Function management ---
@@ -242,6 +264,8 @@ private:
     void EmitReturn(IRRet *ret);
     void EmitInAsm(IRInlineAsm *asmn);
     Reg EmitPtrGuard(IRPtrGuard *guard, Reg dst);
+    Reg EmitFnRef(IRFnRef *fn_ref, Reg dst);
+    void EmitTryCatch(IRTryCatch *trycatch);
 
     // -- backend.cpp --
     void ProcessStatement(IRNode *node);

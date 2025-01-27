@@ -10,14 +10,14 @@ void WindEmitter::EmitCondJump(IRNode *cond, uint16_t label, bool invert) {
     if (cond->type() != IRNode::NodeType::BIN_OP) {
         Reg val = this->EmitExpr(cond, this->regalloc->Allocate(8, false), false);
         this->writer->cmp(val, 0);
-        this->state->jmp_map[IRBinOp::Operation::EQ][cond->inferType()->isSigned()][invert](label);
+        this->state->jmp_map[IRBinOp::Operation::NOTEQ][cond->inferType()->isSigned()][invert](label);
         return;
     }
     Reg val = this->EmitExpr(cond, this->regalloc->Allocate(8, false), false, true);
     auto jmp_it = this->state->jmp_map.find(cond->as<IRBinOp>()->operation());
     if (jmp_it == this->state->jmp_map.end()) {
         this->writer->cmp(val, 0);
-        this->state->jmp_map[IRBinOp::Operation::EQ][cond->inferType()->isSigned()][invert](label);
+        this->state->jmp_map[IRBinOp::Operation::NOTEQ][cond->inferType()->isSigned()][invert](label);
         return;
     }
     jmp_it->second[cond->inferType()->isSigned()][invert](label);
@@ -39,6 +39,7 @@ void WindEmitter::EmitBranch(IRBranching *branch) {
         for (auto &stmt : branch->getElseBranch()->get()) {
             this->ProcessStatement(stmt.get());
         }
+        this->regalloc->Reset();
     }
     this->writer->jmp(this->writer->LabelById(end_label));
     for (int i=0;i<Nb;i++) {
@@ -49,6 +50,7 @@ void WindEmitter::EmitBranch(IRBranching *branch) {
         if (i != Nb-1) {
             this->writer->jmp(this->writer->LabelById(end_label));
         }
+        this->regalloc->Reset();
     }
     this->writer->BindLabel(end_label);
 }

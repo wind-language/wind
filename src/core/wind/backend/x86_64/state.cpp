@@ -49,4 +49,8 @@ void WindEmitter::SetupJumpMap() {
     state->jmp_map[IRBinOp::Operation::NOTEQ][1][0] = [this](uint16_t label) { this->writer->jne(this->writer->LabelById(label)); };
     state->jmp_map[IRBinOp::Operation::NOTEQ][1][1] = [this](uint16_t label) { this->writer->je(this->writer->LabelById(label)); };
 
+    state->jmp_map[IRBinOp::Operation::LOGAND][0][0] = [this](uint16_t label) { this->writer->jnz(this->writer->LabelById(label)); };
+    state->jmp_map[IRBinOp::Operation::LOGAND][0][1] = [this](uint16_t label) { this->writer->jz(this->writer->LabelById(label)); };
+    state->jmp_map[IRBinOp::Operation::LOGAND][1][0] = [this](uint16_t label) { this->writer->jnz(this->writer->LabelById(label)); };
+    state->jmp_map[IRBinOp::Operation::LOGAND][1][1] = [this](uint16_t label) { this->writer->jz(this->writer->LabelById(label)); };
 }

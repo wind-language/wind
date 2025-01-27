@@ -180,7 +180,7 @@ public:
     A_FIVE_INSTR(sar)
     A_FIVE_INSTR(sal)
     A_FIVE_INSTR(imul)
-    A_FIVE_INSTR(mul)
+    SPECIAL_ARITHMETIC(mul)
 
     A_FIVE_INSTR(inc)
     A_FIVE_INSTR(dec)
@@ -214,6 +214,7 @@ public:
     B_QUAD_INSTR(jns)
     B_QUAD_INSTR(jp)
     B_QUAD_INSTR(jnp)
+    B_QUAD_INSTR(jnz)
     B_QUAD_INSTR(sete)
     B_QUAD_INSTR(setne)
     B_QUAD_INSTR(setg)
@@ -224,6 +225,7 @@ public:
     B_QUAD_INSTR(setae)
     B_QUAD_INSTR(setb)
     B_QUAD_INSTR(setbe)
+    B_QUAD_INSTR(setnz)
 
     B_N_INSTR(leave)
     B_N_INSTR(ret)
