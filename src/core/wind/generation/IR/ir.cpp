@@ -637,3 +637,17 @@ IRBody *IRTryCatch::getHandler(HandlerType type) const {
 std::map<HandlerType, IRBody*> IRTryCatch::getHandlerMap() const {
   return handlers;
 }
+
+IRStructValue::IRStructValue(std::vector<std::pair<StructField, IRNode*>> f) : fields(std::move(f)) {}
+const std::vector<std::pair<StructField, IRNode*>>& IRStructValue::getFields() const {
+  return fields;
+}
+
+
+IRLocFieldAccess::IRLocFieldAccess(IRLocalRef *local, int16_t offset, DataType *field_type): local(local), offset(offset), field_type(field_type) {}
+IRLocalRef *IRLocFieldAccess::getLocal() const {
+  return local;
+}
+int16_t IRLocFieldAccess::getOffset() const {
+  return offset;
+}

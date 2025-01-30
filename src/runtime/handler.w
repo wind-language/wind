@@ -43,3 +43,11 @@
   printf("Canary fail encountered in function '%s'\n", metadata);
   abort();
 }
+
+@pub @pure[stchk no_mangle] func __WD_memcpy(dst: ptr<char>, src: ptr<char>, n: size_t): void {
+  var i: size_t = 0;
+  loop [i<n] {
+    dst[i] = src[i];
+    i++;
+  }
+}

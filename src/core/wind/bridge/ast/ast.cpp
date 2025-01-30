@@ -333,3 +333,33 @@ const std::string& Namespace::getName() const {
 Body* Namespace::getChildren() const {
   return children;
 }
+
+StructDecl::StructDecl(std::string n, std::vector<std::pair<std::string, std::string>> f) : name(n), fields(f) {}
+const std::string &StructDecl::getName() const {
+  return name;
+}
+const std::vector<std::pair<std::string, std::string>> &StructDecl::getFields() const {
+  return fields;
+}
+void *StructDecl::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+
+StructValue::StructValue(std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>> f): fields(std::move(f)) {}
+void *StructValue::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>>& StructValue::getFields() const {
+  return fields;
+}
+
+FieldAccess::FieldAccess(std::unique_ptr<ASTNode> b, std::string f): base(std::move(b)), field(f) {}
+void *FieldAccess::accept(ASTVisitor &visitor) const {
+  return visitor.visit(*this);
+}
+const ASTNode *FieldAccess::getBase() const {
+  return base.get();
+}
+const std::string &FieldAccess::getField() const {
+  return field;
+}

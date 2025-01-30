@@ -29,6 +29,9 @@ public:
     void *visit(const SizeOf &node) override;
     void *visit(const TryCatch &node) override;
     void *visit(const Namespace &node) override;
+    void *visit(const StructDecl &node) override;
+    void *visit(const StructValue &node) override;
+    void *visit(const FieldAccess &node) override;
 
 private:
     void print_tabs();

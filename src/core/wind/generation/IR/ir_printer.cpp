@@ -24,6 +24,9 @@ const std::unordered_map<IRBinOp::Operation, std::string> BOpTTable = {
   {IRBinOp::Operation::NOTEQ, "neq"},
   {IRBinOp::Operation::MOD, "mod"},
   {IRBinOp::Operation::LOGAND, "&&"},
+  {IRBinOp::Operation::OR, "||"},
+  {IRBinOp::Operation::XOR, "xor"},
+  {IRBinOp::Operation::LOC_STRUCT_ASSIGN, "mov"}
 };
 
 IRPrinter::~IRPrinter() {}
@@ -174,6 +177,18 @@ void IRPrinter::print_node(const IRNode *node) {
     case IRNode::NodeType::TRY_CATCH: {
       this->print_trycatch(
         node->as<IRTryCatch>()
+      );
+      break;
+    }
+    case IRNode::NodeType::STRUCT_VAL: {
+      this->print_struct_val(
+        node->as<IRStructValue>()
+      );
+      break;
+    }
+    case IRNode::NodeType::LOC_STRUCT_ACC: {
+      this->print_struct_access(
+        node->as<IRLocFieldAccess>()
       );
       break;
     }
@@ -385,4 +400,20 @@ void IRPrinter::print_trycatch(const IRTryCatch *node) {
     this->print_tabs();
     std::cout << "}";
   }
+}
+
+void IRPrinter::print_struct_val(const IRStructValue *node) {
+  std::cout << "{";
+  for (auto &field : node->getFields()) {
+    std::cerr << field.first.offset << " = ";
+    this->print_node(field.second);
+    if (&field != &node->getFields().back()) {
+      std::cout << ", ";
+    }
+  }
+  std::cout << "}";
+}
+
+void IRPrinter::print_struct_access(const IRLocFieldAccess *node) {
+  std::cout << "loc" << std::abs(node->getLocal()->offset()+node->getOffset());
 }

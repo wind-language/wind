@@ -228,3 +228,34 @@ void *ASTPrinter::visit(const Namespace &node) {
   std::cout << "}\n";
   return nullptr;
 }
+
+void *ASTPrinter::visit(const StructDecl &node) {
+  std::cout << "struct " << node.getName() << " {\n";
+  this->tabs++;
+  for (const auto &field : node.getFields()) {
+    this->print_tabs();
+    std::cout << field.first << " [" << field.second << "]\n";
+  }
+  this->tabs--;
+  this->print_tabs();
+  std::cout << "}\n";
+  return nullptr;
+}
+
+void *ASTPrinter::visit(const StructValue &node) {
+  std::cout << "{";
+  for (auto &val : node.getFields()) {
+    std::cout << val.first << ": ";
+    val.second->accept(*this);
+    if (&val != &node.getFields().back())
+      std::cout << ", ";
+  }
+  std::cout << "}";
+  return nullptr;
+}
+
+void *ASTPrinter::visit(const FieldAccess &node) {
+  node.getBase()->accept(*this);
+  std::cout << "." << node.getField();
+  return nullptr;
+}

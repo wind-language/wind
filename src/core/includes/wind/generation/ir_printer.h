@@ -34,6 +34,8 @@ private:
   void print_ptr_guard(const IRPtrGuard *node);
   void print_typecast(const IRTypeCast *node);
   void print_trycatch(const IRTryCatch *node);
+  void print_struct_val(const IRStructValue *node);
+  void print_struct_access(const IRLocFieldAccess *node);
 
   void print_tabs();
 };

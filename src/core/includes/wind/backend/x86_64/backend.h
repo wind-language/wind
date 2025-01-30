@@ -223,6 +223,11 @@ private:
     
     // -- vars.cpp --
     void ProcessGlobal(IRGlobalDecl *decl);
+    void EmitLocalDecl(IRVariableDecl *decl);
+
+    // -- struct.cpp --
+    void EmitStructIntoLocal(IRLocalRef *local, IRStructValue *value);
+    Reg EmitLocFieldAcc(IRLocFieldAccess *access, Reg dst);
     
 
     // -- expr.cpp --
@@ -237,9 +242,9 @@ private:
             Reg EmitStrLiteral(IRStringLiteral *str, Reg dst);
             Reg EmitTypeCast(IRTypeCast *cast, Reg dst);
             // -- vars.cpp --
-            Reg EmitLocalVar(IRLocalRef *local, Reg dst);
+            Reg EmitLocalVar(IRLocalRef *local, Reg dst, int16_t st_offset=0, DataType *st_type=nullptr);
             Reg EmitGlobalVar(IRGlobRef *global, Reg dst);
-            void EmitIntoLocalVar(IRLocalRef *local, IRNode *value);
+            void EmitIntoLocalVar(IRLocalRef *local, IRNode *value, int16_t st_offset=0, DataType *st_type=nullptr);
             void EmitIntoGlobalVar(IRGlobRef *global, IRNode *value);
             // -- ptr.cpp --
             Reg EmitLocalPtr(IRLocalAddrRef *local, Reg dst);

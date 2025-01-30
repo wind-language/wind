@@ -4,9 +4,10 @@
 #include <wind/bridge/flags.h>
 #include <iostream>
 
-Reg WindEmitter::EmitLocalVar(IRLocalRef *local, Reg dst) {
-    dst.size = local->datatype()->moveSize();
-    Reg *reg = this->regalloc->FindLocalVar(local->offset(), local->datatype()->moveSize());
+Reg WindEmitter::EmitLocalVar(IRLocalRef *local, Reg dst, int16_t st_offset, DataType *ret_type) {
+    if (!ret_type) ret_type = local->datatype();
+    dst.size = ret_type->moveSize();
+    Reg *reg = this->regalloc->FindLocalVar(local->offset(), ret_type->moveSize());
     if (reg) {
         if (reg->id != dst.id) TryCast(dst, *reg);
     } else {
@@ -14,13 +15,13 @@ Reg WindEmitter::EmitLocalVar(IRLocalRef *local, Reg dst) {
             dst,
             this->writer->ptr(
                 x86::Gp::rbp,
-                local->offset(),
-                local->datatype()->moveSize()
+                local->offset()+st_offset,
+                ret_type->moveSize()
             )
         );
         this->regalloc->SetVar(dst, local->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
     }
-    dst.signed_value = local->datatype()->isSigned();
+    dst.signed_value = ret_type->isSigned();
     return dst;
 }
 
@@ -44,67 +45,68 @@ Reg WindEmitter::EmitGlobalVar(IRGlobRef *global, Reg dst) {
     return dst;
 }
 
-void WindEmitter::EmitIntoLocalVar(IRLocalRef *local, IRNode *value) {
+void WindEmitter::EmitIntoLocalVar(IRLocalRef *local, IRNode *value, int16_t st_offset, DataType *ret_type) {
+    if (!ret_type) ret_type = local->datatype();
     switch (value->type()) {
-        case IRNode::NodeType::LITERAL: {        
+        case IRNode::NodeType::LITERAL: {
             this->writer->mov(
                 this->writer->ptr(
                     x86::Gp::rbp,
-                    local->offset(),
-                    local->datatype()->moveSize()
+                    local->offset()+st_offset,
+                    ret_type->moveSize()
                 ),
                 value->as<IRLiteral>()->get()
             );
-            break;
+            return;
         }
         case IRNode::NodeType::LOCAL_REF: {
             Reg *freg = this->regalloc->FindLocalVar(value->as<IRLocalRef>()->offset(), value->as<IRLocalRef>()->datatype()->moveSize());
             if (freg) {
-                Reg creg = CastReg(*freg, local->datatype()->moveSize());
+                Reg creg = CastReg(*freg, ret_type->moveSize());
                 TryCast(creg, *freg);
                 this->writer->mov(
                     this->writer->ptr(
                         x86::Gp::rbp,
-                        local->offset(),
-                        local->datatype()->moveSize()
+                        local->offset()+st_offset,
+                        ret_type->moveSize()
                     ),
                     creg
                 );
                 this->regalloc->SetVar(creg, local->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
-                break;
+                return;
             }
+            break;
         }
         case IRNode::NodeType::GLOBAL_REF: {
             Reg *freg = this->regalloc->FindLabel(value->as<IRGlobRef>()->getName(), value->as<IRGlobRef>()->getType()->moveSize());
             if (freg) {
-                Reg creg = CastReg(*freg, local->datatype()->moveSize());
+                Reg creg = CastReg(*freg, ret_type->moveSize());
                 TryCast(creg, *freg);
                 this->writer->mov(
                     this->writer->ptr(
                         x86::Gp::rbp,
-                        local->offset(),
-                        local->datatype()->moveSize()
+                        local->offset()+st_offset,
+                        ret_type->moveSize()
                     ),
                     creg
                 );
                 this->regalloc->SetVar(creg, local->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
-                break;
+                return;
             }
-        }
-        default: {
-            Reg src = this->EmitExpr(value, this->regalloc->Allocate(local->datatype()->moveSize(), true));
-            this->TryCast(src, src);
-            this->writer->mov(
-                this->writer->ptr(
-                    x86::Gp::rbp,
-                    local->offset(),
-                    local->datatype()->moveSize()
-                ),
-                src
-            );
-            this->regalloc->SetVar(src, local->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
+            break;
         }
     }
+    Reg src = this->EmitExpr(value, this->regalloc->Allocate(ret_type->moveSize(), true));
+    this->TryCast(src, src);
+    this->writer->mov(
+        this->writer->ptr(
+            x86::Gp::rbp,
+            local->offset()+st_offset,
+            ret_type->moveSize()
+        ),
+        src
+    );
+    this->regalloc->SetVar(src, local->offset(), RegisterAllocator::RegValue::Lifetime::UNTIL_ALLOC);
 }
 
 void WindEmitter::EmitIntoGlobalVar(IRGlobRef *global, IRNode *value) {
@@ -201,5 +203,21 @@ void WindEmitter::ProcessGlobal(IRGlobalDecl *decl) {
         }
     } else {
         this->writer->Reserve(decl->global()->getType()->memSize());
+    }
+}
+
+void WindEmitter::EmitLocalDecl(IRVariableDecl *decl) {
+    if (decl->value()) {
+        if (decl->value()->is<IRStructValue>()) {
+            this->EmitExpr(
+                new IRBinOp(
+                    std::unique_ptr<IRNode>(decl->local()),
+                    std::unique_ptr<IRNode>(decl->value()),
+                    IRBinOp::Operation::LOC_STRUCT_ASSIGN
+                ),
+                x86::Gp::rax
+            );
+        }
+        else this->EmitIntoLocalVar(decl->local(), decl->value());
     }
 }

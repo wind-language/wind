@@ -163,7 +163,8 @@ static Token::Type TOK_OP_LIST[]={
   Token::Type::OR,
   Token::Type::AND,
   Token::Type::XOR,
-  Token::Type::CAST_SYMBOL
+  Token::Type::CAST_SYMBOL,
+  Token::Type::FIELD_ACCESS
 };
 
 bool tokIsOperator(Token *tok) {
@@ -212,6 +213,29 @@ ASTNode *WindParser::parseExprPrimary() {
     case Token::STRING:
     case Token::INTEGER:
       return this->parseExprLiteral();
+    
+    case Token::LBRACE: {
+      // array or struct value
+      Token *rsrc = this->expect(Token::Type::LBRACE, "{");
+      if (this->stream->current()->type != Token::Type::IDENTIFIER || this->stream->peek()->type != Token::Type::COLON) {
+        GetReporter(rsrc)->Report(ParserReport::PARSER_ERROR, new Token(
+          rsrc->value, rsrc->type, "Static array values are not supported yet", rsrc->range, rsrc->srcId), rsrc);
+      }
+      std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>> values;
+      while (!this->until(Token::Type::RBRACE)) {
+        std::string key = this->expect(Token::Type::IDENTIFIER, "key")->value;
+        this->expect(Token::Type::COLON, ":");
+        ASTNode *value = this->parseExpr(0);
+        values.push_back({key, std::unique_ptr<ASTNode>(value)});
+        if (this->until(Token::Type::COMMA)) {
+          this->expect(Token::Type::COMMA, ",");
+        }
+      }
+      this->expect(Token::Type::RBRACE, "}");
+      return new StructValue(
+        std::move(values)
+      );
+    }
 
     case Token::IDENTIFIER: {
       if (isKeyword(this->stream->current(), "true")) {
@@ -396,6 +420,13 @@ ASTNode *WindParser::parseExprBinOp(ASTNode *left, int precedence) {
       left = new TypeCast(
         this->typeSignature(Token::Type::IDENTIFIER),
         std::unique_ptr<ASTNode>(left)
+      );
+      continue;
+    }
+    else if (op->type == Token::Type::FIELD_ACCESS) {
+      left = new FieldAccess(
+        std::unique_ptr<ASTNode>(left),
+        this->expect(Token::Type::IDENTIFIER, "field name")->value
       );
       continue;
     }
@@ -783,6 +814,24 @@ Namespace *WindParser::parseNamespace() {
   return new Namespace(name, ns_body);
 }
 
+StructDecl *WindParser::parseStructDecl() {
+  this->expect(Token::Type::IDENTIFIER, "struct");
+  std::string name = this->expect(Token::Type::IDENTIFIER, "struct name")->value;
+  std::vector<std::pair<std::string,std::string>> fields;
+  this->expect(Token::Type::LBRACE, "{");
+  while (!this->until(Token::Type::RBRACE)) {
+    std::string field_name = this->expect(Token::Type::IDENTIFIER, "field name")->value;
+    this->expect(Token::Type::COLON, ":");
+    std::string field_type = this->typeSignature(Token::Type::COMMA, Token::Type::RBRACE);
+    fields.push_back(std::make_pair(field_name, field_type));
+    if (this->until(Token::Type::COMMA)) {
+      this->expect(Token::Type::COMMA, ",");
+    }
+  }
+  this->expect(Token::Type::RBRACE, "}");
+  return new StructDecl(name, fields);
+}
+
 ASTNode *WindParser::DiscriminateTop() {
   if (this->isKeyword(stream->current(), "func")) {
     return this->parseFn();
@@ -790,6 +839,10 @@ ASTNode *WindParser::DiscriminateTop() {
   else if (this->isKeyword(stream->current(), "global")) {
     this->flag_holder = 0;
     return this->parseGlobDecl();
+  }
+  else if (this->isKeyword(stream->current(), "struct")) {
+    this->flag_holder = 0;
+    return this->parseStructDecl();
   }
   else if (this->isKeyword(stream->current(), "namespace")) {
     this->flag_holder = 0;

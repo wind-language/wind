@@ -31,6 +31,7 @@ private:
   Looping *parseLoop();
   TryCatch *parseTryCatch();
   Namespace *parseNamespace();
+  StructDecl *parseStructDecl();
 
   ASTNode *parseMacro();
 

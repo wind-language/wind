@@ -109,7 +109,14 @@ void WindCompiler::CanCoerce(IRNode *left, IRNode *right) {
  */
 void* WindCompiler::visit(const BinaryExpr &node) {
   IRNode *left = (IRNode*)node.getLeft()->accept(*this);
-  IRNode *right = (IRNode*)node.getRight()->accept(*this);
+  IRNode *right;
+  if (node.getOperator()=="=" && left->is<IRLocalRef>()) {
+    DataType *old_fit = this->state.best_type;
+    this->state.best_type = left->as<IRLocalRef>()->datatype();
+    right = (IRNode*)node.getRight()->accept(*this);
+    this->state.best_type = old_fit;
+  }
+  else { right = (IRNode*)node.getRight()->accept(*this); }
   IRBinOp::Operation op;
   if (node.getOperator() == "+=") {
     if (left->type() == IRNode::NodeType::LOCAL_REF) {
@@ -174,7 +181,10 @@ void* WindCompiler::visit(const BinaryExpr &node) {
   else if (node.getOperator() == "=") {
     // Assign operation
     if (left->type() == IRNode::NodeType::LOCAL_REF) {
-      op = IRBinOp::Operation::L_ASSIGN;
+      if (left->as<IRLocalRef>()->datatype()->isStruct()) {
+        op = IRBinOp::Operation::LOC_STRUCT_ASSIGN;
+      }
+      else { op = IRBinOp::Operation::L_ASSIGN; }
     } 
     else if (left->type() == IRNode::NodeType::GLOBAL_REF) {
       op = IRBinOp::Operation::G_ASSIGN;
@@ -488,13 +498,17 @@ DataType *WindCompiler::ResolveDataType(const std::string &n_type) {
 void *WindCompiler::visit(const VariableDecl &node) {
   assert(this->current_fn != nullptr);
   IRNode *val=nullptr;
+  DataType *old_best = this->state.best_type;
+  DataType *type = this->ResolveDataType(node.getType());
+  this->state.best_type = type;
   if (node.getValue()) {
     val = (IRNode*)node.getValue()->accept(*this);
   }
+  this->state.best_type = old_best;
   std::vector<IRVariableDecl*> *decls = new std::vector<IRVariableDecl*>();
   for (std::string name : node.getNames()) {
     uint16_t decl_i = this->current_fn->locals().size();
-    IRLocalRef *local = this->current_fn->NewLocal(name, this->ResolveDataType(node.getType()));
+    IRLocalRef *local = this->current_fn->NewLocal(name, type);
     if (local->datatype()->isArray()) {
       this->current_fn->canary_needed = true;
     }
@@ -533,6 +547,16 @@ void *WindCompiler::visit(const ArgDecl &node) {
   return new IRArgDecl(local);
 }
 
+bool WindCompiler::StaticStructsMatch(DataType *left, IRStructValue *right) {
+  StructType *left_s = left->getStructType();
+  if (left_s->fields.size() != right->getFields().size()) return false;
+  for (int i=0; i<left_s->fields.size();i++) {
+    if (left_s->fields[i].name != right->getFields()[i].first.name) return false;
+    if (!this->typeMatch(left_s->fields[i].type, right->getFields()[i].second)) return false;
+  }
+  return true;
+}
+
 bool WindCompiler::typeMatch(DataType *left, IRNode *right) {
   DataType *right_t = right->inferType();
   if (left->isPointer() && right_t->isPointer()) return true;
@@ -541,14 +565,29 @@ bool WindCompiler::typeMatch(DataType *left, IRNode *right) {
     if (right->is<IRLiteral>()) return true;
     if (left->moveSize() == right_t->moveSize()) return true;
   }
+  if (left->isStruct() && right->is<IRStructValue>()) {
+    return StaticStructsMatch(left, (IRStructValue*)right->as<IRStructValue>());
+  }
   return false;
 }
 
 IRFunction *WindCompiler::matchFunction(std::string name, std::vector<std::unique_ptr<IRNode>> &args, bool raise) {
+  std::string nsp_name = name;
+  bool found = false;
   auto range = this->fn_table.equal_range(name);
   if (range.first == range.second) {
-    if (!raise) return nullptr;
-    throw std::runtime_error("Function " + name + " not found");
+    for (std::string ns : this->active_namespaces) {
+      nsp_name = ns + "::" + nsp_name;
+      range = this->fn_table.equal_range(nsp_name);
+      if (range.first != range.second) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      if (!raise) return nullptr;
+      throw std::runtime_error("Function " + name + " not found");
+    }
   }
   for (auto it = range.first; it != range.second; it++) {
     IRFunction *fn = it->second;
@@ -715,8 +754,14 @@ void *WindCompiler::visit(const PtrGuard &node) {
 }
 
 void *WindCompiler::visit(const TypeCast &node) {
-  IRNode *value = (IRNode*)node.getValue()->accept(*this);
   DataType *type = this->ResolveDataType(node.getType());
+  DataType *old_fit = this->state.best_type;
+  this->state.best_type = type;
+  IRNode *value = (IRNode*)node.getValue()->accept(*this);
+  this->state.best_type = old_fit;
+  if (value->is<IRStructValue>()) {
+    return value;
+  }
   return new IRTypeCast(value, type);
 }
 
@@ -751,4 +796,81 @@ void *WindCompiler::visit(const Namespace &node) {
   IRBody *irbody = (IRBody*)body->accept(*this);
   this->active_namespaces.pop_back();
   return irbody;
+}
+
+int16_t roundpow2o(int16_t num) {
+  return 1 << (32 - __builtin_clz(num-1));
+}
+
+void *WindCompiler::visit(const StructDecl &node) {
+  std::vector<StructField> fields;
+  int16_t offset=0;
+  for (auto &field : node.getFields()) {
+    DataType *type = this->ResolveDataType(field.second);
+    fields.push_back({
+        field.first,
+        type,
+        offset
+    });
+    offset += type->memSize();
+  }
+  StructType *st = new StructType({
+    fields,
+    (uint16_t)offset
+  });
+  DataType *dt = new DataType(st);
+  this->userdef_types_map[node.getName()] = dt;
+  return nullptr;
+}
+
+void *WindCompiler::visit(const StructValue &node) {
+  std::vector<std::pair<StructField, IRNode*>> fields;
+  DataType *st_type = this->state.best_type;
+  if (!st_type || !st_type->isStruct()) {
+    throw std::runtime_error("Cannot find a struct to cast static struct value into");
+  }
+  StructType *st = st_type->getStructType();
+  for (auto &field : node.getFields()) {
+    if (!st->getField(field.first)) {
+      throw std::runtime_error("Field " + field.first + " not found in casted struct");
+    }
+    DataType *old_fit = this->state.best_type;
+    this->state.best_type = st->getField(field.first)->type;
+    IRNode *val = (IRNode*)field.second->accept(*this);
+    this->state.best_type = old_fit;
+    if (!this->typeMatch(st->getField(field.first)->type, val)) {
+      throw std::runtime_error("Field " + field.first + " type mismatch");
+    }
+    fields.push_back({*st->getField(field.first), val});
+  }
+  return new IRStructValue(fields);
+}
+
+void *WindCompiler::visit(const FieldAccess &node) {
+  IRNode *base = (IRNode*)node.getBase()->accept(*this);
+  if (!base->inferType()->isStruct()) {
+    throw std::runtime_error("Base of field access must be a struct");
+  }
+  StructType *st = base->inferType()->getStructType();
+  StructField *field = st->getField(node.getField());
+  if (field == nullptr) {
+    throw std::runtime_error("Field " + node.getField() + " not found in struct");
+  }
+  if (base->is<IRLocFieldAccess>()) {
+    IRLocFieldAccess *lfa = base->as<IRLocFieldAccess>();
+    return new IRLocFieldAccess(
+      lfa->getLocal(),
+      lfa->getOffset() + field->offset,
+      field->type
+    );
+  }
+  else if (base->is<IRLocalRef>()) {
+    return new IRLocFieldAccess(
+      base->as<IRLocalRef>(),
+      field->offset,
+      field->type
+    );
+  } else {
+    throw std::runtime_error("Field access base must be a local reference");
+  }
 }

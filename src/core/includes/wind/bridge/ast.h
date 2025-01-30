@@ -323,6 +323,36 @@ public:
   Body* getChildren() const;
 };
 
+class StructDecl : public ASTNode {
+  std::string name;
+  std::vector<std::pair<std::string, std::string>> fields; // name, type
+
+public:
+  StructDecl(std::string n, std::vector<std::pair<std::string, std::string>> f);
+  const std::string& getName() const;
+  const std::vector<std::pair<std::string, std::string>>& getFields() const;
+  void *accept(ASTVisitor &visitor) const;
+};
+
+class StructValue : public ASTNode {
+  std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>> fields;
+
+public:
+  StructValue(std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>> f);
+  void *accept(ASTVisitor &visitor) const;
+  const std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>>& getFields() const;
+};
+
+class FieldAccess : public ASTNode {
+  std::unique_ptr<ASTNode> base;
+  std::string field;
+public:
+  FieldAccess(std::unique_ptr<ASTNode> b, std::string f);
+  void *accept(ASTVisitor &visitor) const;
+  const ASTNode* getBase() const;
+  const std::string& getField() const;
+};
+
 
 class ASTVisitor {
 public:
@@ -350,6 +380,9 @@ public:
   virtual void *visit(const SizeOf &node) = 0;
   virtual void *visit(const TryCatch &node) = 0;
   virtual void *visit(const Namespace &node) = 0;
+  virtual void *visit(const StructDecl &node) = 0;
+  virtual void *visit(const StructValue &node) = 0;
+  virtual void *visit(const FieldAccess &node) = 0;
 };
 
 #endif // AST_H

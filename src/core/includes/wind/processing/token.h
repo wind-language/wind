@@ -51,7 +51,8 @@ public:
     NOTEQ,
     NOT,
     ARROW,
-    CAST_SYMBOL
+    CAST_SYMBOL,
+    FIELD_ACCESS,
   };
   
   std::string value;
@@ -106,7 +107,8 @@ std::vector<std::pair<std::string, Token::Type>> const SymbolTable = {
   {"&", Token::Type::AND},
   {"|", Token::Type::OR},
   {"^", Token::Type::XOR},
-  {"!", Token::Type::NOT}
+  {"!", Token::Type::NOT},
+  {".", Token::Type::FIELD_ACCESS}
 };
 
 #endif

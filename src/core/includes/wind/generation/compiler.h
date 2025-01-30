@@ -25,12 +25,17 @@ private:
   std::vector<std::string> active_namespaces;
   std::multimap<std::string, IRFunction*> fn_table;
 
+  struct CastState {
+    DataType *best_type=nullptr;
+  } state;
+
 
   std::string namespacePrefix(std::string name);
   std::string generalizeType(DataType *type);
   std::string functionSignature(std::string name, DataType *ret, std::vector<DataType*> &args);
   std::pair<std::string, std::string> fnSignHash(std::string name, DataType *ret, std::vector<DataType*> &args);
 
+  bool StaticStructsMatch(DataType *left, IRStructValue *right);
   bool typeMatch(DataType *left, IRNode *right);
   IRFunction* matchFunction(std::string name, std::vector<std::unique_ptr<IRNode>> &args, bool raise=true);
 
@@ -65,6 +70,9 @@ private:
   void *visit(const SizeOf &node) override;
   void *visit(const TryCatch &node) override;
   void *visit(const Namespace &node) override;
+  void *visit(const StructDecl &node) override;
+  void *visit(const StructValue &node) override;
+  void *visit(const FieldAccess &node) override;
 };
 
 #endif // COMPILER_H

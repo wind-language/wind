@@ -30,20 +30,43 @@ const std::unordered_map<std::string, HandlerType> handler_map = {
   {"DIV_OF", DIV_HANDLER}
 };
 
+class DataType;
+struct StructField {
+  std::string name;
+  DataType *type;
+  int16_t offset;
+};
+
+class StructType {
+public:
+  std::vector<StructField> fields;
+  uint16_t mem_size; // optimized effective size (2^x) && sizeof(struct) == mem_size
+  StructField *getField(const std::string &name) {
+    for (auto &field : fields) {
+      if (field.name == name) {
+        return &field;
+      }
+    }
+    return nullptr;
+  }
+};
+
 class DataType {
   private:
-    DataType *array;
+    DataType *array=nullptr;
     DataType *ptr=nullptr;
+    StructType *struct_type=nullptr;
     uint16_t type_size;
     uint16_t capacity;
     bool signed_type = true;
 
   public:
-    DataType(uint16_t size, bool is_signed) : type_size(size), capacity(1), array(nullptr), signed_type(is_signed) {}
-    DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr), ptr(nullptr) {}
-    DataType(uint16_t size, DataType *arr) : type_size(size), capacity(UINT16_MAX), array(arr), ptr(nullptr) {}
-    DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr), ptr(nullptr) {}
-    DataType(DataType *ptr): type_size(ptr->moveSize()), capacity(UINT16_MAX), array(nullptr), ptr(ptr), signed_type(false) {}
+    DataType(uint16_t size, bool is_signed) : type_size(size), capacity(1), array(nullptr), signed_type(is_signed), ptr(nullptr), struct_type(nullptr) {}
+    DataType(uint16_t size, uint16_t cap) : type_size(size), capacity(cap), array(nullptr), ptr(nullptr), struct_type(nullptr) {}
+    DataType(uint16_t size, DataType *arr) : type_size(size), capacity(UINT16_MAX), array(arr), ptr(nullptr), struct_type(nullptr) {}
+    DataType(uint16_t size, uint16_t cap, DataType *arr) : type_size(size), capacity(cap), array(arr), ptr(nullptr), struct_type(nullptr) {}
+    DataType(DataType *ptr): type_size(ptr->moveSize()), capacity(UINT16_MAX), array(nullptr), ptr(ptr), signed_type(false), struct_type(nullptr) {}
+    DataType(StructType *st) : type_size(DataType::VOID), capacity(UINT16_MAX), array(nullptr), ptr(nullptr), struct_type(st) {}
     bool isArray() const { return array != nullptr; }
     bool isSigned() const { return signed_type; }
     void setSigned(bool sign) { signed_type = sign; }
@@ -58,6 +81,9 @@ class DataType {
     }
     uint16_t memSize() const {
       uint32_t bytes = 0;
+      if (isStruct()) {
+        return struct_type->mem_size;
+      }
       if (isPointer()) {
         return QWORD;
       }
@@ -77,9 +103,10 @@ class DataType {
     bool hasCapacity() const { return capacity != UINT16_MAX; }
     uint16_t getCaps() const { if (hasCapacity()) return capacity; return 0; }
     bool isScalar() const { return !isArray() && !isPointer(); }
-
+    bool isStruct() const { return struct_type != nullptr; }
     bool isPointer() const { return ptr != nullptr; }
     DataType *getPtrType() const { return ptr; }
+    StructType *getStructType() const { return struct_type; }
 
     enum Sizes {
       BYTE = 1,
@@ -115,7 +142,9 @@ public:
     GENERIC_INDEXING,
     PTR_GUARD,
     TYPE_CAST,
-    TRY_CATCH
+    TRY_CATCH,
+    STRUCT_VAL,
+    LOC_STRUCT_ACC
   };
 
   virtual ~IRNode() = default;
@@ -284,7 +313,8 @@ public:
     G_ASSIGN,
     MOD,
     LOGAND,
-    GEN_INDEX_ASSIGN
+    GEN_INDEX_ASSIGN,
+    LOC_STRUCT_ASSIGN
   };
 
 private:
@@ -335,6 +365,18 @@ public:
   explicit IRStringLiteral(std::string v);
   const std::string& get() const;
   NodeType type() const override { return NodeType::STRING; }
+
+  DataType *inferType() const override {
+    return new DataType(new DataType(DataType::Sizes::BYTE, false));
+  }
+};
+
+class IRStructValue : public IRNode {
+  std::vector<std::pair<StructField, IRNode*>> fields;
+public:
+  explicit IRStructValue(std::vector<std::pair<StructField, IRNode*>> f);
+  const std::vector<std::pair<StructField, IRNode*>>& getFields() const;
+  NodeType type() const override { return NodeType::STRUCT_VAL; }
 
   DataType *inferType() const override {
     return new DataType(new DataType(DataType::Sizes::BYTE, false));
@@ -501,6 +543,18 @@ public:
   IRBody *getFinallyBody() const;
   std::map<HandlerType, IRBody*> getHandlerMap() const;
   NodeType type() const override { return NodeType::TRY_CATCH; }
+};
+
+class IRLocFieldAccess : public IRNode {
+  IRLocalRef *local;
+  int16_t offset;
+  DataType *field_type;
+public:
+  IRLocFieldAccess(IRLocalRef *local, int16_t offset, DataType *field_type);
+  IRLocalRef *getLocal() const;
+  int16_t getOffset() const;
+  NodeType type() const override { return NodeType::LOC_STRUCT_ACC; }
+  DataType *inferType() const override { return field_type; }
 };
 
 #endif // IR_H

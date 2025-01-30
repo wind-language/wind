@@ -26,21 +26,26 @@ BUILD_DIR="build"
 DIST_DIR="wind-dist-$VERSION"
 WRT_DIR="$DIST_DIR/wrt"
 STD_DIR="$DIST_DIR/std"
+PKG_DIR="$DIST_DIR/pkgs"
 
 echo "Version: $VERSION"
 echo "Creating distribution directories..."
 mkdir -p "$WRT_DIR"
 mkdir -p "$STD_DIR"
+mkdir -p "$PKG_DIR"
 
 echo "Copying runtime files..."
 cp -r $SCRIPT_DIR/../src/runtime/* "$WRT_DIR/"
 echo "Copying standard library files..."
 cp -r $SCRIPT_DIR/../src/std/* "$STD_DIR/"
+echo "Copying packages files..."
+cp -r $SCRIPT_DIR/../src/pkgs/* "$PKG_DIR/"
 
 echo "Configuring the build with CMake..."
 cmake -B "$BUILD_DIR" -S $SCRIPT_DIR/.. \
     -DWIND_STD_PATH="std" \
     -DWIND_RUNTIME_PATH="wrt" \
+    -DWIND_PKG_PATH="pkgs" \
     -DWIND_BUILD_RUNTIME=OFF
 
 echo "Building the compiler..."
@@ -52,7 +57,6 @@ cp "$BUILD_DIR/windc" "$DIST_DIR/windc"
 echo "Compiling runtime files with windc..."
 "$DIST_DIR/windc" \
     "$WRT_DIR/handler.w" \
-    "$WRT_DIR/stack.w" \
     "$WRT_DIR/start.w" \
     -ej -o "$WRT_DIR/wrt.o"
 

@@ -157,12 +157,9 @@ void WindEmitter::EmitFnCallStackArg(IRNode *argv) {
                 TryCast(*reg, CastReg(*reg, 8));
                 this->writer->push(CastReg(*reg, 8));
             } else {
+                this->EmitExpr(argv, x86::Gp::rax, true);
                 this->writer->push(
-                    this->writer->ptr(
-                        x86::Gp::rbp,
-                        local->offset(),
-                        local->datatype()->moveSize()
-                    )
+                    x86::Gp::rax
                 );
             }
             break;
@@ -182,7 +179,7 @@ void WindEmitter::EmitFnCallStackArg(IRNode *argv) {
 
         default: {
             Reg arg = this->EmitExpr(argv, this->regalloc->Allocate(8, true));
-            this->writer->push(arg);
+            this->writer->push(CastReg(arg, 8));
             this->regalloc->Free(arg);
         }
     }
@@ -233,7 +230,6 @@ Reg WindEmitter::EmitFnCall(IRFnCall *fn_call, Reg dst) {
         argstack_size = fn_call->args().size()*8;
     }
 
-    this->regalloc->Reset();
     this->writer->call(fn_ref->name());
 
     if (argstack_size>0) this->writer->add(x86::Gp::rsp, argstack_size);
@@ -241,5 +237,6 @@ Reg WindEmitter::EmitFnCall(IRFnCall *fn_call, Reg dst) {
         this->writer->mov(dst, x86::Gp::rax);
     }
     dst.size = fn_ref->return_type->moveSize();
+    this->regalloc->Reset();
     return dst;
 }

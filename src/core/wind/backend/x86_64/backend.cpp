@@ -36,10 +36,7 @@ void WindEmitter::ProcessStatement(IRNode *node) {
             this->EmitReturn(node->as<IRRet>());
             break;
         case IRNode::NodeType::LOCAL_DECL:
-            for (IRVariableDecl *decl=node->as<IRVariableDecl>(); decl->value();) {
-                this->EmitIntoLocalVar(decl->local(), decl->value());
-                break;
-            }
+            this->EmitLocalDecl(node->as<IRVariableDecl>());
             break;
         case IRNode::NodeType::IN_ASM:
             this->EmitInAsm(node->as<IRInlineAsm>());

@@ -44,7 +44,10 @@ Reg WindEmitter::EmitValue(IRNode *node, Reg dst) {
         case IRNode::NodeType::LADDR_REF: return this->EmitLocalPtr(node->as<IRLocalAddrRef>(), dst);
         case IRNode::NodeType::GENERIC_INDEXING: return this->EmitGenPtrIndex(node->as<IRGenericIndexing>(), dst);
         case IRNode::NodeType::PTR_GUARD: return this->EmitPtrGuard(node->as<IRPtrGuard>(), dst);
-
+        case IRNode::NodeType::STRUCT_VAL: {
+            throw std::runtime_error("Non-local Static struct value not managed yet");
+        }
+        case IRNode::NodeType::LOC_STRUCT_ACC: return this->EmitLocFieldAcc(node->as<IRLocFieldAccess>(), dst);
         default: {
             throw std::runtime_error("Invalid value node type(" + std::to_string((uint8_t)node->type()) + "): Report to maintainer!");
         }
@@ -251,6 +254,9 @@ Reg WindEmitter::EmitBinOp(IRBinOp *expr, Reg dst, bool isJmp) {
             return dst;
         case IRBinOp::Operation::GEN_INDEX_ASSIGN:
             this->EmitIntoGenPtr(expr->left(), expr->right());
+            return dst;
+        case IRBinOp::Operation::LOC_STRUCT_ASSIGN:
+            this->EmitStructIntoLocal((IRLocalRef*)expr->left()->as<IRLocalRef>(), (IRStructValue*)expr->right()->as<IRStructValue>());
             return dst;
         default: {}
     }
